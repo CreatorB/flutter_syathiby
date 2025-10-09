@@ -9,9 +9,11 @@ Ma'had Tahfizh al-Qur'an al-Imam as-Syathiby, cileungsi, bogor, Indonesia.
 ## Branches
 
 - [main](https://github.com/creatorb/flutter_syathiby)
+
 This original version of Syathiby App built by IT Sragen, we will still support this branch with latest requirements and keep the original features, InshaAllah.
 
 - [dev](https://github.com/creatorb/flutter_syathiby/tree/dev)
+
 This version of Syathiby App built by IT Syathiby, we will update this branch with latest requirements and add new features, InshaAllah.
 
 ## Development
