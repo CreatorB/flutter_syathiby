@@ -1,6 +1,8 @@
 # Syathiby App
 
-Handover existing vendor flutter app for managing the system at Ma'had Tahfizh al-Qur'an al-Imam as-Syathiby, cileungsi, bogor, Indonesia.
+Enchance and customized version of Syathiby Vendor App [https://github.com/creatorb/flutter-syathiby-vendor](https://github.com/creatorb/flutter-syathiby-vendor)
+
+Ma'had Tahfizh al-Qur'an al-Imam as-Syathiby, cileungsi, bogor, Indonesia.
 
 #pondok #jabodetabek #ma'had #tahfizh #al-Qur'an #sunnah #manhaj #salaf #cileungsi #bogor #indonesia #syathiby
 
@@ -18,13 +20,13 @@ Rebuild model and url env
 flutter pub run build_runner build --delete-conflicting-outputs
 ```
 
-Rename App and Package name (change build.gradle to build.gradle.kts) :
+Rename App and Package name
 
 ```sh
 dart run flutter_application_id:main -f flutter_application_id.yaml
 ```
 
-Rename app name :
+(Optional) Rename app name :
 
 ```sh
 flutter pub global activate rename
@@ -59,23 +61,9 @@ Run app :
 flutter clean ; flutter pub get ; flutter run -d 127.0.0.1:5555 -v
 ```
 
-Clean repository :
-
-```sh
-#linux
-find . -name '*.g.dart' -type f -delete
-find . -name '*.freezed.dart' -type f -delete
-find . -name '*.riverpod.dart' -type f -delete
-
-#windows
-Get-ChildItem -Path . -Recurse -Include *.g.dart | Remove-Item -Force
-Get-ChildItem -Path . -Recurse -Include *.freezed.dart | Remove-Item -Force
-Get-ChildItem -Path . -Recurse -Include *.riverpod.dart | Remove-Item -Force
-```
-
 ## License
 
-Copyright IT Sragen & IT Syathiby 2024
+Copyright IT Syathiby 2024
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
