@@ -2,6 +2,7 @@ import 'package:adaptive_theme/adaptive_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:syathiby/di/providers.dart';
 import 'package:syathiby/l10n/string_hardcoded.dart';
 import 'package:syathiby/res/strings.dart';
@@ -195,14 +196,21 @@ class SettingScreen extends HookConsumerWidget {
                   ),
                 ),
               ),
-              SizedBox(
-                width: double.infinity,
-                child: Text(
-                  'v1.0',
-                  textAlign: TextAlign.center,
-                  style: context.labelLarge?.copyWith(
-                    color: context.colorOnSurface.withOpacity(0.38),
-                  ),
+              Center(
+                child: FutureBuilder<PackageInfo>(
+                  future: PackageInfo.fromPlatform(),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData) {
+                      return Text(
+                        'Versi ${snapshot.data!.version}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: context.colorPrimary.withOpacity(0.8),
+                        ),
+                      );
+                    }
+                    return const SizedBox(); // Jangan tampilkan apa-apa saat loading
+                  },
                 ),
               ),
             ],

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:adaptive_theme/adaptive_theme.dart';
@@ -14,11 +15,12 @@ import 'package:syathiby/app.dart';
 import 'di/providers.dart';
 import 'firebase_options.dart';
 
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
 
 const AndroidNotificationChannel channel = AndroidNotificationChannel(
-  'high_importance_channel', 
-  'High Importance Notifications', 
+  'high_importance_channel',
+  'High Importance Notifications',
   description: 'This channel is used for important notifications.',
   importance: Importance.max,
 );
@@ -29,7 +31,17 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print("Handling a background message: ${message.messageId}");
 }
 
+// class MyHttpOverrides extends HttpOverrides {
+//   @override
+//   HttpClient createHttpClient(SecurityContext? context) {
+//     return super.createHttpClient(context)
+//       ..badCertificateCallback =
+//           (X509Certificate cert, String host, int port) => true;
+//   }
+// }
+
 Future<void> main() async {
+  // HttpOverrides.global = MyHttpOverrides();
 
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -65,7 +77,6 @@ Future<void> _initFirebase() async {
 }
 
 Future<void> _initServices() async {
-
   // await JustAudioBackground.init(
   //   androidNotificationChannelId: 'com.ryanheise.audioservice.channel.audio',
   //   androidNotificationChannelName: 'Audio playback',
@@ -73,13 +84,15 @@ Future<void> _initServices() async {
   // );
 
   await flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
       ?.createNotificationChannel(channel);
 
-  final notificationsPlugin = flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+  final notificationsPlugin =
+      flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
   if (notificationsPlugin != null) {
-      await notificationsPlugin.requestNotificationsPermission();
+    await notificationsPlugin.requestNotificationsPermission();
   }
 
   FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -104,11 +117,9 @@ Future<void> _initServices() async {
 }
 
 Future<ProviderContainer> _bootstrap() async {
-
   final prefs = await SharedPreferences.getInstance();
   return ProviderContainer(
     overrides: [
-
       sharedPreferencesProvider.overrideWithValue(prefs),
     ],
   );

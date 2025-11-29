@@ -4,6 +4,7 @@ import 'package:flutter_hooks/flutter_hooks.dart' hide Store;
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:syathiby/di/providers.dart';
 import 'package:syathiby/models/hostel/hostel.dart';
 import 'package:syathiby/models/user/request_logout.dart';
@@ -350,6 +351,12 @@ class HomeScreen extends HookConsumerWidget {
                       child: Visibility(
                         visible: !isHoliday,
                         child: FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: isClockIn
+                                ? context
+                                    .colorPrimary // Warna Hijau/Utama (Masuk)
+                                : context.colorError, // Warna Merah (Pulang)
+                          ),
                           onPressed: () async {
                             if (isClockIn) {
                               _showPresenceIn(context, ref, key);
@@ -366,6 +373,24 @@ class HomeScreen extends HookConsumerWidget {
                             isClockIn ? 'Absen Masuk' : 'Absen Pulang',
                           ),
                         ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Center(
+                      child: FutureBuilder<PackageInfo>(
+                        future: PackageInfo.fromPlatform(),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasData) {
+                            return Text(
+                              'Versi ${snapshot.data!.version}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: context.colorPrimary.withOpacity(0.8),
+                              ),
+                            );
+                          }
+                          return const SizedBox(); // Jangan tampilkan apa-apa saat loading
+                        },
                       ),
                     ),
                   ],
@@ -1058,22 +1083,23 @@ class HomeScreen extends HookConsumerWidget {
         actions: locations
             .map(
               (e) => AlertDialogAction(key: e, label: '${e.namaAsrama}'),
-        )
+            )
             .toList(),
       );
-      if(selected == null) {
+      if (selected == null) {
         return;
       }
 
       final position = await ref.read(getCurrentLocationProvider.future);
-      final result = await ref.read(accountControllerProvider.notifier).presence(
-        key: key,
-        presenceType: PresenceType.normal,
-        latitude: position.latitude,
-        longitude: position.longitude,
-        locationPresenceName: '${selected.idAsrama}',
-        mock: position.isMocked,
-      );
+      final result =
+          await ref.read(accountControllerProvider.notifier).presence(
+                key: key,
+                presenceType: PresenceType.normal,
+                latitude: position.latitude,
+                longitude: position.longitude,
+                locationPresenceName: '${selected.idAsrama}',
+                mock: position.isMocked,
+              );
 
       if (result == null || !context.mounted) return;
       final status = result.status;
@@ -1118,7 +1144,7 @@ class HomeScreen extends HookConsumerWidget {
         ref.invalidate(fetchPresenceProvider(key: key));
         ref.invalidate(fetchProfileProvider(key: key));
       }
-    }catch (error) {
+    } catch (error) {
       context.showErrorMessage(error.toString());
     }
   }

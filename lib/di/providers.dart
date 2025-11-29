@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
@@ -39,14 +42,31 @@ Login? getCurrentUser(GetCurrentUserRef ref) {
 @Riverpod(keepAlive: true)
 Dio dio(DioRef ref) {
   final dio = Dio();
+  // (dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
+  //   final client = HttpClient();
+  //   client.badCertificateCallback =
+  //       (X509Certificate cert, String host, int port) => true;
+  //   return client;
+  // };
+  (dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
+    final client = HttpClient();
+    client.badCertificateCallback = (cert, host, port) => true;
+    return client;
+  };
   dio.interceptors.add(ResponseInterceptor());
   dio.interceptors.add(
     PrettyDioLogger(
       requestBody: true,
+      requestHeader: true,
+      responseHeader: true,
+      responseBody: true,
     ),
   );
   dio.options.headers['content-Type'] = 'application/json';
   dio.options.baseUrl = Env.baseUrl;
+  dio.options.connectTimeout = const Duration(seconds: 60);
+  dio.options.receiveTimeout = const Duration(seconds: 60);
+  // dio.options.responseType = ResponseType.plain;
   return dio;
 }
 
@@ -152,7 +172,8 @@ Future<Position> getCurrentLocation(GetCurrentLocationRef ref) async {
       // Android's shouldShowRequestPermissionRationale
       // returned true. According to Android guidelines
       // your App should show an explanatory UI now.
-      return Future.error('Izin Akses Lokasi GPS ditolak, silahkan beri izin di pengaturan aplikasi');
+      return Future.error(
+          'Izin Akses Lokasi GPS ditolak, silahkan beri izin di pengaturan aplikasi');
     }
   }
 
