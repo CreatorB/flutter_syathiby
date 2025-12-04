@@ -171,6 +171,7 @@ lib/generated/
 # Keystore files (jika ada)
 *.jks
 *.keystore
+!debug.keystore
 
 # Log files
 *.log

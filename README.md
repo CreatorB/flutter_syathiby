@@ -62,13 +62,41 @@ dart run flutter_native_splash:create
 Build apk :
 
 ```sh
-flutter clean ; flutter pub get ; flutter build apk --release
+fvm flutter clean ; fvm flutter pub get ; fvm flutter pub run build_runner build --delete-conflicting-outputs ; fvm flutter build apk --release
 ```
 
 Run app :
 
 ```sh
 flutter clean ; flutter pub get ; flutter run -d 127.0.0.1:5555 -v
+```
+
+**Power Dev**
+
+```sh
+fvm flutter clean ; fvm flutter pub get ; fvm flutter pub run build_runner build --delete-conflicting-outputs ; fvm flutter run -d 127.0.0.1:5555 -v
+```
+
+## Keystore
+
+**Debug**
+
+```sh
+keytool -genkeypair -v `
+  -keystore debug.keystore `
+  -alias androiddebugkey `
+  -keyalg RSA -keysize 2048 `
+  -validity 10000 `
+  -storetype pkcs12 `
+  -storepass android `
+  -keypass android `
+  -dname "CN=https://github.com/CreatorB, O=Freelance Fullstack Developer, C=ID"
+```
+
+**Release**
+
+```sh
+keytool -list -v -keystore .\keystore\creatorbe-bundle.jks -alias creatorbe -storepass bismillah -keypass bismillah
 ```
 
 ## License

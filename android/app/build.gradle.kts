@@ -31,11 +31,34 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        // Configuration for the 'debug' signing config
+        getByName("debug") {
+            storeFile = file("../../keystore/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+        
+        // Configuration for the 'release' signing config
+        create("release") {
+            storeFile = file("../../keystore/creatorbe-bundle.jks")
+            storePassword = "bismillah"
+            keyAlias = "creatorbe"
+            keyPassword = "bismillah"
+        }
+    }
+
     buildTypes {
-        release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+        // Access existing build type configuration using getByName
+        getByName("debug") {
+            // Note: The assignment operator (=) is often required in KTS for setting properties
             signingConfig = signingConfigs.getByName("debug")
+        }
+        
+        getByName("release") {
+            isMinifyEnabled = true // Optional: often helpful for release builds
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }
