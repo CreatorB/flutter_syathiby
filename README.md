@@ -65,6 +65,12 @@ Build apk :
 fvm flutter clean ; fvm flutter pub get ; fvm flutter pub run build_runner build --delete-conflicting-outputs ; fvm flutter build apk --release
 ```
 
+Build AAB :
+
+```sh
+fvm flutter clean ; fvm flutter pub get ; fvm flutter pub run build_runner build --delete-conflicting-outputs ; fvm flutter build appbundle --release
+```
+
 Run app :
 
 ```sh

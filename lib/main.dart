@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:ui';
 
 import 'package:adaptive_theme/adaptive_theme.dart';
@@ -8,7 +7,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-// import 'package:just_audio_background/just_audio_background.dart';
+// import 'package:just_audio_background/just_audio_background.dart'; // Tetap dikomentari
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:syathiby/app.dart';
 
@@ -19,108 +18,140 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
 const AndroidNotificationChannel channel = AndroidNotificationChannel(
-  'high_importance_channel',
-  'High Importance Notifications',
-  description: 'This channel is used for important notifications.',
-  importance: Importance.max,
+    'high_importance_channel',
+    'High Importance Notifications',
+    description: 'This channel is used for important notifications.',
+    importance: Importance.max,
 );
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  print("Handling a background message: ${message.messageId}");
+    // FIX: Membungkus inisialisasi background dengan try-catch
+    try {
+        if (Firebase.apps.isEmpty) { 
+            await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+        }
+    } catch (e) {
+        print("Background Firebase init error (ignored if 'already exists'): $e");
+    }
+    
+    print("Handling a background message: ${message.messageId}");
 }
 
-// class MyHttpOverrides extends HttpOverrides {
-//   @override
-//   HttpClient createHttpClient(SecurityContext? context) {
-//     return super.createHttpClient(context)
-//       ..badCertificateCallback =
-//           (X509Certificate cert, String host, int port) => true;
-//   }
-// }
+// Global variables to hold the state before runApp
+SharedPreferences? globalPrefs;
+AdaptiveThemeMode? globalThemeMode;
+ProviderContainer? globalContainer;
 
 Future<void> main() async {
-  // HttpOverrides.global = MyHttpOverrides();
+    // 1. Ensure Flutter binding is ready.
+    WidgetsFlutterBinding.ensureInitialized();
 
-  WidgetsFlutterBinding.ensureInitialized();
+    // 2. Initialize Firebase (Wajib di awal untuk Crashlytics)
+    await _initFirebase();
+    
+    // Pengecekan pesan background harus diaktifkan setelah Firebase init
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  await _initFirebase();
+    // --- OPTIMASI SPLASH SCREEN (BLOK I/O) ---
+    // Semua operasi I/O (disk/network) yang memblokir fungsi main()
+    try {
+        globalPrefs = await SharedPreferences.getInstance();
+    } catch (e) {
+        print("Error loading SharedPreferences: $e");
+        // Jika gagal, set globalPrefs ke null atau default
+    }
+    
+    globalThemeMode = await AdaptiveTheme.getThemeMode();
+    
+    // Inisialisasi container dengan nilai yang aman (atau default jika gagal)
+    globalContainer = ProviderContainer(
+         overrides: [
+             sharedPreferencesProvider.overrideWithValue(globalPrefs ?? await SharedPreferences.getInstance()),
+         ],
+    );
+    
+    // --- AKHIR BLOK I/O ---
+    
+    // 3. Pindahkan initServices (plugin notifikasi yang sensitif) ke PostFrameCallback
+    // Ini memperbaiki NullPointerException
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+        _initServices(); 
+    });
 
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-  await _initServices();
-
-  final container = await _bootstrap();
-
-  final currentTheme = await AdaptiveTheme.getThemeMode();
-
-  runApp(
-    UncontrolledProviderScope(
-      container: container,
-      child: MyApp(
-        adaptiveThemeMode: currentTheme,
-      ),
-    ),
-  );
+    runApp(
+        UncontrolledProviderScope(
+            container: globalContainer!, 
+            child: MyApp(
+                adaptiveThemeMode: globalThemeMode,
+            ),
+        ),
+    );
 }
 
 Future<void> _initFirebase() async {
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
-  PlatformDispatcher.instance.onError = (error, stack) {
-    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-    return true;
-  };
+    // FIX: Pengecekan aman di main thread dengan try-catch untuk menelan error 'already exists'
+    if (Firebase.apps.isEmpty) {
+        try {
+            await Firebase.initializeApp(
+                options: DefaultFirebaseOptions.currentPlatform,
+            );
+        } catch (e, stack) {
+            // Error ini akan menangani "already exists"
+            if (e.toString().contains('already exists')) {
+                 print("Firebase already initialized, ignoring second call.");
+            } else {
+                 FirebaseCrashlytics.instance.recordError(e, stack, fatal: true);
+            }
+        }
+    }
+    
+    // Crashlytics setup
+    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+    PlatformDispatcher.instance.onError = (error, stack) {
+        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+        return true;
+    };
 }
 
 Future<void> _initServices() async {
-  // await JustAudioBackground.init(
-  //   androidNotificationChannelId: 'com.ryanheise.audioservice.channel.audio',
-  //   androidNotificationChannelName: 'Audio playback',
-  //   androidNotificationOngoing: true,
-  // );
+    // 1. Channel Creation
+    await flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
 
-  await flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>()
-      ?.createNotificationChannel(channel);
-
-  final notificationsPlugin =
-      flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
-  if (notificationsPlugin != null) {
-    await notificationsPlugin.requestNotificationsPermission();
-  }
-
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    RemoteNotification? notification = message.notification;
-    AndroidNotification? android = message.notification?.android;
-    if (notification != null && android != null) {
-      flutterLocalNotificationsPlugin.show(
-        notification.hashCode,
-        notification.title,
-        notification.body,
-        NotificationDetails(
-          android: AndroidNotificationDetails(
-            channel.id,
-            channel.name,
-            channelDescription: channel.description,
-            icon: '@mipmap/ic_launcher',
-          ),
-        ),
-      );
+    // 2. Permission Request
+    final notificationsPlugin =
+        flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+            
+    if (notificationsPlugin != null) {
+        try {
+            await notificationsPlugin.requestNotificationsPermission(); 
+        } catch (e) {
+            print("PlatformException during notification permission request: $e");
+        }
     }
-  });
-}
 
-Future<ProviderContainer> _bootstrap() async {
-  final prefs = await SharedPreferences.getInstance();
-  return ProviderContainer(
-    overrides: [
-      sharedPreferencesProvider.overrideWithValue(prefs),
-    ],
-  );
+    // 3. Foreground Message Listener
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        RemoteNotification? notification = message.notification;
+        AndroidNotification? android = message.notification?.android;
+        if (notification != null && android != null) {
+            flutterLocalNotificationsPlugin.show(
+                notification.hashCode,
+                notification.title,
+                notification.body,
+                NotificationDetails(
+                    android: AndroidNotificationDetails(
+                        channel.id,
+                        channel.name,
+                        channelDescription: channel.description,
+                        icon: '@mipmap/ic_launcher',
+                    ),
+                ),
+            );
+        }
+    });
 }

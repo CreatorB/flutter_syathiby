@@ -57,6 +57,8 @@ class HomeScreen extends HookConsumerWidget {
     final timeAttandFormat = ref.watch(
       formatTimeProvider('${fetchPresence.valueOrNull?.timeattand}'),
     );
+    final displayTimeAttand = timeAttandFormat ?? '--:--';
+    final isWorking = displayTimeAttand != '--:--';
     final isClockIn = fetchPresence.valueOrNull?.absen == "1";
     final isHoliday = fetchPresence.valueOrNull?.holiday == "YES";
 
@@ -296,7 +298,7 @@ class HomeScreen extends HookConsumerWidget {
                           style: context.bodyMediumBold,
                         ),
                         Text(
-                          timeAttandFormat ?? '--:--',
+                          displayTimeAttand,
                           style: context.bodyMedium,
                         ),
                       ],
@@ -324,8 +326,7 @@ class HomeScreen extends HookConsumerWidget {
                       ),
                     ),
                     Visibility(
-                      visible: fetchPresence.valueOrNull?.timeattand !=
-                          ":00", // Not Attendance
+                      visible: isWorking,
                       child: Column(
                         children: [
                           const SizedBox(height: 8),
@@ -337,7 +338,7 @@ class HomeScreen extends HookConsumerWidget {
                                 style: context.bodyMediumBold,
                               ),
                               Text(
-                                fetchPresence.valueOrNull?.during ?? '-',
+                                fetchPresence.valueOrNull?.during ?? '--:--',
                                 style: context.bodyMedium,
                               ),
                             ],
