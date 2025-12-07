@@ -1,5 +1,5 @@
-name: syathiby
-description: "A new Flutter project."
+name: Syathiby
+description: "Mobile app for Ma'had Tahfizh Al-Qur'an Al-Imam As-Syathiby"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -157,6 +157,9 @@ flutter_launcher_icons:
   remove_alpha_ios: true
   #  adaptive_icon_background: "#FFFFFF"
   #  adaptive_icon_foreground: "assets/icon/logo_foreground.png"
+  web:
+    generate: true
+    image_path: "assets/images/icon.png"
 
 flutter_native_splash:
   color: "#FFFFFF"

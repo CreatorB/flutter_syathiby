@@ -71,6 +71,22 @@ Build AAB :
 fvm flutter clean ; fvm flutter pub get ; fvm flutter pub run build_runner build --delete-conflicting-outputs ; fvm flutter build appbundle --release
 ```
 
+Build WEB (build/web):
+
+```sh
+fvm flutter clean ; fvm flutter pub get ; fvm flutter build web --release
+```
+
+```sh
+#.htaccess untuk web version
+RewriteEngine On
+# Jika file atau folder yang diminta tidak ada secara fisik
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+# Arahkan semua request ke index.html
+RewriteRule ^ index.html [L]
+```
+
 Run app :
 
 ```sh
