@@ -74,7 +74,7 @@ fvm flutter clean ; fvm flutter pub get ; fvm flutter pub run build_runner build
 Build WEB (build/web):
 
 ```sh
-fvm flutter clean ; fvm flutter pub get ; fvm flutter build web --release
+flutter clean ; flutter pub get ; flutter pub run build_runner build --delete-conflicting-outputs ; flutter build web --release --tree-shake-icons
 ```
 
 ```sh
