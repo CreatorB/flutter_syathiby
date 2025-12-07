@@ -48,11 +48,11 @@ Dio dio(DioRef ref) {
   //       (X509Certificate cert, String host, int port) => true;
   //   return client;
   // };
-  (dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
-    final client = HttpClient();
-    client.badCertificateCallback = (cert, host, port) => true;
-    return client;
-  };
+  // (dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
+  //   final client = HttpClient();
+  //   client.badCertificateCallback = (cert, host, port) => true;
+  //   return client;
+  // };
   dio.interceptors.add(ResponseInterceptor());
   dio.interceptors.add(
     PrettyDioLogger(
