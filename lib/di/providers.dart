@@ -1,17 +1,16 @@
-import 'dart:io';
+import 'dart:async';
 
 import 'package:dio/dio.dart';
-import 'package:dio/io.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:logger/logger.dart';
-import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import 'package:syathiby/models/user/login.dart';
 import 'package:syathiby/res/env.dart';
 import 'package:syathiby/res/strings.dart';
-import 'package:syathiby/utils/logging_interceptor.dart';
+import 'package:syathiby/utils/configurable_log_interceptor.dart';
 import 'package:syathiby/utils/response_interceptor.dart';
 import 'package:syathiby/utils/shared_preferences_helper.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -25,8 +24,8 @@ Logger logger(LoggerRef ref) {
 }
 
 @Riverpod(keepAlive: true)
-LoggingInterceptor loggingInterceptor(LoggingInterceptorRef ref) {
-  return LoggingInterceptor(ref.watch(loggerProvider));
+ConfigurableLogInterceptor loggingInterceptor(LoggingInterceptorRef ref) {
+  return ConfigurableLogInterceptor();
 }
 
 @riverpod
@@ -42,43 +41,45 @@ Login? getCurrentUser(GetCurrentUserRef ref) {
 @Riverpod(keepAlive: true)
 Dio dio(DioRef ref) {
   final dio = Dio();
-  // (dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
-  //   final client = HttpClient();
-  //   client.badCertificateCallback =
-  //       (X509Certificate cert, String host, int port) => true;
-  //   return client;
-  // };
-  // (dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
-  //   final client = HttpClient();
-  //   client.badCertificateCallback = (cert, host, port) => true;
-  //   return client;
-  // };
+
   dio.interceptors.add(ResponseInterceptor());
-  dio.interceptors.add(
-    PrettyDioLogger(
-      requestBody: true,
-      requestHeader: true,
-      responseHeader: true,
-      responseBody: true,
-    ),
-  );
+
+  // Gunakan ConfigurableLogInterceptor yang bisa di-toggle
+  // Setting ada di ApiLogConfig:
+  //   - ApiLogConfig.enableGlobalLog = true/false (default: true di debug)
+  //   - ApiLogConfig.addLogPath('/api/login') untuk log spesifik API
+  dio.interceptors.add(ref.watch(loggingInterceptorProvider));
+
   dio.options.headers['content-Type'] = 'application/json';
   dio.options.baseUrl = Env.baseUrl;
   dio.options.connectTimeout = const Duration(seconds: 60);
   dio.options.receiveTimeout = const Duration(seconds: 60);
-  // dio.options.responseType = ResponseType.plain;
+
   return dio;
 }
 
 @Riverpod(keepAlive: true)
 FirebaseMessaging firebaseMessaging(FirebaseMessagingRef ref) {
   final fcm = FirebaseMessaging.instance;
-  fcm.requestPermission();
-  fcm.setForegroundNotificationPresentationOptions(
-    alert: true, // Required to display a heads up notification
-    badge: true,
-    sound: true,
-  );
+  // Pindahkan permission request ke non-blocking untuk mencegah hang di splash
+  Future.microtask(() async {
+    try {
+      await fcm.requestPermission().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () async {
+          debugPrint("FCM permission request timeout");
+          return fcm.getNotificationSettings();
+        },
+      );
+      await fcm.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+    } catch (e) {
+      debugPrint("FCM permission request error: $e");
+    }
+  });
   return fcm;
 }
 
