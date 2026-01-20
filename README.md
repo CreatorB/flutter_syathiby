@@ -93,6 +93,15 @@ Run app :
 flutter clean ; flutter pub get ; flutter run -d 127.0.0.1:5555 -v
 ```
 
+or
+
+```sh
+rm -rf /Users/macbook/.gradle/caches/8.12/kotlin-dsl && \
+fvm flutter clean && \
+fvm flutter pub get && \
+fvm flutter run -d 192.168.1.4:33861
+```
+
 **Power Dev**
 
 ```sh

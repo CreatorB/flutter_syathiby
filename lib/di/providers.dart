@@ -9,6 +9,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:logger/logger.dart';
 import 'package:syathiby/models/user/login.dart';
 import 'package:syathiby/res/env.dart';
+import 'package:syathiby/res/environment_config.dart';
 import 'package:syathiby/res/strings.dart';
 import 'package:syathiby/utils/configurable_log_interceptor.dart';
 import 'package:syathiby/utils/response_interceptor.dart';
@@ -51,7 +52,7 @@ Dio dio(DioRef ref) {
   dio.interceptors.add(ref.watch(loggingInterceptorProvider));
 
   dio.options.headers['content-Type'] = 'application/json';
-  dio.options.baseUrl = Env.baseUrl;
+  dio.options.baseUrl = EnvironmentConfig.baseUrl;
   dio.options.connectTimeout = const Duration(seconds: 60);
   dio.options.receiveTimeout = const Duration(seconds: 60);
 
