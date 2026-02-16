@@ -38,11 +38,25 @@ class $AssetsImagesGen {
   List<dynamic> get values => [compass, icon, logo, needle];
 }
 
+class $AssetsJsonGen {
+  const $AssetsJsonGen();
+
+  /// File path: assets/json/evening_dhikr.json
+  String get eveningDhikr => 'assets/json/evening_dhikr.json';
+
+  /// File path: assets/json/morning_dhikr.json
+  String get morningDhikr => 'assets/json/morning_dhikr.json';
+
+  /// List of all assets
+  List<String> get values => [eveningDhikr, morningDhikr];
+}
+
 class Assets {
   Assets._();
 
   static const $AssetsFontsGen fonts = $AssetsFontsGen();
   static const $AssetsImagesGen images = $AssetsImagesGen();
+  static const $AssetsJsonGen json = $AssetsJsonGen();
 }
 
 class AssetGenImage {

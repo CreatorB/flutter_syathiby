@@ -74,7 +74,13 @@ fvm flutter clean ; fvm flutter pub get ; fvm flutter pub run build_runner build
 Build WEB (build/web):
 
 ```sh
-flutter clean ; flutter pub get ; flutter pub run build_runner build --delete-conflicting-outputs ; flutter build web --release --tree-shake-icons
+fvm flutter clean ; fvm flutter pub get ; fvm flutter pub run build_runner build --delete-conflicting-outputs ; fvm flutter build web --release --tree-shake-icons
+```
+
+You can manually adjust the server for temporary build at lib/res/env.g.dart
+
+```sh
+fvm flutter run -d chrome --web-hostname 192.168.50.100 --web-port 8082
 ```
 
 ```sh
@@ -106,14 +112,6 @@ fvm flutter run -d 192.168.1.4:33861
 
 ```sh
 fvm flutter clean ; fvm flutter pub get ; fvm flutter pub run build_runner build --delete-conflicting-outputs ; fvm flutter run -d 127.0.0.1:5555 -v
-```
-
-**Mobileweb**
-
-You can manually adjust the server for temporary build at lib/res/env.g.dart
-
-```sh
-fvm flutter run -d chrome --web-hostname 192.168.50.100 --web-port 8082
 ```
 
 ## Keystore
