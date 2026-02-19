@@ -1,4 +1,5 @@
 import 'package:adaptive_dialog/adaptive_dialog.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -6,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:local_auth/error_codes.dart' as auth_error;
 import 'package:local_auth/local_auth.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:syathiby/di/providers.dart';
 import 'package:syathiby/l10n/string_hardcoded.dart';
 import 'package:syathiby/models/hostel/hostel.dart';
@@ -163,29 +165,54 @@ class PresenceScreen extends HookConsumerWidget {
     required String key,
     required String locationPresenceId,
   }) async {
-    final position = await ref.read(getCurrentLocationProvider.future);
-    final result = await ref.read(accountControllerProvider.notifier).presence(
-          key: key,
-          presenceType: type,
-          latitude: position.latitude,
-          longitude: position.longitude,
-          locationPresenceName: locationPresenceId,
-          mock: position.isMocked,
+    try {
+      final position = await ref.read(getCurrentLocationProvider.future);
+      final result = await ref.read(accountControllerProvider.notifier).presence(
+            key: key,
+            presenceType: type,
+            latitude: position.latitude,
+            longitude: position.longitude,
+            locationPresenceName: locationPresenceId,
+            mock: position.isMocked,
+          );
+
+      if (result == null || !context.mounted) return;
+
+      if (result.status == 'late') {
+        showReasonLate(context, ref, key, '${result.status}');
+      } else {
+        final message =
+            'Success Anda ${result.status} Luar biasa, terus pertahankan';
+        context.showSuccessMessage(
+          message,
+          onComplete: () {
+            context.pop();
+          },
         );
+      }
+    } catch (error) {
+      if (!context.mounted) return;
+      final errorMessage = error.toString();
+      final isLocationError = errorMessage.toLowerCase().contains('lokasi') ||
+          errorMessage.toLowerCase().contains('permission') ||
+          errorMessage.toLowerCase().contains('izin') ||
+          errorMessage.toLowerCase().contains('denied') ||
+          errorMessage.toLowerCase().contains('browser');
 
-    if (result == null || !context.mounted) return;
-
-    if (result.status == 'late') {
-      showReasonLate(context, ref, key, '${result.status}');
-    } else {
-      final message =
-          'Success Anda ${result.status} Luar biasa, terus pertahankan';
-      context.showSuccessMessage(
-        message,
-        onComplete: () {
-          context.pop();
-        },
-      );
+      if (isLocationError) {
+        await showOkAlertDialog(
+          context: context,
+          title: 'Gagal Mendapatkan Lokasi',
+          message: errorMessage,
+          okLabel: kIsWeb ? 'Mengerti' : 'Buka Pengaturan',
+        ).then((value) async {
+          if (!kIsWeb) {
+            await Geolocator.openAppSettings();
+          }
+        });
+        return;
+      }
+      context.showErrorMessage(errorMessage);
     }
   }
 
@@ -237,16 +264,38 @@ class PresenceScreen extends HookConsumerWidget {
         );
       }
     } on PlatformException catch (e) {
+      if (!context.mounted) return;
       if (e.code == auth_error.notAvailable) {
-        // Add handling of no hardware here.
+        context.showErrorMessage('Biometrik tidak tersedia di perangkat ini');
       } else if (e.code == auth_error.notEnrolled) {
-        // ...
+        context.showErrorMessage(
+            'Sidik jari/Face ID belum terdaftar di perangkat');
       } else {
-        // ...
+        context.showErrorMessage(e.message);
       }
-      context.showErrorMessage(e.message);
-    } catch (e) {
-      context.showErrorMessage(e.toString());
+    } catch (error) {
+      if (!context.mounted) return;
+      final errorMessage = error.toString();
+      final isLocationError = errorMessage.toLowerCase().contains('lokasi') ||
+          errorMessage.toLowerCase().contains('permission') ||
+          errorMessage.toLowerCase().contains('izin') ||
+          errorMessage.toLowerCase().contains('denied') ||
+          errorMessage.toLowerCase().contains('browser');
+
+      if (isLocationError) {
+        await showOkAlertDialog(
+          context: context,
+          title: 'Gagal Mendapatkan Lokasi',
+          message: errorMessage,
+          okLabel: kIsWeb ? 'Mengerti' : 'Buka Pengaturan',
+        ).then((value) async {
+          if (!kIsWeb) {
+            await Geolocator.openAppSettings();
+          }
+        });
+        return;
+      }
+      context.showErrorMessage(errorMessage);
     }
   }
 

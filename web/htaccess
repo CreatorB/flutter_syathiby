@@ -1,0 +1,16 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  
+  # Aset statis yang ada (seperti .js, .map, .wasm, /assets) jangan di-rewrite.
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  
+  # Arahkan semua request non-file/folder ke index.html
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# MIME Type Fix untuk CanvasKit dan Source Maps
+<IfModule mod_mime.c>
+  AddType application/wasm .wasm
+  AddType application/json .map
+</IfModule>
