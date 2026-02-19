@@ -1,23 +1,21 @@
-import 'package:dio/dio.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:syathiby/models/prayer/dhikr/pray_response.dart';
-import 'package:retrofit/retrofit.dart';
+import 'package:dio/dio.dart';
 
-part 'dhikr_service.g.dart';
+class DhikrService {
+  final Dio _dio;
+  DhikrService(this._dio);
 
-@RestApi()
-abstract class DhikrService {
-  factory DhikrService(Dio dio, {String baseUrl}) = _DhikrService;
+  Future<String> getMorningDhikr() async {
+    return await rootBundle.loadString('assets/json/morning_dhikr.json');
+  }
 
-  @GET(
-    'https://github.com/rabbaaniiislamicschool/public-api/raw/main/morning_dhikr.json',
-  )
-  Future<String> getMorningDhikr();
+  Future<String> getEveningDhikr() async {
+    return await rootBundle.loadString('assets/json/evening_dhikr.json');
+  }
 
-  @GET(
-    'https://github.com/rabbaaniiislamicschool/public-api/raw/main/evening_dhikr.json',
-  )
-  Future<String> getEveningDhikr();
-
-  @GET('https://api.dikiotang.com/doa')
-  Future<PrayResponse> getPrayList();
+  Future<PrayResponse> getPrayList() async {
+    final response = await _dio.get('https://api.dikiotang.com/doa');
+    return PrayResponse.fromJson(response.data);
+  }
 }

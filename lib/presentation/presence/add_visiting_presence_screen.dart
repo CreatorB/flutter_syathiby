@@ -1,10 +1,13 @@
 import 'dart:io';
 
+import 'package:adaptive_dialog/adaptive_dialog.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_advanced_avatar/flutter_advanced_avatar.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -35,36 +38,62 @@ class AddVisitingPresenceScreen extends HookConsumerWidget {
     final formKey = useMemoized(GlobalKey<FormState>.new, const []);
 
     Future<void> addVisiting() async {
-      final position = await ref.read(getCurrentLocationProvider.future);
-      if (!formKey.currentState!.validate()) {
-        return;
-      }
-      if (imageSelected.value == null) {
-        context.showErrorMessage('Anda belum melakukan foto');
-        return;
-      }
-      final result = await ref
-          .read(
-            presenceControllerProvider.notifier,
-          )
-          .addVisiting(
-            requestVisiting: RequestVisiting(
-              key: key,
-              name: locationName.text,
-              address: address.text,
-              detail: visitInformation.text,
-              latitude: position.latitude,
-              longitude: position.longitude,
-            ),
-            image: imageSelected.value,
-          );
+      try {
+        final position = await ref.read(getCurrentLocationProvider.future);
+        if (!formKey.currentState!.validate()) {
+          return;
+        }
+        if (imageSelected.value == null) {
+          context.showErrorMessage('Anda belum melakukan foto');
+          return;
+        }
+        final result = await ref
+            .read(
+              presenceControllerProvider.notifier,
+            )
+            .addVisiting(
+              requestVisiting: RequestVisiting(
+                key: key,
+                name: locationName.text,
+                address: address.text,
+                detail: visitInformation.text,
+                latitude: position.latitude,
+                longitude: position.longitude,
+              ),
+              image: imageSelected.value,
+            );
 
-      if (result == null || !context.mounted) return;
-      context.showSuccessMessage(
-        'Sukses',
-      );
-      context.pop();
-      ref.invalidate(fetchAttendanceVisitingProvider(key: key));
+        if (result == null || !context.mounted) return;
+        context.showSuccessMessage(
+          'Sukses',
+        );
+        context.pop();
+        ref.invalidate(fetchAttendanceVisitingProvider(key: key));
+      } catch (error) {
+        if (!context.mounted) return;
+        final errorMessage = error.toString();
+        final isLocationError =
+            errorMessage.toLowerCase().contains('lokasi') ||
+                errorMessage.toLowerCase().contains('permission') ||
+                errorMessage.toLowerCase().contains('izin') ||
+                errorMessage.toLowerCase().contains('denied') ||
+                errorMessage.toLowerCase().contains('browser');
+
+        if (isLocationError) {
+          await showOkAlertDialog(
+            context: context,
+            title: 'Gagal Mendapatkan Lokasi',
+            message: errorMessage,
+            okLabel: kIsWeb ? 'Mengerti' : 'Buka Pengaturan',
+          ).then((value) async {
+            if (!kIsWeb) {
+              await Geolocator.openAppSettings();
+            }
+          });
+          return;
+        }
+        context.showErrorMessage(errorMessage);
+      }
     }
 
     return Scaffold(

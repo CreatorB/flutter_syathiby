@@ -1,9 +1,11 @@
 import 'package:adaptive_dialog/adaptive_dialog.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart' hide Store;
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:syathiby/di/providers.dart';
 import 'package:syathiby/models/hostel/hostel.dart';
@@ -57,6 +59,8 @@ class HomeScreen extends HookConsumerWidget {
     final timeAttandFormat = ref.watch(
       formatTimeProvider('${fetchPresence.valueOrNull?.timeattand}'),
     );
+    final displayTimeAttand = timeAttandFormat ?? '--:--';
+    final isWorking = displayTimeAttand != '--:--';
     final isClockIn = fetchPresence.valueOrNull?.absen == "1";
     final isHoliday = fetchPresence.valueOrNull?.holiday == "YES";
 
@@ -296,7 +300,7 @@ class HomeScreen extends HookConsumerWidget {
                           style: context.bodyMediumBold,
                         ),
                         Text(
-                          timeAttandFormat ?? '--:--',
+                          displayTimeAttand,
                           style: context.bodyMedium,
                         ),
                       ],
@@ -324,8 +328,7 @@ class HomeScreen extends HookConsumerWidget {
                       ),
                     ),
                     Visibility(
-                      visible: fetchPresence.valueOrNull?.timeattand !=
-                          ":00", // Not Attendance
+                      visible: isWorking,
                       child: Column(
                         children: [
                           const SizedBox(height: 8),
@@ -337,7 +340,7 @@ class HomeScreen extends HookConsumerWidget {
                                 style: context.bodyMediumBold,
                               ),
                               Text(
-                                fetchPresence.valueOrNull?.during ?? '-',
+                                fetchPresence.valueOrNull?.during ?? '--:--',
                                 style: context.bodyMedium,
                               ),
                             ],
@@ -1145,7 +1148,29 @@ class HomeScreen extends HookConsumerWidget {
         ref.invalidate(fetchProfileProvider(key: key));
       }
     } catch (error) {
-      context.showErrorMessage(error.toString());
+      final errorMessage = error.toString();
+      // Cek apakah error terkait lokasi/permission
+      final isLocationError = errorMessage.toLowerCase().contains('lokasi') ||
+          errorMessage.toLowerCase().contains('permission') ||
+          errorMessage.toLowerCase().contains('izin') ||
+          errorMessage.toLowerCase().contains('denied') ||
+          errorMessage.toLowerCase().contains('browser');
+
+      if (isLocationError) {
+        await showOkAlertDialog(
+          context: context,
+          title: 'Gagal Mendapatkan Lokasi',
+          message: errorMessage,
+          okLabel: kIsWeb ? 'Mengerti' : 'Buka Pengaturan',
+        ).then((value) async {
+          // Hanya buka settings jika bukan web
+          if (!kIsWeb) {
+            await Geolocator.openAppSettings();
+          }
+        });
+        return;
+      }
+      context.showErrorMessage(errorMessage);
     }
   }
 
@@ -1206,7 +1231,29 @@ class HomeScreen extends HookConsumerWidget {
       ref.invalidate(fetchProfileProvider(key: key));
       refreshKey.currentState?.show();
     } catch (error) {
-      context.showErrorMessage(error.toString());
+      final errorMessage = error.toString();
+      // Cek apakah error terkait lokasi/permission
+      final isLocationError = errorMessage.toLowerCase().contains('lokasi') ||
+          errorMessage.toLowerCase().contains('permission') ||
+          errorMessage.toLowerCase().contains('izin') ||
+          errorMessage.toLowerCase().contains('denied') ||
+          errorMessage.toLowerCase().contains('browser');
+
+      if (isLocationError) {
+        await showOkAlertDialog(
+          context: context,
+          title: 'Gagal Mendapatkan Lokasi',
+          message: errorMessage,
+          okLabel: kIsWeb ? 'Mengerti' : 'Buka Pengaturan',
+        ).then((value) async {
+          // Hanya buka settings jika bukan web
+          if (!kIsWeb) {
+            await Geolocator.openAppSettings();
+          }
+        });
+        return;
+      }
+      context.showErrorMessage(errorMessage);
     }
   }
 

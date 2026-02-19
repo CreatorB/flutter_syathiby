@@ -39,146 +39,175 @@ class DhikrScreen extends HookConsumerWidget {
                 ? fetchMorningDhikrProvider.future
                 : fetchEveningDhikrProvider.future,
           ),
-          child: ListView.builder(
-            itemCount: fetchDhikr.valueOrNull?.length ?? 10,
-            itemBuilder: (context, index) {
-              final dhikr = fetchDhikr.valueOrNull?.elementAtOrNull(index);
-              final templateShare =
-                  '${dhikr?.arabic}\n\n${dhikr?.translation}\n\n${dhikr?.count}';
-
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Visibility(
-                        visible: dhikr?.title != null,
-                        child: Padding(
-                          padding: const EdgeInsets.only(
-                            top: 8,
-                            left: 16,
-                            right: 16,
-                          ),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              '${dhikr?.title}',
-                              style: context.titleMediumBold?.copyWith(
-                                color: context.colorPrimary,
-                              ),
-                            ),
-                          ),
+          child: Builder(
+            builder: (context) {
+              if (fetchDhikr.hasError && !fetchDhikr.isLoading) {
+                return CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    SliverFillRemaining(
+                      child: Center(
+                        child: Text(
+                          'Gagal memuat data. Mohon periksa koneksi internet Anda.',
+                          style: context.bodyMedium,
+                          textAlign: TextAlign.center,
                         ),
                       ),
-                      Row(
+                    ),
+                  ],
+                );
+              }
+
+              return ListView.builder(
+                itemCount: fetchDhikr.isLoading
+                    ? 10
+                    : (fetchDhikr.valueOrNull?.length ?? 0),
+                itemBuilder: (context, index) {
+                  final dhikr = fetchDhikr.valueOrNull?.elementAtOrNull(index);
+                  // Provide dummy data for skeleton if dhikr is null
+                  final templateShare =
+                      '${dhikr?.arabic ?? "..."}\n\n${dhikr?.translation ?? "..."}\n\n${dhikr?.count ?? "..."}';
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 4.0,
-                              horizontal: 16,
-                            ),
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                '${dhikr?.count}',
-                                style: context.titleMediumBold?.copyWith(
-                                  color: context.colorPrimary,
+                          Visibility(
+                            visible: dhikr?.title != null || fetchDhikr.isLoading,
+                            child: Padding(
+                              padding: const EdgeInsets.only(
+                                top: 8,
+                                left: 16,
+                                right: 16,
+                              ),
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  dhikr?.title ?? 'Judul Dzikir',
+                                  style: context.titleMediumBold?.copyWith(
+                                    color: context.colorPrimary,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                          Expanded(
-                            child: Container(),
-                          ),
-                          IconButton(
-                            icon: Icon(
-                              Icons.share,
-                              color: context.colorPrimary,
-                            ),
-                            onPressed: () {
-                              Share.share(templateShare);
-                            },
-                          ),
-                          IconButton(
-                            icon: Icon(
-                              Icons.copy,
-                              color: context.colorPrimary,
-                            ),
-                            onPressed: () {
-                              Clipboard.setData(
-                                  ClipboardData(text: templateShare));
-                              context
-                                  .showSuccessMessage('Berhasil menyalin teks');
-                            },
-                          ),
-                          const SizedBox(width: 8),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: SelectableText(
-                          '${dhikr?.arabic}',
-                          textAlign: TextAlign.end,
-                          style: context.displaySmall?.copyWith(
-                            fontFamily: FontFamily.uthmanic,
-                            height: 1.6,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Visibility(
-                        visible: dhikr?.transliteration != null,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16.0, vertical: 4),
-                          child: Text(
-                            '${dhikr?.transliteration}',
-                            style: context.bodyLarge?.copyWith(
-                              fontStyle: FontStyle.italic,
-                              color: context.colorPrimary,
-                            ),
-                            textAlign: TextAlign.start,
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: Text(
-                          '${dhikr?.translation}',
-                          style: context.bodyLarge,
-                          textAlign: TextAlign.justify,
-                        ),
-                      ),
-                      Visibility(
-                        visible: dhikr?.faedah != null,
-                        child: InkWell(
-                          onTap: () {
-                            showOkAlertDialog(
-                              context: context,
-                              title: 'Catatan Kaki',
-                              message: '${dhikr?.reference}',
-                            );
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16.0,
-                              vertical: 8,
-                            ),
-                            child: Text(
-                              '${dhikr?.faedah}',
-                              style: context.bodyMedium?.copyWith(
-                                color: context.colorPrimary,
+                          Row(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 4.0,
+                                  horizontal: 16,
+                                ),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    dhikr?.count ?? '1x',
+                                    style: context.titleMediumBold?.copyWith(
+                                      color: context.colorPrimary,
+                                    ),
+                                  ),
+                                ),
                               ),
+                              Expanded(
+                                child: Container(),
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.share,
+                                  color: context.colorPrimary,
+                                ),
+                                onPressed: () {
+                                  Share.share(templateShare);
+                                },
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.copy,
+                                  color: context.colorPrimary,
+                                ),
+                                onPressed: () {
+                                  Clipboard.setData(
+                                      ClipboardData(text: templateShare));
+                                  context.showSuccessMessage(
+                                      'Berhasil menyalin teks');
+                                },
+                              ),
+                              const SizedBox(width: 8),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            child: SelectableText(
+                              dhikr?.arabic ?? 'اللَّهُ',
+                              textAlign: TextAlign.end,
+                              style: context.displaySmall?.copyWith(
+                                fontFamily: FontFamily.uthmanic,
+                                height: 1.6,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Visibility(
+                            visible: dhikr?.transliteration != null ||
+                                fetchDhikr.isLoading,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16.0, vertical: 4),
+                              child: Text(
+                                dhikr?.transliteration ??
+                                    'Transliteration placeholder',
+                                style: context.bodyLarge?.copyWith(
+                                  fontStyle: FontStyle.italic,
+                                  color: context.colorPrimary,
+                                ),
+                                textAlign: TextAlign.start,
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 16.0),
+                            child: Text(
+                              dhikr?.translation ?? 'Terjemahan placeholder',
+                              style: context.bodyLarge,
                               textAlign: TextAlign.justify,
                             ),
                           ),
-                        ),
+                          Visibility(
+                            visible: dhikr?.faedah != null || fetchDhikr.isLoading,
+                            child: InkWell(
+                              onTap: () {
+                                if (dhikr?.reference != null) {
+                                  showOkAlertDialog(
+                                    context: context,
+                                    title: 'Catatan Kaki',
+                                    message: '${dhikr?.reference}',
+                                  );
+                                }
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16.0,
+                                  vertical: 8,
+                                ),
+                                child: Text(
+                                  dhikr?.faedah ?? 'Faedah placeholder',
+                                  style: context.bodyMedium?.copyWith(
+                                    color: context.colorPrimary,
+                                  ),
+                                  textAlign: TextAlign.justify,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
+                    ),
+                  );
+                },
               );
             },
           ),

@@ -11,6 +11,8 @@ import 'package:syathiby/routing/app_router.dart';
 import 'package:syathiby/utils/extension/color.dart';
 import 'package:syathiby/utils/extension/ui.dart';
 
+import 'package:restart_app/restart_app.dart';
+import 'package:syathiby/res/environment_config.dart';
 import 'login_controller.dart';
 
 class LoginScreen extends HookConsumerWidget {
@@ -39,10 +41,78 @@ class LoginScreen extends HookConsumerWidget {
               ),
               child: Column(
                 children: [
-                  Image.asset(
-                    Assets.imagesLogo,
-                    width: 175,
-                    height: 175,
+                  GestureDetector(
+                    onLongPress: () {
+                      final baseUrlController = TextEditingController(
+                        text: EnvironmentConfig.baseUrl,
+                      );
+                      final linkBaseController = TextEditingController(
+                        text: EnvironmentConfig.linkBase,
+                      );
+                      showDialog(
+                        context: context,
+                        builder: (context) {
+                          return AlertDialog(
+                            title: const Text('Debug Mode: Ganti API URL'),
+                            content: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                TextField(
+                                  controller: baseUrlController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'API_URL',
+                                    hintText: 'https://...',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                ),
+                                const Gap(16),
+                                TextField(
+                                  controller: linkBaseController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'LINK_BASE',
+                                    hintText: 'https://...',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () async {
+                                  await EnvironmentConfig.reset();
+                                  if (context.mounted) Navigator.pop(context);
+                                  Restart.restartApp();
+                                },
+                                child: const Text(
+                                  'Reset',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Batal'),
+                              ),
+                              FilledButton(
+                                onPressed: () async {
+                                  await EnvironmentConfig.updateConfig(
+                                    baseUrl: baseUrlController.text,
+                                    linkBase: linkBaseController.text,
+                                  );
+                                  if (context.mounted) Navigator.pop(context);
+                                  Restart.restartApp();
+                                },
+                                child: const Text('Simpan & Restart'),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    },
+                    child: Image.asset(
+                      Assets.imagesLogo,
+                      width: 175,
+                      height: 175,
+                    ),
                   ),
                   const Gap(16),
                   const Text(

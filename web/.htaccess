@@ -1,0 +1,46 @@
+# ==========================================================
+# SECURITY HEADERS (Geolocation + Mixed Content Fix)
+# ==========================================================
+<IfModule mod_headers.c>
+  # Izinkan akses geolocation untuk Safari iOS
+  Header always set Permissions-Policy "geolocation=(*), camera=(*), microphone=(*)"
+  # Paksa upgrade HTTP ke HTTPS untuk semua resource (fix mixed content)
+  Header always set Content-Security-Policy "upgrade-insecure-requests"
+</IfModule>
+
+# ==========================================================
+# PAKSA HTTPS
+# ==========================================================
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Redirect HTTP ke HTTPS
+  RewriteCond %{HTTPS} off
+  RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+  # Flutter web SPA routing - arahkan semua ke index.html
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# ==========================================================
+# MIME Types
+# ==========================================================
+<IfModule mod_mime.c>
+  AddType application/wasm .wasm
+  AddType application/json .map
+  AddType application/javascript .js
+</IfModule>
+
+# ==========================================================
+# Caching untuk performa
+# ==========================================================
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType application/wasm "access plus 1 year"
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/svg+xml "access plus 1 year"
+</IfModule>

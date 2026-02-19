@@ -65,10 +65,47 @@ Build apk :
 fvm flutter clean ; fvm flutter pub get ; fvm flutter pub run build_runner build --delete-conflicting-outputs ; fvm flutter build apk --release
 ```
 
+Build AAB :
+
+```sh
+fvm flutter clean ; fvm flutter pub get ; fvm flutter pub run build_runner build --delete-conflicting-outputs ; fvm flutter build appbundle --release
+```
+
+Build WEB (build/web):
+
+```sh
+fvm flutter clean ; fvm flutter pub get ; fvm flutter pub run build_runner build --delete-conflicting-outputs ; fvm flutter build web --release --tree-shake-icons
+```
+
+You can manually adjust the server for temporary build at lib/res/env.g.dart
+
+```sh
+fvm flutter run -d chrome --web-hostname 192.168.50.100 --web-port 8082
+```
+
+```sh
+#.htaccess untuk web version
+RewriteEngine On
+# Jika file atau folder yang diminta tidak ada secara fisik
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+# Arahkan semua request ke index.html
+RewriteRule ^ index.html [L]
+```
+
 Run app :
 
 ```sh
 flutter clean ; flutter pub get ; flutter run -d 127.0.0.1:5555 -v
+```
+
+or
+
+```sh
+rm -rf /Users/macbook/.gradle/caches/8.12/kotlin-dsl && \
+fvm flutter clean && \
+fvm flutter pub get && \
+fvm flutter run -d 192.168.1.4:33861
 ```
 
 **Power Dev**
