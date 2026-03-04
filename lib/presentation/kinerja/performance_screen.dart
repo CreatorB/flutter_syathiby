@@ -40,7 +40,7 @@ class PerformanceScreen extends HookConsumerWidget {
         if (isLastPage) {
           performancePagingController.appendLastPage(result);
         } else {
-          final nextPageKey = pageKey + result.length;
+          final nextPageKey = pageKey + 1;
           performancePagingController.appendPage(result, nextPageKey);
         }
       } catch (error) {
