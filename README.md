@@ -1,10 +1,10 @@
 # Syathiby App
 
-Aplikasi absensi dan manajemen staff untuk Ma'had Tahfizh al-Qur'an al-Imam as-Syathiby.
+Attendance and staff management application for Ma'had Tahfizh al-Qur'an al-Imam as-Syathiby.
 
-Enhanced and customized version of Syathiby Vendor App [https://github.com/creatorb/flutter-syathiby-vendor](https://github.com/creatorb/flutter-syathiby-vendor)
+Enhanced and customized version of Syathiby Vendor App — [https://github.com/creatorb/flutter-syathiby-vendor](https://github.com/creatorb/flutter-syathiby-vendor)
 
-> 📋 **Changelog**: Lihat [CHANGELOG.md](CHANGELOG.md) untuk riwayat update lengkap
+> 📋 **Changelog**: See [CHANGELOG.md](CHANGELOG.md) for full version history.
 
 ---
 
@@ -13,13 +13,20 @@ Enhanced and customized version of Syathiby Vendor App [https://github.com/creat
 - [Quick Start](#-quick-start)
 - [Prerequisites](#-prerequisites)
 - [Installation](#-installation)
-- [Setup URL Environment](#-setup-url-environment-local--production)
+- [URL Environment Setup](#-url-environment-setup-flavor-based)
 - [Development](#-development)
 - [Building & Deployment](#-building--deployment)
 - [Features](#-features)
 - [Environment Indicators](#-environment-indicators)
 - [Testing](#-testing)
 - [Troubleshooting](#-troubleshooting)
+- [Keystore](#-keystore)
+- [Advanced Configuration](#-advanced-configuration)
+- [Project Structure](#-project-structure)
+- [Contributing](#-contributing)
+- [Branches](#-branches)
+- [Team & Contact](#-team--contact)
+- [License](#-license)
 
 ---
 
@@ -36,10 +43,10 @@ fvm flutter pub get
 # 3. Generate code
 fvm flutter pub run build_runner build --delete-conflicting-outputs
 
-# 4. Run app (PROD flavor - otomatis pakai URL production)
+# 4. Run app (PROD flavor — automatically uses production URL)
 fvm flutter run --flavor prod --dart-define=FLAVOR=prod
 
-# 5. Run app (LOCAL flavor - otomatis pakai URL local)
+# 5. Run app (LOCAL flavor — automatically uses local URL)
 fvm flutter run --flavor local --dart-define=FLAVOR=local
 ```
 
@@ -48,8 +55,8 @@ fvm flutter run --flavor local --dart-define=FLAVOR=local
 ## 📋 Prerequisites
 
 - **Flutter SDK**: Managed via [FVM](https://fvm.app/)
-- **Android Studio** / **Xcode** (untuk build Android/iOS)
-- **ADB** (Android Debug Bridge) untuk deployment ke device
+- **Android Studio** / **Xcode** (for Android/iOS builds)
+- **ADB** (Android Debug Bridge) for device deployment
 - **Git**
 
 ### Install FVM (Flutter Version Manager)
@@ -70,13 +77,13 @@ dart pub global activate fvm
 
 ## 🔧 Installation
 
-### 1. Setup FVM dan Flutter SDK
+### 1. Set Up FVM and Flutter SDK
 
 ```bash
-# Install Flutter version yang digunakan project
+# Install the Flutter version used by this project
 fvm install
 
-# Use Flutter version dari FVM
+# Activate FVM version
 fvm use
 ```
 
@@ -86,48 +93,48 @@ fvm use
 fvm flutter pub get
 ```
 
-### 3. Generate Model & URL Environment
+### 3. Generate Models & Code
 
 ```bash
 fvm flutter pub run build_runner build --delete-conflicting-outputs
 ```
 
-### 4. (Optional) Setup Keystore untuk Release Build
+### 4. (Optional) Set Up Keystore for Release Build
 
-Lihat section [Keystore](#-keystore) di bawah.
+See the [Keystore](#-keystore) section below.
 
 ---
 
-## 🌐 Setup URL Environment (Flavor-Based Configuration)
+## 🌐 URL Environment Setup (Flavor-Based)
 
-Aplikasi menggunakan **konfigurasi otomatis berbasis flavor**. URL backend dipilih secara otomatis sesuai flavor yang dijalankan:
+The app uses **automatic flavor-based URL configuration**. The backend URL is selected automatically based on the active flavor:
 
-### Konfigurasi Default (Built-in)
+### Default Configuration (Built-in)
 
 | Flavor | API URL | Link Base | App Name |
 |--------|---------|-----------|----------|
 | **prod** | `https://aplikasi.syathiby.id/geten/` | `https://aplikasi.syathiby.id` | Syathiby |
 | **local** | `http://192.168.50.100/aplikasi/geten/` | `http://192.168.50.100/aplikasi` | Syathiby LOCAL |
 
-### ⚡ Cara Menggunakan
+### ⚡ Usage
 
-**Untuk Production:**
+**Production:**
 ```bash
 fvm flutter run --flavor prod --dart-define=FLAVOR=prod
 ```
-✅ Otomatis menggunakan URL: `https://aplikasi.syathiby.id`
+✅ Automatically uses: `https://aplikasi.syathiby.id`
 
-**Untuk Local Development:**
+**Local Development:**
 ```bash
 fvm flutter run --flavor local --dart-define=FLAVOR=local
 ```
-✅ Otomatis menggunakan URL: `http://192.168.50.100/aplikasi`
+✅ Automatically uses: `http://192.168.50.100/aplikasi`
 
-> **Catatan:** `--dart-define=FLAVOR=xxx` memberitahu aplikasi flavor mana yang sedang berjalan, sehingga URL otomatis dipilih sesuai konfigurasi.
+> **Note:** `--dart-define=FLAVOR=xxx` tells the app which flavor is active so the correct URL is selected automatically.
 
-### 🔧 Mengubah URL Default
+### 🔧 Changing the Default URL
 
-Jika IP server lokal Anda **bukan** `192.168.50.100`, edit file:
+If your local server IP is **not** `192.168.50.100`, edit:
 
 📄 **`lib/res/flavor_config.dart`**
 
@@ -138,105 +145,100 @@ static const Map<String, Map<String, String>> _configs = {
     'LINK_BASE': 'https://aplikasi.syathiby.id',
   },
   'local': {
-    'API_URL': 'http://192.168.1.100/aplikasi/geten/',  // ← Ubah IP di sini
-    'LINK_BASE': 'http://192.168.1.100/aplikasi',       // ← dan di sini
+    'API_URL': 'http://192.168.1.100/aplikasi/geten/',  // ← Change IP here
+    'LINK_BASE': 'http://192.168.1.100/aplikasi',       // ← and here
   },
 };
 ```
 
-Setelah edit, rebuild:
+After editing, rebuild:
 ```bash
 fvm flutter clean
 fvm flutter pub get
 fvm flutter run --flavor local --dart-define=FLAVOR=local
 ```
 
-### 🎛️ Override URL via Aplikasi (Runtime)
+### 🎛️ Runtime URL Override (Without Rebuild)
 
-Anda tetap bisa **override URL sementara** tanpa rebuild:
+You can also **temporarily override the URL** at runtime without rebuilding:
 
-**Step 1:** Jalankan aplikasi (flavor apa saja)
+1. Launch the app (any flavor)
+2. On the Login screen, **long-press the Syathiby logo**
+3. A dialog appears showing the active URL
+4. Enter your custom URL:
+   ```
+   API URL:   http://192.168.1.200/aplikasi/geten/
+   Link Base: http://192.168.1.200/aplikasi
+   ```
+5. Tap **"Save & Restart"**
 
-**Step 2:** Di halaman Login, **long-press logo Syathiby**
+> The override is **stored in SharedPreferences** and persists until manually reset.
 
-**Step 3:** Dialog muncul dengan URL aktif
+### 🔄 Reset to Flavor Default
 
-**Step 4:** Masukkan URL custom:
-```
-API URL: http://192.168.1.200/aplikasi/geten/
-Link Base: http://192.168.1.200/aplikasi
-```
+1. Long-press the logo on the Login screen
+2. **Clear all fields**
+3. Tap "Save & Restart"
 
-**Step 5:** Tekan **"Simpan & Restart"**
+The app will revert to the default URL for the active flavor.
 
-> Override ini **tersimpan di SharedPreferences** dan akan terus dipakai sampai di-reset.
+### 💡 Development Tips
 
-### 🔄 Reset ke Default Flavor
-
-**Via Aplikasi:**
-1. Long-press logo di halaman Login
-2. **Kosongkan semua field**
-3. Tekan "Simpan & Restart"
-
-Aplikasi akan kembali pakai URL default sesuai flavor.
-
-### 💡 Tips Development
-
-**Check IP Komputer Server:**
+**Find your server's local IP:**
 
 Windows:
 ```bash
 ipconfig
 ```
 
-macOS/Linux:
+macOS / Linux:
 ```bash
 ifconfig
-# atau
+# or
 ip addr show
 ```
 
-Cari IP yang dimulai dengan `192.168.x.x` atau `10.x.x.x`
+Look for an IP starting with `192.168.x.x` or `10.x.x.x`.
 
-**Environment Detection:**
+**Environment detection:**
 
-Aplikasi otomatis detect environment berdasarkan URL aktif:
-- IP lokal (`192.168.x.x`, `10.x.x.x`, `172.16-31.x.x`, `localhost`) → **LOCAL** (banner merah)
-- Domain publik lainnya → **PROD** (banner hijau)
+The app automatically detects the environment based on the active URL:
+- Local IP (`192.168.x.x`, `10.x.x.x`, `172.16–31.x.x`, `localhost`) → **LOCAL** (red banner)
+- Other public domain → **PROD** (green banner, hidden in release)
 
-### 📁 File Structure
+### 📁 Relevant File Structure
 
 ```
 flutter_syathiby/
 └── lib/res/
-    ├── flavor_config.dart          # ← Konfigurasi URL per flavor
-    ├── environment_config.dart     # Runtime config + override
-    └── env.dart                    # Legacy (optional, untuk MAPS_API_KEY)
+    ├── flavor_config.dart          # URL configuration per flavor
+    ├── environment_config.dart     # Runtime config + URL override logic
+    └── env.dart                    # Legacy (optional, for MAPS_API_KEY)
 ```
 
-### 🐛 Troubleshooting
+### 🐛 URL Environment Troubleshooting
 
-**Issue: URL masih salah setelah ganti flavor**
+**Issue: URL still wrong after changing flavor**
 
 ```bash
-# Pastikan pakai --dart-define=FLAVOR
+# Make sure to pass --dart-define=FLAVOR
 fvm flutter run --flavor local --dart-define=FLAVOR=local
-# ⚠️ BUKAN: fvm flutter run --flavor local  (tanpa --dart-define)
+# ⚠️ NOT: fvm flutter run --flavor local  (missing --dart-define)
 ```
 
 **Issue: Cannot connect to local server**
 
-1. ✅ Check backend server running
-2. ✅ Device & server dalam satu network (WiFi sama)
-3. ✅ Test URL di browser: `http://192.168.x.x/aplikasi/geten/`
-4. ✅ Check firewall tidak block
-5. ✅ Jangan pakai `localhost`, pakai IP address
+1. ✅ Verify the backend server is running
+2. ✅ Device and server are on the same network (same Wi-Fi)
+3. ✅ Test the URL in a browser: `http://192.168.x.x/aplikasi/geten/`
+4. ✅ Check firewall is not blocking the connection
+5. ✅ Use the device's IP address, not `localhost`
 
-**Issue: Environment label tetap PROD**
+**Issue: Environment label shows PROD instead of LOCAL**
 
-- Long-press logo untuk verify URL yang sebenarnya dipakai
-- Pastikan format URL benar: `http://` (bukan `https://`) untuk lokal
-- Check IP sesuai pattern: `192.168.x.x`
+- Long-press the logo to verify the actual URL in use
+- Ensure the URL uses `http://` (not `https://`) for local
+- Confirm the IP matches the local pattern: `192.168.x.x`
 
 ---
 
@@ -245,10 +247,10 @@ fvm flutter run --flavor local --dart-define=FLAVOR=local
 ### Run App (Development Mode)
 
 ```bash
-# PROD flavor (otomatis pakai https://aplikasi.syathiby.id)
+# PROD flavor (automatically uses https://aplikasi.syathiby.id)
 fvm flutter run --flavor prod --dart-define=FLAVOR=prod
 
-# LOCAL flavor (otomatis pakai http://192.168.50.100/aplikasi)
+# LOCAL flavor (automatically uses http://192.168.50.100/aplikasi)
 fvm flutter run --flavor local --dart-define=FLAVOR=local
 
 # Specify device
@@ -258,19 +260,19 @@ fvm flutter run -d 127.0.0.1:5555 --flavor local --dart-define=FLAVOR=local
 
 ### Hot Reload & Restart
 
-- **Hot Reload**: `r` (di terminal saat app running)
+- **Hot Reload**: `r` (in terminal while app is running)
 - **Hot Restart**: `R`
 - **Quit**: `q`
 
 ### Code Generation
 
-Setiap kali mengubah model atau environment config:
+Run whenever you modify models or environment config:
 
 ```bash
 fvm flutter pub run build_runner build --delete-conflicting-outputs
 ```
 
-Watch mode (auto-generate saat file berubah):
+Watch mode (auto-generates on file changes):
 
 ```bash
 fvm flutter pub run build_runner watch --delete-conflicting-outputs
@@ -278,7 +280,7 @@ fvm flutter pub run build_runner watch --delete-conflicting-outputs
 
 ### Clean Build
 
-Jika ada masalah dengan cache atau dependency:
+If you encounter cache or dependency issues:
 
 ```bash
 fvm flutter clean
@@ -318,7 +320,7 @@ fvm flutter pub run build_runner build --delete-conflicting-outputs
 fvm flutter build apk --release --flavor local --dart-define=FLAVOR=local
 ```
 
-### Android App Bundle (AAB) - untuk Play Store
+### Android App Bundle (AAB) — Play Store
 
 ```bash
 # PROD
@@ -336,25 +338,25 @@ fvm flutter build appbundle --release --flavor local --dart-define=FLAVOR=local
 
 Output: `build/app/outputs/bundle/`
 
-### Install Kedua APK Sekaligus (Side-by-Side)
+### Install Both APKs Side-by-Side
 
-Gunakan skrip PowerShell untuk install PROD dan LOCAL secara otomatis:
+Use the PowerShell script to install PROD and LOCAL simultaneously:
 
 ```powershell
 .\install-both-apks.ps1
 ```
 
-**Prasyarat:**
-- Device Android terhubung via USB/WiFi
-- ADB terinstall dan tersedia di PATH
-- Kedua APK sudah di-build (lihat section di atas)
+**Requirements:**
+- Android device connected via USB or Wi-Fi
+- ADB installed and available in PATH
+- Both APKs already built (see above)
 
-**Skrip akan:**
-1. Validasi ketersediaan ADB
-2. Cek koneksi device
+**The script will:**
+1. Validate ADB availability
+2. Check device connection
 3. Install `app-local-debug.apk` → `id.syathiby.app.local`
 4. Install `app-prod-debug.apk` → `id.syathiby.app`
-5. Tampilkan status dengan warna (hijau = sukses, merah = gagal)
+5. Display colored status output (green = success, red = failed)
 
 ### Web Build
 
@@ -367,14 +369,12 @@ fvm flutter build web --release --tree-shake-icons
 
 Output: `build/web/`
 
-**Setup .htaccess untuk deploy web:**
+**`.htaccess` for web deployment:**
 
 ```apache
 RewriteEngine On
-# Jika file atau folder yang diminta tidak ada secara fisik
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-# Arahkan semua request ke index.html
 RewriteRule ^ index.html [L]
 ```
 
@@ -390,73 +390,88 @@ fvm flutter run -d chrome --web-hostname 192.168.50.100 --web-port 8082
 
 ### Attendance System
 
-Aplikasi mendukung 2 metode absensi:
+The app supports two attendance methods:
 
-1. **Location (GPS)**: Validasi berdasarkan koordinat GPS dan radius lokasi
-2. **Wi-Fi**: Validasi berdasarkan public IP (103.178.146.98)
+1. **Location (GPS)**: Validates attendance based on GPS coordinates and location radius
+2. **Network (Wi-Fi / LAN)**: Validates attendance using the device's public IP address
 
-**Detail teknis:**
-- User memilih metode saat klik tombol absen
-- Mode Wi-Fi mengirim koordinat `(0,0)` sebagai penanda
-- Pre-validation di Flutter sebelum submit
-- Final validation di backend PHP
-- Error code `03` untuk error validasi Wi-Fi
+**How Wi-Fi attendance works:**
+- User selects the attendance method when tapping the check-in/out button
+- Wi-Fi mode sends coordinates `(0, 0)` as a mode indicator to the backend
+- The app fetches the allowed public IP from the server endpoint (`settings/wificonfig.php`)
+- The app validates the device's current public IP against the allowed IP via an external IP API
+- If validation passes, the attendance request is submitted — backend skips GPS radius check for `(0, 0)` coordinates
+- Error code `03` is used for Wi-Fi validation failures
 
-**Lihat [CHANGELOG.md](CHANGELOG.md) untuk detail lengkap update terbaru.**
+### Update Checker
+
+- Automatically checks for a new version on app startup (Home screen)
+- Compares current app version with the latest version in [CHANGELOG.md](CHANGELOG.md) on GitHub
+- Displays a bottom sheet modal with the changelog content when an update is available
+- Provides a direct link to the Play Store for the update
+- Non-blocking: users can dismiss and continue using the current version
+
+### Profile Management
+
+View and manage staff profile information.
+
+### Leave Request System
+
+Submit and track leave/permit requests.
+
+### Timeline & Activity Tracking
+
+View attendance history and activity timeline.
 
 ---
 
 ## 🎨 Environment Indicators
 
-Aplikasi memiliki indikator visual untuk membedakan environment:
+The app provides visual indicators to distinguish between environments:
 
-### Global Banner (Ribbon) - LOCAL Only
+### Global Banner (Ribbon) — LOCAL Only
 
-- **LOCAL**: **Red ribbon** dengan tulisan "LOCAL" (untuk development)
-- **PROD**: **No banner** - clean UI (untuk production)
+- **LOCAL**: Red ribbon with "LOCAL" label (development indicator)
+- **PROD**: No banner — clean UI for end users
 
-> Production builds memiliki UI yang lebih clean tanpa banner, lebih profesional untuk public users.
+> Production builds have a clean UI without any environment banner.
 
 ### Dynamic App Name
-- Environment lokal: "Syathiby LOCAL"
-- Environment prod: "Syathiby"
+- Local environment: "Syathiby LOCAL"
+- Production environment: "Syathiby"
 
 ### Login Screen Badge
-- Menampilkan ENV label dan API URL aktif
-- Warna merah untuk LOCAL, hijau untuk PROD
-- **Long-press logo** untuk mengubah API URL (override runtime)
+- Displays the active ENV label and API URL
+- Red for LOCAL, green for PROD
+- **Long-press logo** to override the API URL at runtime
 
 ### Android Flavors
 
-**Flavor PROD:**
-- Application ID: `id.syathiby.app`
-- App Label: `Syathiby`
-- Banner: ❌ Tidak ada (clean UI)
+| | Flavor `prod` | Flavor `local` |
+|---|---|---|
+| **Application ID** | `id.syathiby.app` | `id.syathiby.app.local` |
+| **App Label** | Syathiby | Syathiby LOCAL |
+| **Banner** | ❌ None (clean UI) | 🔴 Red ribbon |
 
-**Flavor LOCAL:**
-- Application ID: `id.syathiby.app.local`
-- App Label: `Syathiby LOCAL`
-- Banner: 🔴 Ada (red ribbon untuk development indicator)
-
-Kedua flavor bisa diinstall bersamaan di device yang sama.
+Both flavors can be installed simultaneously on the same device.
 
 ---
 
 ## 🧪 Testing
 
-### Manual Testing
+### Wi-Fi Attendance Test Guide
 
-Panduan testing untuk fitur Wi-Fi attendance tersedia di:
+A detailed test checklist for Wi-Fi attendance is available at:
 
 📄 **[ATTENDANCE_WIFI_TEST_CHECKLIST.md](ATTENDANCE_WIFI_TEST_CHECKLIST.md)**
 
-### Run Flutter Analyzer
+### Flutter Analyzer
 
 ```bash
 fvm flutter analyze
 ```
 
-### Run Tests (jika ada)
+### Unit Tests
 
 ```bash
 fvm flutter test
@@ -466,9 +481,7 @@ fvm flutter test
 
 ## 🛠️ Troubleshooting
 
-### Build Runner Issues
-
-**Error: Conflicting outputs**
+### Build Runner — Conflicting Outputs
 
 ```bash
 fvm flutter pub run build_runner build --delete-conflicting-outputs
@@ -486,7 +499,7 @@ Remove-Item -Recurse -Force $env:USERPROFILE\.gradle\caches
 rm -rf ~/.gradle/caches
 ```
 
-**Kemudian rebuild:**
+**Then rebuild:**
 
 ```bash
 fvm flutter clean
@@ -503,23 +516,23 @@ adb devices
 adb kill-server
 adb start-server
 
-# Connect via WiFi (after USB pairing)
+# Connect via Wi-Fi (after USB pairing)
 adb tcpip 5555
 adb connect <device-ip>:5555
 ```
 
 ### FVM Not Found
 
-Pastikan FVM sudah ditambahkan ke PATH:
+Make sure FVM is added to PATH:
 
 ```bash
 # Check FVM installation
 fvm --version
 
-# Install FVM jika belum
+# Install FVM if missing
 dart pub global activate fvm
 
-# Add to PATH (example for Windows)
+# Add to PATH (Windows example)
 # Add: %USERPROFILE%\AppData\Local\Pub\Cache\bin
 ```
 
@@ -527,11 +540,9 @@ dart pub global activate fvm
 
 ## 🔐 Keystore
 
-## 🔐 Keystore
-
 ### Debug Keystore
 
-Generate debug keystore untuk development:
+Generate a debug keystore for development:
 
 ```bash
 keytool -genkeypair -v `
@@ -547,7 +558,7 @@ keytool -genkeypair -v `
 
 ### Release Keystore
 
-Untuk production build, gunakan keystore yang aman. Simpan di lokasi yang aman dan **jangan commit ke git**.
+For production builds, use a secure keystore. Store it in a safe location and **never commit it to git**.
 
 ---
 
@@ -562,10 +573,10 @@ dart run flutter_application_id:main -f flutter_application_id.yaml
 ### Change App Icon
 
 ```bash
-# Setup
+# Generate configuration
 dart run flutter_launcher_icons:generate --override
 
-# Generate
+# Generate icons
 dart run flutter_launcher_icons
 ```
 
@@ -581,58 +592,59 @@ dart run flutter_native_splash:create
 
 ```
 flutter_syathiby/
-├── android/                 # Android native code
-├── ios/                     # iOS native code  
+├── android/                        # Android native code & flavor config
+├── ios/                            # iOS native code
 ├── lib/
-│   ├── app.dart            # Root MaterialApp with environment banner
-│   ├── data/               # Models, repositories
-│   ├── presentation/       # UI screens & widgets
-│   │   ├── login/          # Login screen with ENV display
-│   │   └── presence/       # Attendance screen with Wi-Fi option
+│   ├── app.dart                    # Root MaterialApp with environment banner
+│   ├── data/                       # Models, repositories, API services
+│   ├── presentation/
+│   │   ├── home/                   # Home screen with update checker
+│   │   ├── login/                  # Login screen with environment badge
+│   │   └── presence/               # Attendance screen with Wi-Fi option
 │   ├── res/
-│   │   ├── environment_config.dart  # Environment detection
-│   │   └── strings.dart    # App constants, dynamic app name
-│   └── utils/              # Helpers, utilities
-├── test/                   # Unit & widget tests
-├── build/                  # Build outputs (gitignored)
-├── CHANGELOG.md           # Version history (tampilkan di webview)
-├── ATTENDANCE_WIFI_TEST_CHECKLIST.md  # Testing guide
-├── install-both-apks.ps1  # Dual APK installer script
-├── pubspec.yaml           # Dependencies
-└── README.md              # This file
+│   │   ├── flavor_config.dart      # Built-in URL configuration per flavor
+│   │   ├── environment_config.dart # Runtime config + URL override
+│   │   └── strings.dart            # App constants, dynamic app name
+│   └── utils/
+│       └── update_checker.dart     # GitHub CHANGELOG version check
+├── test/                           # Unit & widget tests
+├── build/                          # Build outputs (gitignored)
+├── CHANGELOG.md                    # Version history
+├── ATTENDANCE_WIFI_TEST_CHECKLIST.md  # Wi-Fi attendance test guide
+├── install-both-apks.ps1           # Dual APK installer script
+├── pubspec.yaml                    # Flutter dependencies
+└── README.md                       # This file
 ```
 
 ---
 
 ## 🤝 Contributing
 
-Untuk kontribusi:
-
-1. Create branch baru dari `dev`
-2. Implementasi fitur/fix dengan commit message yang jelas
-3. Update CHANGELOG.md dengan entry baru
-4. Test semua perubahan
-5. Create Pull Request ke branch `dev`
+1. Create a new branch from `test`
+2. Implement features or fixes with clear commit messages
+3. Update [CHANGELOG.md](CHANGELOG.md) with a new entry
+4. Test all changes thoroughly
+5. Open a Pull Request to the `test` branch
 
 ### Commit Message Convention
 
 ```
-feat: menambahkan fitur X
-fix: memperbaiki bug Y
-docs: update dokumentasi Z
+feat: add feature X
+fix: resolve bug Y
+docs: update documentation for Z
 chore: update dependencies
-refactor: restructure code untuk A
+refactor: restructure code for A
 ```
 
 ---
 
 ## 🌿 Branches
 
-### [main](https://github.com/creatorb/flutter_syathiby)
-Original version of Syathiby App built by IT Sragen. Kami akan terus support branch ini dengan requirements terbaru dan menjaga fitur-fitur original, InshaAllah.
+### [test](https://github.com/CreatorB/flutter_syathiby/tree/test)
+Active development branch — continuously updated with the latest features and requirements.
 
-### [dev](https://github.com/creatorb/flutter_syathiby/tree/dev)
-Development version built by IT Syathiby. Branch ini akan terus diupdate dengan requirements terbaru dan penambahan fitur baru, InshaAllah.
+### [main](https://github.com/CreatorB/flutter_syathiby)
+Stable branch. Maintained to support the latest production requirements with original features intact.
 
 ---
 
@@ -642,7 +654,7 @@ Development version built by IT Syathiby. Branch ini akan terus diupdate dengan 
 Cileungsi, Bogor, Indonesia
 
 - Website: [syathiby.com](https://syathiby.com)
-- Tags: #pondok #jabodetabek #ma'had #tahfizh #al-Qur'an #sunnah #manhaj #salaf #cileungsi #bogor #indonesia #syathiby
+- Tags: `pondok` `jabodetabek` `ma'had` `tahfizh` `al-Qur'an` `sunnah` `manhaj` `salaf` `cileungsi` `bogor` `indonesia` `syathiby`
 
 ---
 
@@ -652,3 +664,6 @@ Copyright IT Syathiby 2024
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
+You may obtain a copy of the License at [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0)
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.

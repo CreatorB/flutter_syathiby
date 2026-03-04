@@ -5,30 +5,6 @@ All notable changes to Syathiby App will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.5] - 2026-03-04
-
-### Added
-- **Flavor-Based URL Configuration**: Automatic URL selection based on build flavor
-  - Created `lib/res/flavor_config.dart` with built-in configuration per flavor
-  - Flavor `prod`: Automatically uses `https://aplikasi.syathiby.id`
-  - Flavor `local`: Automatically uses `http://192.168.50.100/aplikasi`
-  - Requires `--dart-define=FLAVOR=xxx` in build commands
-  - Eliminates need for manual .env configuration per build
-  - Backward compatible with runtime URL override (long-press logo)
-
-### Changed
-- `EnvironmentConfig` now uses `FlavorConfig` as default fallback instead of `Env`
-- Updated all build and run commands to include `--dart-define=FLAVOR=xxx`
-- Simplified setup documentation with flavor-first approach
-- **Banner behavior**: Now only shows for LOCAL environment (development)
-  - PROD builds have clean UI without environment banner
-  - Makes production app more professional and polished
-
-### Removed
-- **Legacy `env.dart` and `env.g.dart`** - Replaced by flavor-based config
-- **`.env.example`** - No longer needed, configuration is in `lib/res/flavor_config.dart`
-- Envied dependency can be removed from pubspec.yaml if not needed for other purposes
-
 ## [1.0.4] - 2026-03-04
 
 ### Added
@@ -52,11 +28,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Colored status output with clear error messages
 - **Test Documentation**: Created `ATTENDANCE_WIFI_TEST_CHECKLIST.md` for testing scenarios
 - **FVM Standardization**: All Flutter commands now use `fvm` prefix for version consistency
+- **Flavor-Based URL Configuration**: Automatic URL selection based on build flavor
+  - Created `lib/res/flavor_config.dart` with built-in configuration per flavor
+  - Flavor `prod`: Automatically uses `https://aplikasi.syathiby.id`
+  - Flavor `local`: Automatically uses `http://192.168.50.100/aplikasi`
+  - Requires `--dart-define=FLAVOR=xxx` in build commands
+  - Eliminates need for manual .env configuration per build
+  - Backward compatible with runtime URL override (long-press logo)
 
 ### Changed
 - Attendance submission now accepts coordinates (0,0) to indicate Wi-Fi mode
 - Backend skips GPS radius validation when Wi-Fi mode is detected with valid IP
 - Updated all build and run commands in documentation to use FVM
+- `EnvironmentConfig` now uses `FlavorConfig` as default fallback instead of `Env`
+- Updated all build and run commands to include `--dart-define=FLAVOR=xxx`
+- Simplified setup documentation with flavor-first approach
+- **Banner behavior**: Now only shows for LOCAL environment (development)
+  - PROD builds have clean UI without environment banner
+  - Makes production app more professional and polished
+
+### Removed
+- **Legacy `env.dart` and `env.g.dart`** - Replaced by flavor-based config
+- **`.env.example`** - No longer needed, configuration is in `lib/res/flavor_config.dart`
+- Envied dependency can be removed from pubspec.yaml if not needed for other purposes
 
 ### Technical Details
 - **Wi-Fi Mode Detection**: Coordinates (0,0) indicate Wi-Fi-based attendance
@@ -96,26 +90,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## Panduan Format Changelog
+## Changelog Format Guide
 
-Gunakan kategori berikut untuk setiap perubahan:
-- **Added**: Fitur baru
-- **Changed**: Perubahan pada fitur yang sudah ada
-- **Deprecated**: Fitur yang akan dihapus di versi mendatang
-- **Removed**: Fitur yang dihapus
+Use the following categories for each change:
+- **Added**: New features
+- **Changed**: Changes to existing features
+- **Deprecated**: Features to be removed in a future version
+- **Removed**: Removed features
 - **Fixed**: Bug fixes
-- **Security**: Perbaikan terkait keamanan
+- **Security**: Security-related fixes
 
-### Contoh Entry Baru
+### New Entry Example
 
 ```markdown
 ## [X.Y.Z] - YYYY-MM-DD
 
 ### Added
-- Fitur A: deskripsi singkat
-- Fitur B: deskripsi singkat
+- Feature A: brief description
+- Feature B: brief description
 
 ### Fixed
-- Bug pada halaman X
-- Crash saat melakukan Y
+- Bug on screen X
+- Crash when doing Y
 ```

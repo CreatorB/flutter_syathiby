@@ -18,7 +18,7 @@ class UpdateInfo {
 class UpdateChecker {
   /// URL raw CHANGELOG.md dari GitHub
   static const String changelogUrl =
-      'https://raw.githubusercontent.com/CreatorB/flutter_syathiby/main/CHANGELOG.md';
+      'https://raw.githubusercontent.com/CreatorB/flutter_syathiby/test/CHANGELOG.md';
 
   /// Play Store URL untuk membuka halaman update
   static const String playStoreUrl =
