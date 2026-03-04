@@ -5,7 +5,7 @@ All notable changes to Syathiby App will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.5] - 2026-03-04
 
 ### Added
 - **Flavor-Based URL Configuration**: Automatic URL selection based on build flavor
@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`.env.example`** - No longer needed, configuration is in `lib/res/flavor_config.dart`
 - Envied dependency can be removed from pubspec.yaml if not needed for other purposes
 
-## [2.1.0] - 2026-03-03
+## [1.0.4] - 2026-03-04
 
 ### Added
 - **Wi-Fi Based Attendance**: New attendance method using public IP validation (103.178.146.98)
@@ -78,7 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `android/app/build.gradle.kts`: Product flavors configuration
 - `android/app/src/main/AndroidManifest.xml`: Dynamic label placeholder
 
-## [2.0.0] - 2024-12-XX
+## [1.0.0] - 2024-12-XX
 
 ### Added
 - Initial enhanced version of Syathiby Staff App

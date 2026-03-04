@@ -11,6 +11,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:syathiby/di/providers.dart';
 import 'package:syathiby/models/hostel/hostel.dart';
 import 'package:syathiby/res/environment_config.dart';
+import 'package:syathiby/utils/update_checker.dart';
 import 'package:syathiby/models/slip/absent.dart';
 import 'package:syathiby/models/user/request_logout.dart';
 import 'package:syathiby/presentation/home/fetch_presence_controller.dart';
@@ -25,6 +26,7 @@ import 'package:syathiby/utils/extension/ui.dart';
 import 'package:responsive_grid/responsive_grid.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import '../presence/presence_controller.dart';
 import '../setting/local_auth_controller.dart';
 import '../setting/presence_type.dart';
@@ -183,6 +185,18 @@ class HomeScreen extends HookConsumerWidget {
     }
 
     buildJobAlertMessage();
+
+    // Cek update sekali saja saat home pertama kali tampil
+    useEffect(() {
+      Future.microtask(() async {
+        final info = await PackageInfo.fromPlatform();
+        final updateInfo = await UpdateChecker.check(info.version);
+        if (updateInfo != null && context.mounted) {
+          _showUpdateDialog(context, info.version, updateInfo);
+        }
+      });
+      return null;
+    }, const []);
 
     Widget buildHeader() {
       return Container(
@@ -1520,6 +1534,162 @@ class HomeScreen extends HookConsumerWidget {
     context.showSuccessMessage(
       'Terimakasih, semoga besok lebih baik lagi',
     );
+  }
+
+  void _showUpdateDialog(
+    BuildContext context,
+    String currentVersion,
+    UpdateInfo updateInfo,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.92,
+        builder: (_, scrollController) => Column(
+          children: [
+            // Handle bar
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  const Icon(Icons.system_update, size: 28),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Update Tersedia',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'v$currentVersion → v${updateInfo.latestVersion}${updateInfo.releaseDate.isNotEmpty ? '  •  ${updateInfo.releaseDate}' : ''}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 20),
+            // Changelog content
+            Expanded(
+              child: ListView(
+                controller: scrollController,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                children: _buildChangelogWidgets(
+                  ctx,
+                  updateInfo.changelogContent,
+                ),
+              ),
+            ),
+            // Buttons
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                8,
+                20,
+                MediaQuery.of(ctx).padding.bottom + 16,
+              ),
+              child: Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      icon: const Icon(Icons.open_in_new, size: 18),
+                      label: const Text('Update Sekarang'),
+                      onPressed: () async {
+                        Navigator.of(ctx).pop();
+                        await InAppBrowser.openWithSystemBrowser(
+                          url: WebUri(UpdateChecker.playStoreUrl),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      child: const Text('Nanti Saja'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Parse baris-baris markdown changelog menjadi widget sederhana.
+  List<Widget> _buildChangelogWidgets(BuildContext context, String markdown) {
+    final widgets = <Widget>[];
+    for (final line in markdown.split('\n')) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) {
+        widgets.add(const SizedBox(height: 4));
+      } else if (trimmed.startsWith('### ')) {
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(top: 12, bottom: 4),
+          child: Text(
+            trimmed.substring(4),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          ),
+        ));
+      } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+        final content = trimmed.substring(2);
+        // Bold **text**
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(left: 8, bottom: 2),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('• ', style: TextStyle(fontSize: 13)),
+              Expanded(
+                child: Text(
+                  content.replaceAll(RegExp(r'\*\*(.*?)\*\*'), r'\1'),
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+        ));
+      } else if (!trimmed.startsWith('#')) {
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(bottom: 2),
+          child: Text(trimmed, style: const TextStyle(fontSize: 13)),
+        ));
+      }
+    }
+    return widgets;
   }
 
   /// Shows a dismissible loading dialog.
