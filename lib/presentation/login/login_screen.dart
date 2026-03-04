@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:gap/gap.dart';
-import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:syathiby/generated/assets.dart';
 import 'package:syathiby/l10n/string_hardcoded.dart';
 import 'package:syathiby/res/strings.dart';
-import 'package:syathiby/routing/app_router.dart';
 import 'package:syathiby/utils/extension/color.dart';
 import 'package:syathiby/utils/extension/ui.dart';
 
@@ -28,6 +26,9 @@ class LoginScreen extends HookConsumerWidget {
     final passwordVisible = useState(false);
     final phoneNumberController = useTextEditingController();
     final passwordController = useTextEditingController();
+    final isLocalEnv = EnvironmentConfig.isLocalEnvironment;
+    final envLabel = EnvironmentConfig.environmentLabel;
+    final baseUrl = EnvironmentConfig.baseUrl;
 
     return Scaffold(
       body: Form(
@@ -115,11 +116,34 @@ class LoginScreen extends HookConsumerWidget {
                     ),
                   ),
                   const Gap(16),
-                  const Text(
+                  Text(
                     AppConstant.appName,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 28.0,
                       fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Gap(8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isLocalEnv
+                          ? Colors.red.withValues(alpha: 0.1)
+                          : Colors.green.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isLocalEnv ? Colors.red : Colors.green,
+                      ),
+                    ),
+                    child: Text(
+                      'ENV: $envLabel • API: $baseUrl',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isLocalEnv ? Colors.red : Colors.green,
+                      ),
                     ),
                   ),
                   const Gap(32),

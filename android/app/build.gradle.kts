@@ -29,6 +29,23 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["appLabel"] = "Syathiby"
+    }
+
+    flavorDimensions += "env"
+    productFlavors {
+        create("prod") {
+            dimension = "env"
+            applicationId = "id.syathiby.app"
+            manifestPlaceholders["appLabel"] = "Syathiby"
+        }
+
+        create("local") {
+            dimension = "env"
+            applicationId = "id.syathiby.app.local"
+            versionNameSuffix = "-local"
+            manifestPlaceholders["appLabel"] = "Syathiby LOCAL"
+        }
     }
 
     signingConfigs {

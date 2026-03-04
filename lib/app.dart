@@ -8,6 +8,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:syathiby/di/providers.dart';
 import 'package:syathiby/generated/l10n.dart';
+import 'package:syathiby/res/environment_config.dart';
 import 'package:syathiby/res/strings.dart';
 import 'package:syathiby/routing/app_router.dart';
 
@@ -19,6 +20,9 @@ class MyApp extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final goRouter = ref.watch(goRouterProvider);
+    final isLocalEnv = EnvironmentConfig.isLocalEnvironment;
+    final environmentLabel = EnvironmentConfig.environmentLabel;
+    final environmentColor = isLocalEnv ? Colors.red : Colors.green;
     useEffect(() {
       setupInteractedMessage(ref);
       return null;
@@ -48,6 +52,20 @@ class MyApp extends HookConsumerWidget {
         theme: light,
         darkTheme: dark,
         debugShowCheckedModeBanner: false,
+        builder: (context, child) {
+          final appChild = child ?? const SizedBox.shrink();
+          // Show banner only for LOCAL environment (development)
+          // For PROD, no banner (clean production UI)
+          if (!isLocalEnv) {
+            return appChild;
+          }
+          return Banner(
+            message: environmentLabel,
+            location: BannerLocation.topEnd,
+            color: environmentColor,
+            child: appChild,
+          );
+        },
       ),
     );
   }

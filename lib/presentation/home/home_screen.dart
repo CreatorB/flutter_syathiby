@@ -1,4 +1,5 @@
 import 'package:adaptive_dialog/adaptive_dialog.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart' hide Store;
@@ -9,6 +10,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:syathiby/di/providers.dart';
 import 'package:syathiby/models/hostel/hostel.dart';
+import 'package:syathiby/res/environment_config.dart';
+import 'package:syathiby/models/slip/absent.dart';
 import 'package:syathiby/models/user/request_logout.dart';
 import 'package:syathiby/presentation/home/fetch_presence_controller.dart';
 import 'package:syathiby/presentation/report/bottomsheet_staff_month_picker.dart';
@@ -26,6 +29,11 @@ import '../presence/presence_controller.dart';
 import '../setting/local_auth_controller.dart';
 import '../setting/presence_type.dart';
 import 'menu_home.dart';
+
+enum AttendanceMethod {
+  location,
+  wifi,
+}
 
 class HomeScreen extends HookConsumerWidget {
   HomeScreen({super.key});
@@ -1076,35 +1084,93 @@ class HomeScreen extends HookConsumerWidget {
     String key,
   ) async {
     try {
+      final method = await showConfirmationDialog<AttendanceMethod>(
+        context: context,
+        title: 'Metode Absensi',
+        message: 'Silakan pilih metode absensi',
+        actions: const [
+          AlertDialogAction(
+            key: AttendanceMethod.location,
+            label: 'Location',
+          ),
+          AlertDialogAction(
+            key: AttendanceMethod.wifi,
+            label: 'Jaringan (Wi-Fi / LAN)',
+          ),
+        ],
+      );
+      if (method == null || !context.mounted) return;
+
+      final isWifiMethod = method == AttendanceMethod.wifi;
+      if (isWifiMethod) {
+        final isWifiIpValid = await _validateWifiPublicIp(context);
+        if (!isWifiIpValid || !context.mounted) return;
+      }
+
       final locations = await ref.watch(
         fetchListHostelProvider(key: key).future,
       );
       if (!context.mounted) return;
-      final selected = await showConfirmationDialog<Asrama>(
-        context: context,
-        title: 'Lokasi Presensi',
-        actions: locations
-            .map(
-              (e) => AlertDialogAction(key: e, label: '${e.namaAsrama}'),
-            )
-            .toList(),
-      );
-      if (selected == null) {
+
+      final selected = isWifiMethod
+          ? locations.isNotEmpty
+              ? locations.first
+              : null
+          : await showConfirmationDialog<Asrama>(
+              context: context,
+              title: 'Lokasi Presensi',
+              actions: locations
+                  .map(
+                    (e) => AlertDialogAction(key: e, label: '${e.namaAsrama}'),
+                  )
+                  .toList(),
+            );
+
+      if (selected == null || !context.mounted) {
         return;
       }
 
-      final position = await ref.read(getCurrentLocationProvider.future);
-      final result =
-          await ref.read(accountControllerProvider.notifier).presence(
-                key: key,
-                presenceType: PresenceType.normal,
-                latitude: position.latitude,
-                longitude: position.longitude,
-                locationPresenceName: '${selected.idAsrama}',
-                mock: position.isMocked,
-              );
+      // Show loading dialog while fetching GPS and calling API
+      final dismissLoading = _startLoading(context);
+      Absent? result;
+      try {
+        late double latitude;
+        late double longitude;
+        late bool isMocked;
 
+        if (isWifiMethod) {
+          latitude = 0.0;
+          longitude = 0.0;
+          isMocked = false;
+        } else {
+          final position = await ref.read(getCurrentLocationProvider.future);
+          latitude = position.latitude;
+          longitude = position.longitude;
+          isMocked = position.isMocked;
+        }
+
+        result = await ref.read(accountControllerProvider.notifier).presence(
+              key: key,
+              presenceType: PresenceType.normal,
+              latitude: latitude,
+              longitude: longitude,
+              locationPresenceName: '${selected.idAsrama}',
+              mock: isMocked,
+            );
+      } finally {
+        dismissLoading();
+      }
       if (result == null || !context.mounted) return;
+      
+      // Check if response is an error (has errCode that's not '01')
+      if (result.errCode != null && result.errCode != '01') {
+        // Error response from server
+        context.showErrorMessage(
+          result.msg ?? 'Terjadi kesalahan saat absen',
+        );
+        return;
+      }
+      
       final status = result.status;
 
       if (result.status == 'late') {
@@ -1174,6 +1240,94 @@ class HomeScreen extends HookConsumerWidget {
     }
   }
 
+  /// Validasi IP publik device dengan allowed IP dari server config.
+  /// Server hanya menyimpan IP yang diizinkan di .env — tidak perlu rebuild app jika IP berubah.
+  Future<bool> _validateWifiPublicIp(BuildContext context) async {
+    try {
+      final dioClient = Dio();
+
+      // 1. Ambil allowed IP dari server config
+      String allowedIp;
+      try {
+        final configRes = await dioClient
+            .get(
+              '${EnvironmentConfig.baseUrl}settings/wificonfig.php',
+              options: Options(responseType: ResponseType.json),
+            )
+            .timeout(const Duration(seconds: 8));
+        final configData = configRes.data;
+        allowedIp = configData is Map<String, dynamic>
+            ? '${configData['wifi_allowed_ip'] ?? ''}'
+            : '';
+      } catch (_) {
+        if (!context.mounted) return false;
+        context.showErrorMessage(
+          'Tidak bisa mengambil konfigurasi jaringan. Coba lagi.',
+        );
+        return false;
+      }
+
+      if (allowedIp.isEmpty) {
+        if (!context.mounted) return false;
+        context.showErrorMessage('Konfigurasi IP Wi\'Fi ma\'had tidak ditemukan.');
+        return false;
+      }
+
+      // 2. Deteksi IP publik device via external API
+      String? detectedIp;
+      try {
+        final res = await dioClient
+            .get(
+              'https://api.ipify.org?format=json',
+              options: Options(responseType: ResponseType.json),
+            )
+            .timeout(const Duration(seconds: 8));
+        final data = res.data;
+        detectedIp = data is Map<String, dynamic> ? '${data['ip'] ?? ''}' : null;
+      } catch (_) {
+        try {
+          final res = await dioClient
+              .get(
+                'https://ipapi.co/json/',
+                options: Options(responseType: ResponseType.json),
+              )
+              .timeout(const Duration(seconds: 8));
+          final data = res.data;
+          detectedIp = data is Map<String, dynamic> ? '${data['ip'] ?? ''}' : null;
+        } catch (_) {
+          try {
+            final res = await dioClient
+                .get(
+                  'https://api.ip.sb/ip',
+                  options: Options(responseType: ResponseType.plain),
+                )
+                .timeout(const Duration(seconds: 8));
+            detectedIp = res.data?.toString().trim();
+          } catch (_) {
+            if (!context.mounted) return false;
+            context.showErrorMessage(
+              'Tidak bisa verifikasi IP. Pastikan koneksi jaringan aktif.',
+            );
+            return false;
+          }
+        }
+      }
+
+      if (!context.mounted) return false;
+
+      if (detectedIp == allowedIp) return true;
+
+      context.showErrorMessage(
+        'Jaringan tidak diizinkan. Gunakan Wi-Fi / LAN ma\'had untuk absen.',
+      );
+      return false;
+    } catch (e) {
+      if (!context.mounted) return false;
+      context.showErrorMessage('Gagal verifikasi jaringan.');
+      return false;
+    }
+  }
+
   Future<void> _showPresenceOut(
     BuildContext context,
     WidgetRef ref,
@@ -1181,29 +1335,80 @@ class HomeScreen extends HookConsumerWidget {
     String device,
   ) async {
     try {
-      final presenceLocation =
-          await showChooseLocationDialog(context, ref, key);
+      final method = await showConfirmationDialog<AttendanceMethod>(
+        context: context,
+        title: 'Metode Absensi',
+        message: 'Silakan pilih metode absensi',
+        actions: const [
+          AlertDialogAction(
+            key: AttendanceMethod.location,
+            label: 'Location',
+          ),
+          AlertDialogAction(
+            key: AttendanceMethod.wifi,
+            label: 'Jaringan (Wi-Fi / LAN)',
+          ),
+        ],
+      );
+      if (method == null || !context.mounted) return;
+
+      final isWifiMethod = method == AttendanceMethod.wifi;
+      if (isWifiMethod) {
+        final isWifiIpValid = await _validateWifiPublicIp(context);
+        if (!isWifiIpValid || !context.mounted) return;
+      }
+
+      final locations = await ref.watch(
+        fetchListHostelProvider(key: key).future,
+      );
+      if (!context.mounted) return;
+
+      final presenceLocation = isWifiMethod
+          ? locations.isNotEmpty
+              ? locations.first
+              : null
+          : await showChooseLocationDialog(context, ref, key);
+
       if (presenceLocation == null) return;
 
-      final position = await ref.read(getCurrentLocationProvider.future);
+      // Show loading dialog while fetching GPS and calling API
+      final dismissLoading = _startLoading(context);
+      Absent? result;
+      try {
+        late double latitude;
+        late double longitude;
+        late bool isMocked;
 
-      final token = ref
-          .watch(sharedPreferencesHelperProvider)
-          .getString(AppConstant.keyDeviceToken);
+        if (isWifiMethod) {
+          latitude = 0.0;
+          longitude = 0.0;
+          isMocked = false;
+        } else {
+          final position = await ref.read(getCurrentLocationProvider.future);
+          latitude = position.latitude;
+          longitude = position.longitude;
+          isMocked = position.isMocked;
+        }
 
-      final requestLogout = RequestLogout(
-        mock: position.isMocked,
-        longitude: position.longitude,
-        latitude: position.latitude,
-        key: key,
-        lokasi: '${presenceLocation.idAsrama}',
-        token: token,
-        device: device,
-      );
-      final result = await ref
-          .read(accountControllerProvider.notifier)
-          .presenceOut(requestLogout);
+        final token = ref
+            .watch(sharedPreferencesHelperProvider)
+            .getString(AppConstant.keyDeviceToken);
 
+        final requestLogout = RequestLogout(
+          mock: isMocked,
+          longitude: longitude,
+          latitude: latitude,
+          key: key,
+          lokasi: '${presenceLocation.idAsrama}',
+          token: token,
+          device: device,
+        );
+        result = await ref
+            .read(accountControllerProvider.notifier)
+            .presenceOut(requestLogout);
+      } finally {
+        dismissLoading();
+      }
       if (!context.mounted) return;
       final status = result?.status;
       String title, message;
@@ -1315,5 +1520,43 @@ class HomeScreen extends HookConsumerWidget {
     context.showSuccessMessage(
       'Terimakasih, semoga besok lebih baik lagi',
     );
+  }
+
+  /// Shows a dismissible loading dialog.
+  /// Returns a [VoidCallback] that closes the dialog (safe to call even if
+  /// the user already dismissed it by tapping outside).
+  VoidCallback _startLoading(BuildContext context) {
+    bool active = true;
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      useRootNavigator: false,
+      builder: (_) => Center(
+        child: Card(
+          margin: const EdgeInsets.symmetric(horizontal: 48),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(strokeWidth: 3),
+                SizedBox(width: 20),
+                Text('Mohon tunggu...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ).whenComplete(() => active = false);
+
+    return () {
+      if (active && context.mounted) {
+        active = false;
+        Navigator.of(context).pop();
+      }
+    };
   }
 }
