@@ -74,7 +74,7 @@ class PresenceScreen extends HookConsumerWidget {
         actions: const [
           AlertDialogAction(
             key: AttendanceMethod.location,
-            label: 'Location',
+            label: 'Lokasi / GPS',
           ),
           AlertDialogAction(
             key: AttendanceMethod.wifi,

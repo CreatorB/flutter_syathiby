@@ -19,7 +19,9 @@ extension AsyncValueUI on AsyncValue {
         ),
         autoCloseDuration: const Duration(seconds: 3),
         type: ToastificationType.error,
-        style: ToastificationStyle.fillColored,
+        style: ToastificationStyle.flat,
+        backgroundColor: Colors.red.withOpacity(0.65),
+        foregroundColor: Colors.white,
       );
     }
   }
@@ -120,7 +122,9 @@ extension UiX on BuildContext {
       ),
       autoCloseDuration: const Duration(seconds: 3),
       type: ToastificationType.error,
-      style: ToastificationStyle.fillColored,
+      style: ToastificationStyle.flat,
+      backgroundColor: Colors.red.withOpacity(0.65),
+      foregroundColor: Colors.white,
     );
   }
 
