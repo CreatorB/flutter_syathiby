@@ -4,6 +4,7 @@ import 'package:syathiby/di/providers.dart';
 import 'package:syathiby/models/hostel/hostel.dart';
 import 'package:syathiby/models/medicine/medicine.dart';
 import 'package:syathiby/models/news/news.dart';
+import 'package:syathiby/models/wordpress/wp_post.dart';
 import 'package:syathiby/models/place/inventaris.dart';
 import 'package:syathiby/models/prayer/hadith/book_response.dart';
 import 'package:syathiby/models/prayer/surah/surah.dart';
@@ -149,6 +150,7 @@ import '../presentation/izin_santri/student_permit_screen.dart';
 import '../presentation/manage_job/manage_job_screen.dart';
 import '../presentation/manage_job/upsert_manage_job.dart';
 import '../presentation/news/detail_news_screen.dart';
+import '../presentation/wordpress/wp_post_detail_screen.dart';
 import '../presentation/penilaian/score_screen.dart';
 import '../presentation/prayer/qibla_compass_screen.dart';
 import '../presentation/presensi_tahfidz/tahfidz_teacher_presence_screen.dart';
@@ -450,8 +452,8 @@ GoRouter goRouter(GoRouterRef ref) {
                   GoRoute(
                     path: 'detail',
                     name: AppRoute.guestDetailNews.name,
-                    builder: (context, state) => DetailNewsScreen(
-                      news: state.extra as News,
+                    builder: (context, state) => WpPostDetailScreen(
+                      post: state.extra as WpPost,
                     ),
                   ),
                 ],
@@ -1512,8 +1514,8 @@ GoRouter goRouter(GoRouterRef ref) {
                   GoRoute(
                     path: 'detail-news',
                     name: AppRoute.detailNews.name,
-                    builder: (context, state) => DetailNewsScreen(
-                      news: state.extra as News,
+                    builder: (context, state) => WpPostDetailScreen(
+                      post: state.extra as WpPost,
                     ),
                   ),
                 ],

@@ -3,19 +3,16 @@ import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:syathiby/routing/app_router.dart';
 import 'package:skeletonizer/skeletonizer.dart';
-import 'package:syathiby/di/providers.dart';
-import '../news/item_news_list.dart';
-import '../news/news_controller.dart';
+import 'package:syathiby/presentation/wordpress/wp_posts_controller.dart';
+import 'package:syathiby/presentation/wordpress/wp_post_list_item.dart';
 
-/// Guest mode news screen - shows news without requiring login
+/// Guest mode news screen - shows WordPress posts from syathiby.id
 class GuestNewsScreen extends HookConsumerWidget {
   const GuestNewsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Guest users have an empty/dummy key for fetching public news
-    const guestKey = '';
-    final fetchNews = ref.watch(fetchNewsProvider(key: guestKey));
+    final fetchPosts = ref.watch(fetchWpPostsProvider(page: 1, perPage: 20));
 
     return Scaffold(
       appBar: AppBar(
@@ -23,10 +20,10 @@ class GuestNewsScreen extends HookConsumerWidget {
         elevation: 0,
       ),
       body: RefreshIndicator(
-        onRefresh: () async => ref.refresh(fetchNewsProvider(key: guestKey)),
+        onRefresh: () async => ref.refresh(fetchWpPostsProvider(page: 1, perPage: 20)),
         child: Skeletonizer(
-          enabled: fetchNews.isLoading,
-          child: fetchNews.hasError
+          enabled: fetchPosts.isLoading,
+          child: fetchPosts.hasError
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -42,26 +39,36 @@ class GuestNewsScreen extends HookConsumerWidget {
                         style: Theme.of(context).textTheme.bodyLarge,
                       ),
                       const SizedBox(height: 8),
+                      Text(
+                        '${fetchPosts.error}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
                       TextButton(
                         onPressed: () =>
-                            ref.refresh(fetchNewsProvider(key: guestKey)),
+                            ref.refresh(fetchWpPostsProvider(page: 1, perPage: 20)),
                         child: const Text('Coba Lagi'),
                       ),
                     ],
                   ),
                 )
               : ListView.builder(
-                  itemCount: fetchNews.valueOrNull?.length ?? 10,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: fetchPosts.valueOrNull?.length ?? 10,
                   itemBuilder: (context, index) {
-                    final news = fetchNews.valueOrNull?.elementAtOrNull(index);
+                    final post = fetchPosts.valueOrNull?.elementAtOrNull(index);
                     return ListTile(
-                      title: ItemNewsList(news: news),
-                      onTap: () {
-                        context.goNamed(
-                          AppRoute.guestDetailNews.name,
-                          extra: news,
-                        );
-                      },
+                      contentPadding: EdgeInsets.zero,
+                      title: WpPostListItem(post: post),
+                      onTap: post != null
+                          ? () {
+                              context.goNamed(
+                                AppRoute.guestDetailNews.name,
+                                extra: post,
+                              );
+                            }
+                          : null,
                     );
                   },
                 ),

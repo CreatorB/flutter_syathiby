@@ -388,6 +388,25 @@ fvm flutter run -d chrome --web-hostname 192.168.50.100 --web-port 8082
 
 ## ✨ Features
 
+### WordPress News Integration
+
+The app displays news and announcements from the Ma'had Syathiby WordPress site:
+
+- **WordPress REST API**: Pull latest posts from `https://syathiby.id/wp-json/wp/v2/posts`
+- **SEO-Optimized Images**: Uses Yoast SEO og_image for fast-loading, optimized thumbnails
+- **Rich Content Display**: Full HTML rendering with InAppWebView
+- **Embedded Media Support**: YouTube videos, Instagram posts, Twitter embeds automatically rendered
+- **Skeleton Loading**: Smooth loading animations while fetching content
+- **WebP Image Support**: Native support for modern WebP format images
+- **Available in**: Guest News screen and Member News screen
+
+**How it works:**
+- News content is managed through WordPress CMS at syathiby.id
+- App fetches posts via REST API with embedded featured media
+- Images prioritize Yoast SEO optimized thumbnails from `yoast_head_json`
+- Detail screen uses WebView for rich content including videos and embeds
+- HTML entities automatically decoded for proper text display
+
 ### Attendance System
 
 The app supports two attendance methods:
@@ -475,6 +494,120 @@ fvm flutter analyze
 
 ```bash
 fvm flutter test
+```
+
+---
+
+## 📰 WordPress API Configuration
+
+### WordPress REST API Endpoint
+
+The app fetches news from the WordPress site using the REST API:
+
+```
+Base URL: https://syathiby.id/wp-json/wp/v2
+Posts Endpoint: /posts?_embed=true
+```
+
+**Query Parameters:**
+- `_embed=true`: Includes embedded resources (featured media, author, etc.)
+- `page=1`: Page number for pagination
+- `per_page=10`: Number of posts per page (default: 10, max: 100)
+- `orderby=date`: Sort by date, relevance, id, etc.
+- `order=desc`: Descending order (newest first)
+
+### WordPress Models
+
+The app uses Freezed models for WordPress data:
+
+**`WpPost`** - Main post model
+- `id`, `date`, `slug`, `link`
+- `title`, `content`, `excerpt` (rendered HTML)
+- `featured_media` (media ID)
+- `_embedded` (embedded resources)
+- `yoast_head_json` (Yoast SEO metadata)
+
+**`YoastHeadJson`** - SEO metadata from Yoast plugin
+- `og_image[]` - Open Graph images (optimized thumbnails)
+
+**`OgImage`** - SEO-optimized image
+- `url`: Direct image URL (WebP format)
+- `width`, `height`: Image dimensions
+- `type`: MIME type (image/webp)
+
+**`WpEmbedded`** - Embedded resources
+- `wp:featuredmedia[]` - Featured media with source_url
+
+### Image Loading Strategy
+
+The app uses a prioritized fallback strategy for images:
+
+1. **Primary**: Yoast SEO og_image
+   ```dart
+   yoast_head_json.og_image[0].url
+   ```
+   ✅ SEO-optimized, pre-resized WebP thumbnails
+
+2. **Fallback**: Featured media from embedded data
+   ```dart
+   _embedded['wp:featuredmedia'][0].source_url
+   ```
+   ⚠️ Full-resolution original image
+
+### WordPress Service Configuration
+
+**Location**: `lib/models/wordpress/wp_api_service.dart`
+
+```dart
+@RestApi(baseUrl: 'https://syathiby.id/wp-json/wp/v2')
+abstract class WpApiService {
+  factory WpApiService(Dio dio, {String baseUrl}) = _WpApiService;
+
+  @GET('/posts')
+  Future<List<WpPost>> getPosts({
+    @Query('page') int? page,
+    @Query('per_page') int? perPage,
+    @Query('_embed') bool? embed,
+  });
+
+  @GET('/posts/{id}')
+  Future<WpPost> getPost(@Path('id') int id);
+}
+```
+
+**Dependency Injection**: `lib/di/providers.dart`
+
+```dart
+final wpApiServiceProvider = Provider<WpApiService>((ref) {
+  final dio = ref.watch(dioProvider);
+  return WpApiService(dio);
+});
+```
+
+### WordPress Content Display
+
+**List View** (`wp_post_list_item.dart`):
+- Featured image (200px height)
+- Title (HTML decoded)
+- Excerpt (HTML stripped and decoded)
+- Skeleton loading animation
+
+**Detail View** (`wp_post_detail_screen.dart`):
+- Featured image at top
+- Full HTML content rendering with InAppWebView
+- Embedded media support (YouTube, Instagram, etc.)
+- Custom CSS for responsive layout
+
+### Yoast SEO Plugin
+
+The WordPress site uses Yoast SEO plugin which provides:
+- Optimized og_image thumbnails (WebP format)
+- SEO metadata in `yoast_head_json` field
+- Better performance with pre-resized images
+
+To check if Yoast is installed:
+```bash
+curl https://syathiby.id/wp-json/wp/v2/posts?per_page=1 | jq '.[0].yoast_head_json'
 ```
 
 ---
@@ -596,11 +729,24 @@ flutter_syathiby/
 ├── ios/                            # iOS native code
 ├── lib/
 │   ├── app.dart                    # Root MaterialApp with environment banner
-│   ├── data/                       # Models, repositories, API services
+│   ├── data/                       # Data layer (repositories, local storage)
+│   ├── models/
+│   │   ├── wordpress/               # WordPress REST API models
+│   │   │   ├── wp_api_service.dart # Retrofit API service
+│   │   │   └── wp_post.dart        # WpPost model (Freezed + JSON)
+│   │   └── ...                     # Other models
 │   ├── presentation/
 │   │   ├── home/                   # Home screen with update checker
 │   │   ├── login/                  # Login screen with environment badge
-│   │   └── presence/               # Attendance screen with Wi-Fi option
+│   │   ├── presence/               # Attendance screen with Wi-Fi option
+│   │   ├── wordpress/              # WordPress news screens
+│   │   │   ├── wp_posts_controller.dart   # Riverpod controller
+│   │   │   ├── wp_post_list_item.dart     # News list item widget
+│   │   │   └── wp_post_detail_screen.dart # Article detail (WebView)
+│   │   ├── guest/                  # Guest screens (uses WordPress API)
+│   │   └── news/                   # Member news (uses WordPress API)
+│   ├── di/
+│   │   └── providers.dart          # Riverpod providers & DI
 │   ├── res/
 │   │   ├── flavor_config.dart      # Built-in URL configuration per flavor
 │   │   ├── environment_config.dart # Runtime config + URL override

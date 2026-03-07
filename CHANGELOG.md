@@ -5,6 +5,78 @@ All notable changes to Syathiby App will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6] - 2026-03-07
+
+### Added
+- **WordPress REST API Integration**: News feeds now pull from syathiby.id WordPress site
+  - Implemented WordPress REST API v2 service with Retrofit
+  - Created `WpPost` model with Freezed and JSON serialization
+  - Added `YoastHeadJson` support for SEO-optimized og_image thumbnails
+  - New presentation layer: `WpPostListItem` and `WpPostDetailScreen`
+  - Integrated with both Guest News and Member News screens
+- **Rich Content Display**: Enhanced news detail screen
+  - Uses `InAppWebView` for rich content rendering
+  - Supports embedded media (YouTube, Instagram, Twitter, etc.)
+  - Custom HTML template with responsive design
+  - Featured image display at top of article
+- **Image Loading Optimization**: WebP image support
+  - Prioritizes Yoast SEO og_image (optimized thumbnails from `yoast_head_json`)
+  - Falls back to featured media from `_embedded` data
+  - Uses native `Image.network` for WebP format compatibility
+  - Loading progress indicator with smooth animations
+- **UI/UX Enhancements**: Improved news reading experience
+  - Skeleton loading animation using Skeletonizer package
+  - Comprehensive HTML entity decoding (numeric and named entities)
+  - Error handling with detailed diagnostic messages
+  - Smooth navigation between list and detail views
+
+### Changed
+- **News Data Source**: Migrated from custom API to WordPress REST API
+  - Guest News screen now uses WordPress posts endpoint
+  - Member News screen updated to use WordPress API
+  - Maintained consistent UI while improving content management
+- **Dependencies**: Updated service injection and providers
+  - Added `WpApiService` to dependency injection
+  - Registered WordPress services in `ServiceInjection`
+  - Updated routing configuration for WordPress screens
+
+### Technical Details
+- **API Endpoint**: `https://syathiby.id/wp-json/wp/v2/posts?_embed=true`
+- **Image Priority Strategy**:
+  1. Yoast SEO og_image: `yoast_head_json.og_image[0].url` (SEO-optimized WebP)
+  2. Featured media: `_embedded['wp:featuredmedia'][0].source_url`
+- **Models Created**:
+  - `WpPost`: Main post model with title, content, excerpt, featured_media
+  - `WpEmbedded`: Embedded resources container
+  - `WpFeaturedMedia`: Featured media with source_url and media_details
+  - `YoastHeadJson`: Yoast SEO metadata container
+  - `OgImage`: Open Graph image with width, height, url, type
+- **Presentation Layer**:
+  - `WpPostsController`: Riverpod controller for fetching posts
+  - `WpPostListItem`: List item widget with featured image and excerpt
+  - `WpPostDetailScreen`: Full article view with WebView rendering
+- **Flutter Dependencies**:
+  - `retrofit` + `dio`: REST API client
+  - `freezed` + `json_serializable`: Model generation
+  - `flutter_inappwebview`: Rich content display
+  - `cached_network_image`: Image caching (replaced with Image.network for WebP support)
+  - `skeletonizer`: Loading animations
+
+### Fixed
+- **Thumbnail Loading Issues**: Resolved image display problems
+  - Fixed field mapping: og_image moved from root to `yoast_head_json.og_image`
+  - Addressed SQLite cache database corruption (switched to Image.network)
+  - WebP format now fully supported without cache issues
+- **HTML Entity Display**: All HTML entities properly decoded
+  - Numeric entities (&#8217;, &#038;, etc.)
+  - Named entities (&amp;, &lt;, &gt;, &quot;, etc.)
+  - Hellip and other special characters ([&hellip;], [...])
+
+### Removed
+- **Legacy News Models**: Replaced with WordPress models
+  - Removed old news service and models
+  - Kept backup files for reference (*.backup)
+
 ## [1.0.5] - 2026-03-04
 
 ### Fixed

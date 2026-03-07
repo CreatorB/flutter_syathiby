@@ -60,6 +60,20 @@ Dio dio(DioRef ref) {
   return dio;
 }
 
+/// Dio instance for WordPress REST API
+@Riverpod(keepAlive: true)
+Dio wordpressDio(WordpressDioRef ref) {
+  final dio = Dio();
+
+  dio.interceptors.add(ref.watch(loggingInterceptorProvider));
+
+  dio.options.headers['content-Type'] = 'application/json';
+  dio.options.connectTimeout = const Duration(seconds: 30);
+  dio.options.receiveTimeout = const Duration(seconds: 30);
+
+  return dio;
+}
+
 @Riverpod(keepAlive: true)
 FirebaseMessaging firebaseMessaging(FirebaseMessagingRef ref) {
   final fcm = FirebaseMessaging.instance;
