@@ -5,6 +5,16 @@ All notable changes to Syathiby App will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.5] - 2026-03-04
+
+### Fixed
+- **Kinerja Screen**: Performance list (Tab "List Penilaian") could not be scrolled down
+  - Removed `NeverScrollableScrollPhysics` from `PagedListView` and `ListView.builder`
+  - Infinite scroll pagination now works correctly to load next pages
+
+### Changed
+- **Update Checker**: Version check now fetches CHANGELOG from `dev` branch instead of `test`
+
 ## [1.0.4] - 2026-03-04
 
 ### Added

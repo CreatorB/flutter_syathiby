@@ -142,7 +142,6 @@ class PerformanceScreen extends HookConsumerWidget {
 
   Widget _tabOne(PagingController<int, Kinerja> performancePagingController) {
     return PagedListView(
-      physics: const NeverScrollableScrollPhysics(),
       pagingController: performancePagingController,
       builderDelegate: PagedChildBuilderDelegate<Kinerja>(
         itemBuilder: (context, item, index) => ItemPerformanceWidget(
@@ -155,7 +154,6 @@ class PerformanceScreen extends HookConsumerWidget {
   Widget _tabTwo(AsyncValue<List<Kinerja>> fetchPerformanceDetail) {
     return fetchPerformanceDetail.when(
       data: (data) => ListView.builder(
-        physics: const NeverScrollableScrollPhysics(),
         itemCount: data.length,
         itemBuilder: (context, index) {
           final item = data[index];

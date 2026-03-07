@@ -620,11 +620,11 @@ flutter_syathiby/
 
 ## 🤝 Contributing
 
-1. Create a new branch from `test`
+1. Create a new branch from `dev`
 2. Implement features or fixes with clear commit messages
 3. Update [CHANGELOG.md](CHANGELOG.md) with a new entry
 4. Test all changes thoroughly
-5. Open a Pull Request to the `test` branch
+5. Open a Pull Request to the `dev` branch
 
 ### Commit Message Convention
 
@@ -640,7 +640,7 @@ refactor: restructure code for A
 
 ## 🌿 Branches
 
-### [test](https://github.com/CreatorB/flutter_syathiby/tree/test)
+### [dev](https://github.com/CreatorB/flutter_syathiby/tree/dev)
 Active development branch — continuously updated with the latest features and requirements.
 
 ### [main](https://github.com/CreatorB/flutter_syathiby)

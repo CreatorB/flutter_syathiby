@@ -63,16 +63,21 @@ Dio dio(DioRef ref) {
 @Riverpod(keepAlive: true)
 FirebaseMessaging firebaseMessaging(FirebaseMessagingRef ref) {
   final fcm = FirebaseMessaging.instance;
-  // Pindahkan permission request ke non-blocking untuk mencegah hang di splash
+  // Non-blocking setup for notifications; avoid Android startup crashes on some devices.
   Future.microtask(() async {
     try {
-      await fcm.requestPermission().timeout(
-        const Duration(seconds: 5),
-        onTimeout: () async {
-          debugPrint("FCM permission request timeout");
-          return fcm.getNotificationSettings();
-        },
-      );
+      // On Android this request can fail early (activity/context not ready),
+      // and Android < 13 does not require runtime notification permission.
+      if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android) {
+        await fcm.requestPermission().timeout(
+          const Duration(seconds: 5),
+          onTimeout: () async {
+            debugPrint("FCM permission request timeout");
+            return fcm.getNotificationSettings();
+          },
+        );
+      }
+
       await fcm.setForegroundNotificationPresentationOptions(
         alert: true,
         badge: true,

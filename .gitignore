@@ -108,3 +108,6 @@ Thumbs.db
 # Build outputs
 **/android/app/**/*.apk
 **/android/app/**/*.aab
+
+# Temporary build output files
+android/gradle_output.txt
