@@ -43,6 +43,7 @@ Login? getCurrentUser(GetCurrentUserRef ref) {
 @Riverpod(keepAlive: true)
 Dio dio(DioRef ref) {
   final dio = Dio();
+  const debugNow = String.fromEnvironment('DEBUG_NOW', defaultValue: '');
 
   dio.interceptors.add(ResponseInterceptor());
 
@@ -52,6 +53,55 @@ Dio dio(DioRef ref) {
   //   - ApiLogConfig.addLogPath('/api/login') untuk log spesifik API
   dio.interceptors.add(ref.watch(loggingInterceptorProvider));
 
+  // Local debug-time injector for shift testing without changing server clock.
+  dio.interceptors.add(
+    InterceptorsWrapper(
+      onRequest: (options, handler) {
+        final shouldInjectDebugNow =
+            debugNow.trim().isNotEmpty && EnvironmentConfig.isLocalEnvironment;
+        if (!shouldInjectDebugNow) {
+          handler.next(options);
+          return;
+        }
+
+        final lowerPath = options.path.toLowerCase();
+        final targetPaths = [
+          'settings/detailstore.php',
+          'attendance/presence.php',
+          'attendance/presencenormal.php',
+          'attendance/finish.php',
+        ];
+        final isTargetRequest =
+            targetPaths.any((path) => lowerPath.contains(path));
+        if (!isTargetRequest) {
+          handler.next(options);
+          return;
+        }
+
+        if (options.method.toUpperCase() == 'GET') {
+          options.queryParameters.putIfAbsent('debug_now', () => debugNow);
+          handler.next(options);
+          return;
+        }
+
+        final requestData = options.data;
+        if (requestData is FormData) {
+          final hasDebugNow =
+              requestData.fields.any((field) => field.key == 'debug_now');
+          if (!hasDebugNow) {
+            requestData.fields.add(MapEntry('debug_now', debugNow));
+          }
+          options.data = requestData;
+        } else if (requestData is Map<String, dynamic>) {
+          requestData.putIfAbsent('debug_now', () => debugNow);
+          options.data = requestData;
+        }
+
+        handler.next(options);
+      },
+    ),
+  );
+
   dio.options.headers['content-Type'] = 'application/json';
   dio.options.baseUrl = EnvironmentConfig.baseUrl;
   dio.options.connectTimeout = const Duration(seconds: 60);
@@ -60,19 +110,38 @@ Dio dio(DioRef ref) {
   return dio;
 }
 
+/// Dio instance for WordPress REST API
+@Riverpod(keepAlive: true)
+Dio wordpressDio(WordpressDioRef ref) {
+  final dio = Dio();
+
+  dio.interceptors.add(ref.watch(loggingInterceptorProvider));
+
+  dio.options.headers['content-Type'] = 'application/json';
+  dio.options.connectTimeout = const Duration(seconds: 30);
+  dio.options.receiveTimeout = const Duration(seconds: 30);
+
+  return dio;
+}
+
 @Riverpod(keepAlive: true)
 FirebaseMessaging firebaseMessaging(FirebaseMessagingRef ref) {
   final fcm = FirebaseMessaging.instance;
-  // Pindahkan permission request ke non-blocking untuk mencegah hang di splash
+  // Non-blocking setup for notifications; avoid Android startup crashes on some devices.
   Future.microtask(() async {
     try {
-      await fcm.requestPermission().timeout(
-        const Duration(seconds: 5),
-        onTimeout: () async {
-          debugPrint("FCM permission request timeout");
-          return fcm.getNotificationSettings();
-        },
-      );
+      // On Android this request can fail early (activity/context not ready),
+      // and Android < 13 does not require runtime notification permission.
+      if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android) {
+        await fcm.requestPermission().timeout(
+          const Duration(seconds: 5),
+          onTimeout: () async {
+            debugPrint("FCM permission request timeout");
+            return fcm.getNotificationSettings();
+          },
+        );
+      }
+
       await fcm.setForegroundNotificationPresentationOptions(
         alert: true,
         badge: true,

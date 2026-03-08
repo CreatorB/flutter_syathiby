@@ -1,4 +1,5 @@
 import 'package:adaptive_dialog/adaptive_dialog.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart' hide Store;
@@ -9,6 +10,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:syathiby/di/providers.dart';
 import 'package:syathiby/models/hostel/hostel.dart';
+import 'package:syathiby/res/environment_config.dart';
+import 'package:syathiby/utils/update_checker.dart';
+import 'package:syathiby/models/slip/absent.dart';
 import 'package:syathiby/models/user/request_logout.dart';
 import 'package:syathiby/presentation/home/fetch_presence_controller.dart';
 import 'package:syathiby/presentation/report/bottomsheet_staff_month_picker.dart';
@@ -22,10 +26,16 @@ import 'package:syathiby/utils/extension/ui.dart';
 import 'package:responsive_grid/responsive_grid.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import '../presence/presence_controller.dart';
 import '../setting/local_auth_controller.dart';
 import '../setting/presence_type.dart';
 import 'menu_home.dart';
+
+enum AttendanceMethod {
+  location,
+  wifi,
+}
 
 class HomeScreen extends HookConsumerWidget {
   HomeScreen({super.key});
@@ -59,7 +69,16 @@ class HomeScreen extends HookConsumerWidget {
     final timeAttandFormat = ref.watch(
       formatTimeProvider('${fetchPresence.valueOrNull?.timeattand}'),
     );
+    final timeAttandOutFormat = ref.watch(
+      formatTimeProvider('${fetchPresence.valueOrNull?.timeattandOut}'),
+    );
     final displayTimeAttand = timeAttandFormat ?? '--:--';
+    final rawWorkHour = fetchPresence.valueOrNull?.workhour?.trim();
+    final displayWorkHour =
+        (rawWorkHour != null && rawWorkHour.isNotEmpty)
+            ? rawWorkHour
+            : (fetchUserProfile.valueOrNull?.absensi ?? '-');
+    final displayTimeOut = timeAttandOutFormat ?? '--:--';
     final isWorking = displayTimeAttand != '--:--';
     final isClockIn = fetchPresence.valueOrNull?.absen == "1";
     final isHoliday = fetchPresence.valueOrNull?.holiday == "YES";
@@ -176,6 +195,18 @@ class HomeScreen extends HookConsumerWidget {
 
     buildJobAlertMessage();
 
+    // Cek update sekali saja saat home pertama kali tampil
+    useEffect(() {
+      Future.microtask(() async {
+        final info = await PackageInfo.fromPlatform();
+        final updateInfo = await UpdateChecker.check(info.version);
+        if (updateInfo != null && context.mounted) {
+          _showUpdateDialog(context, info.version, updateInfo);
+        }
+      });
+      return null;
+    }, const []);
+
     Widget buildHeader() {
       return Container(
         padding: const EdgeInsets.all(16),
@@ -282,11 +313,11 @@ class HomeScreen extends HookConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Jam Kerja',
+                          'Jadwal Kerja',
                           style: context.bodyMediumBold,
                         ),
                         Text(
-                          '${fetchUserProfile.valueOrNull?.absensi}',
+                          displayWorkHour,
                           style: context.bodyMedium,
                         ),
                       ],
@@ -301,6 +332,20 @@ class HomeScreen extends HookConsumerWidget {
                         ),
                         Text(
                           displayTimeAttand,
+                          style: context.bodyMedium,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Jam Pulang',
+                          style: context.bodyMediumBold,
+                        ),
+                        Text(
+                          displayTimeOut,
                           style: context.bodyMedium,
                         ),
                       ],
@@ -1076,35 +1121,93 @@ class HomeScreen extends HookConsumerWidget {
     String key,
   ) async {
     try {
+      final method = await showConfirmationDialog<AttendanceMethod>(
+        context: context,
+        title: 'Metode Absensi',
+        message: 'Silakan pilih metode absensi',
+        actions: const [
+          AlertDialogAction(
+            key: AttendanceMethod.location,
+            label: 'Lokasi / GPS',
+          ),
+          AlertDialogAction(
+            key: AttendanceMethod.wifi,
+            label: 'Jaringan (Wi-Fi / LAN)',
+          ),
+        ],
+      );
+      if (method == null || !context.mounted) return;
+
+      final isWifiMethod = method == AttendanceMethod.wifi;
+      if (isWifiMethod) {
+        final isWifiIpValid = await _validateWifiPublicIp(context);
+        if (!isWifiIpValid || !context.mounted) return;
+      }
+
       final locations = await ref.watch(
         fetchListHostelProvider(key: key).future,
       );
       if (!context.mounted) return;
-      final selected = await showConfirmationDialog<Asrama>(
-        context: context,
-        title: 'Lokasi Presensi',
-        actions: locations
-            .map(
-              (e) => AlertDialogAction(key: e, label: '${e.namaAsrama}'),
-            )
-            .toList(),
-      );
-      if (selected == null) {
+
+      final selected = isWifiMethod
+          ? locations.isNotEmpty
+              ? locations.first
+              : null
+          : await showConfirmationDialog<Asrama>(
+              context: context,
+              title: 'Lokasi Presensi',
+              actions: locations
+                  .map(
+                    (e) => AlertDialogAction(key: e, label: '${e.namaAsrama}'),
+                  )
+                  .toList(),
+            );
+
+      if (selected == null || !context.mounted) {
         return;
       }
 
-      final position = await ref.read(getCurrentLocationProvider.future);
-      final result =
-          await ref.read(accountControllerProvider.notifier).presence(
-                key: key,
-                presenceType: PresenceType.normal,
-                latitude: position.latitude,
-                longitude: position.longitude,
-                locationPresenceName: '${selected.idAsrama}',
-                mock: position.isMocked,
-              );
+      // Show loading dialog while fetching GPS and calling API
+      final dismissLoading = _startLoading(context);
+      Absent? result;
+      try {
+        late double latitude;
+        late double longitude;
+        late bool isMocked;
 
+        if (isWifiMethod) {
+          latitude = 0.0;
+          longitude = 0.0;
+          isMocked = false;
+        } else {
+          final position = await ref.read(getCurrentLocationProvider.future);
+          latitude = position.latitude;
+          longitude = position.longitude;
+          isMocked = position.isMocked;
+        }
+
+        result = await ref.read(accountControllerProvider.notifier).presence(
+              key: key,
+              presenceType: PresenceType.normal,
+              latitude: latitude,
+              longitude: longitude,
+              locationPresenceName: '${selected.idAsrama}',
+              mock: isMocked,
+            );
+      } finally {
+        dismissLoading();
+      }
       if (result == null || !context.mounted) return;
+      
+      // Check if response is an error (has errCode that's not '01')
+      if (result.errCode != null && result.errCode != '01') {
+        // Error response from server
+        context.showErrorMessage(
+          result.msg ?? 'Terjadi kesalahan saat absen',
+        );
+        return;
+      }
+      
       final status = result.status;
 
       if (result.status == 'late') {
@@ -1174,6 +1277,94 @@ class HomeScreen extends HookConsumerWidget {
     }
   }
 
+  /// Validasi IP publik device dengan allowed IP dari server config.
+  /// Server hanya menyimpan IP yang diizinkan di .env — tidak perlu rebuild app jika IP berubah.
+  Future<bool> _validateWifiPublicIp(BuildContext context) async {
+    try {
+      final dioClient = Dio();
+
+      // 1. Ambil allowed IP dari server config
+      String allowedIp;
+      try {
+        final configRes = await dioClient
+            .get(
+              '${EnvironmentConfig.baseUrl}settings/wificonfig.php',
+              options: Options(responseType: ResponseType.json),
+            )
+            .timeout(const Duration(seconds: 8));
+        final configData = configRes.data;
+        allowedIp = configData is Map<String, dynamic>
+            ? '${configData['wifi_allowed_ip'] ?? ''}'
+            : '';
+      } catch (_) {
+        if (!context.mounted) return false;
+        context.showErrorMessage(
+          'Tidak bisa mengambil konfigurasi jaringan. Coba lagi.',
+        );
+        return false;
+      }
+
+      if (allowedIp.isEmpty) {
+        if (!context.mounted) return false;
+        context.showErrorMessage('Konfigurasi IP Wi\'Fi ma\'had tidak ditemukan.');
+        return false;
+      }
+
+      // 2. Deteksi IP publik device via external API
+      String? detectedIp;
+      try {
+        final res = await dioClient
+            .get(
+              'https://api.ipify.org?format=json',
+              options: Options(responseType: ResponseType.json),
+            )
+            .timeout(const Duration(seconds: 8));
+        final data = res.data;
+        detectedIp = data is Map<String, dynamic> ? '${data['ip'] ?? ''}' : null;
+      } catch (_) {
+        try {
+          final res = await dioClient
+              .get(
+                'https://ipapi.co/json/',
+                options: Options(responseType: ResponseType.json),
+              )
+              .timeout(const Duration(seconds: 8));
+          final data = res.data;
+          detectedIp = data is Map<String, dynamic> ? '${data['ip'] ?? ''}' : null;
+        } catch (_) {
+          try {
+            final res = await dioClient
+                .get(
+                  'https://api.ip.sb/ip',
+                  options: Options(responseType: ResponseType.plain),
+                )
+                .timeout(const Duration(seconds: 8));
+            detectedIp = res.data?.toString().trim();
+          } catch (_) {
+            if (!context.mounted) return false;
+            context.showErrorMessage(
+              'Tidak bisa verifikasi IP. Pastikan koneksi jaringan aktif.',
+            );
+            return false;
+          }
+        }
+      }
+
+      if (!context.mounted) return false;
+
+      if (detectedIp == allowedIp) return true;
+
+      context.showErrorMessage(
+        'Jaringan tidak diizinkan. Gunakan Wi-Fi / LAN ma\'had untuk absen.',
+      );
+      return false;
+    } catch (e) {
+      if (!context.mounted) return false;
+      context.showErrorMessage('Gagal verifikasi jaringan.');
+      return false;
+    }
+  }
+
   Future<void> _showPresenceOut(
     BuildContext context,
     WidgetRef ref,
@@ -1181,29 +1372,80 @@ class HomeScreen extends HookConsumerWidget {
     String device,
   ) async {
     try {
-      final presenceLocation =
-          await showChooseLocationDialog(context, ref, key);
+      final method = await showConfirmationDialog<AttendanceMethod>(
+        context: context,
+        title: 'Metode Absensi',
+        message: 'Silakan pilih metode absensi',
+        actions: const [
+          AlertDialogAction(
+            key: AttendanceMethod.location,
+            label: 'Lokasi / GPS',
+          ),
+          AlertDialogAction(
+            key: AttendanceMethod.wifi,
+            label: 'Jaringan (Wi-Fi / LAN)',
+          ),
+        ],
+      );
+      if (method == null || !context.mounted) return;
+
+      final isWifiMethod = method == AttendanceMethod.wifi;
+      if (isWifiMethod) {
+        final isWifiIpValid = await _validateWifiPublicIp(context);
+        if (!isWifiIpValid || !context.mounted) return;
+      }
+
+      final locations = await ref.watch(
+        fetchListHostelProvider(key: key).future,
+      );
+      if (!context.mounted) return;
+
+      final presenceLocation = isWifiMethod
+          ? locations.isNotEmpty
+              ? locations.first
+              : null
+          : await showChooseLocationDialog(context, ref, key);
+
       if (presenceLocation == null) return;
 
-      final position = await ref.read(getCurrentLocationProvider.future);
+      // Show loading dialog while fetching GPS and calling API
+      final dismissLoading = _startLoading(context);
+      Absent? result;
+      try {
+        late double latitude;
+        late double longitude;
+        late bool isMocked;
 
-      final token = ref
-          .watch(sharedPreferencesHelperProvider)
-          .getString(AppConstant.keyDeviceToken);
+        if (isWifiMethod) {
+          latitude = 0.0;
+          longitude = 0.0;
+          isMocked = false;
+        } else {
+          final position = await ref.read(getCurrentLocationProvider.future);
+          latitude = position.latitude;
+          longitude = position.longitude;
+          isMocked = position.isMocked;
+        }
 
-      final requestLogout = RequestLogout(
-        mock: position.isMocked,
-        longitude: position.longitude,
-        latitude: position.latitude,
-        key: key,
-        lokasi: '${presenceLocation.idAsrama}',
-        token: token,
-        device: device,
-      );
-      final result = await ref
-          .read(accountControllerProvider.notifier)
-          .presenceOut(requestLogout);
+        final token = ref
+            .watch(sharedPreferencesHelperProvider)
+            .getString(AppConstant.keyDeviceToken);
 
+        final requestLogout = RequestLogout(
+          mock: isMocked,
+          longitude: longitude,
+          latitude: latitude,
+          key: key,
+          lokasi: '${presenceLocation.idAsrama}',
+          token: token,
+          device: device,
+        );
+        result = await ref
+            .read(accountControllerProvider.notifier)
+            .presenceOut(requestLogout);
+      } finally {
+        dismissLoading();
+      }
       if (!context.mounted) return;
       final status = result?.status;
       String title, message;
@@ -1315,5 +1557,199 @@ class HomeScreen extends HookConsumerWidget {
     context.showSuccessMessage(
       'Terimakasih, semoga besok lebih baik lagi',
     );
+  }
+
+  void _showUpdateDialog(
+    BuildContext context,
+    String currentVersion,
+    UpdateInfo updateInfo,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.92,
+        builder: (_, scrollController) => Column(
+          children: [
+            // Handle bar
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  const Icon(Icons.system_update, size: 28),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Update Tersedia',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'v$currentVersion → v${updateInfo.latestVersion}${updateInfo.releaseDate.isNotEmpty ? '  •  ${updateInfo.releaseDate}' : ''}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 20),
+            // Changelog content
+            Expanded(
+              child: ListView(
+                controller: scrollController,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                children: _buildChangelogWidgets(
+                  ctx,
+                  updateInfo.changelogContent,
+                ),
+              ),
+            ),
+            // Buttons
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                8,
+                20,
+                MediaQuery.of(ctx).padding.bottom + 16,
+              ),
+              child: Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      icon: const Icon(Icons.open_in_new, size: 18),
+                      label: const Text('Update Sekarang'),
+                      onPressed: () async {
+                        Navigator.of(ctx).pop();
+                        await InAppBrowser.openWithSystemBrowser(
+                          url: WebUri(UpdateChecker.playStoreUrl),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      child: const Text('Nanti Saja'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Parse baris-baris markdown changelog menjadi widget sederhana.
+  List<Widget> _buildChangelogWidgets(BuildContext context, String markdown) {
+    final widgets = <Widget>[];
+    for (final line in markdown.split('\n')) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) {
+        widgets.add(const SizedBox(height: 4));
+      } else if (trimmed.startsWith('### ')) {
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(top: 12, bottom: 4),
+          child: Text(
+            trimmed.substring(4),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          ),
+        ));
+      } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+        final content = trimmed.substring(2);
+        // Bold **text**
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(left: 8, bottom: 2),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('• ', style: TextStyle(fontSize: 13)),
+              Expanded(
+                child: Text(
+                  content.replaceAll(RegExp(r'\*\*(.*?)\*\*'), r'\1'),
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+        ));
+      } else if (!trimmed.startsWith('#')) {
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(bottom: 2),
+          child: Text(trimmed, style: const TextStyle(fontSize: 13)),
+        ));
+      }
+    }
+    return widgets;
+  }
+
+  /// Shows a dismissible loading dialog.
+  /// Returns a [VoidCallback] that closes the dialog (safe to call even if
+  /// the user already dismissed it by tapping outside).
+  VoidCallback _startLoading(BuildContext context) {
+    bool active = true;
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      useRootNavigator: false,
+      builder: (_) => Center(
+        child: Card(
+          margin: const EdgeInsets.symmetric(horizontal: 48),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(strokeWidth: 3),
+                SizedBox(width: 20),
+                Text('Mohon tunggu...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ).whenComplete(() => active = false);
+
+    return () {
+      if (active && context.mounted) {
+        active = false;
+        Navigator.of(context).pop();
+      }
+    };
   }
 }

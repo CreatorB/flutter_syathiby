@@ -42,6 +42,11 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/app/build/
+/android/build/
+
+# Backup files
+*.backup
 
 # FVM Version Cache
 .fvm/
@@ -108,3 +113,6 @@ Thumbs.db
 # Build outputs
 **/android/app/**/*.apk
 **/android/app/**/*.aab
+
+# Temporary build output files
+android/gradle_output.txt

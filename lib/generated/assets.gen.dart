@@ -34,8 +34,23 @@ class $AssetsImagesGen {
   /// File path: assets/images/needle.svg
   String get needle => 'assets/images/needle.svg';
 
+  /// File path: assets/images/syathiby_splash_1152.png
+  AssetGenImage get syathibySplash1152 =>
+      const AssetGenImage('assets/images/syathiby_splash_1152.png');
+
+  /// File path: assets/images/syathiby_splash_1152_backup.png
+  AssetGenImage get syathibySplash1152Backup =>
+      const AssetGenImage('assets/images/syathiby_splash_1152_backup.png');
+
   /// List of all assets
-  List<dynamic> get values => [compass, icon, logo, needle];
+  List<dynamic> get values => [
+        compass,
+        icon,
+        logo,
+        needle,
+        syathibySplash1152,
+        syathibySplash1152Backup
+      ];
 }
 
 class $AssetsJsonGen {

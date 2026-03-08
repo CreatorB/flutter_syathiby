@@ -25,9 +25,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
             await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
         }
     } catch (e) {
-        print("Background Firebase init error: $e");
+        // Silently fail in production
     }
-    print("Handling a background message: ${message.messageId}");
 }
 
 // Global variables to hold the state before runApp
@@ -50,15 +49,9 @@ Future<void> main() async {
         // 1. Ensure Flutter binding is ready.
         WidgetsFlutterBinding.ensureInitialized();
 
-        if (kDebugMode) print('=== App Starting ===');
-
         // 2. Initialize Firebase (skip on web for Safari compatibility)
-        if (kDebugMode) print('Initializing Firebase...');
         if (!kIsWeb) {
             await _initFirebase();
-            if (kDebugMode) print('Firebase OK');
-        } else {
-            if (kDebugMode) print('Firebase skipped on web');
         }
 
     // On Web, background messages are handled by the service worker.
@@ -189,6 +182,14 @@ Future<void> _initServices() async {
     final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
         FlutterLocalNotificationsPlugin();
 
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const InitializationSettings initializationSettings =
+        InitializationSettings(android: initializationSettingsAndroid);
+
+    // Ensure plugin has valid Android context before channel/permission calls.
+    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+
     const AndroidNotificationChannel channel = AndroidNotificationChannel(
         'high_importance_channel',
         'High Importance Notifications',
@@ -202,20 +203,7 @@ Future<void> _initServices() async {
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(channel);
 
-    // 2. Permission Request
-    final notificationsPlugin =
-        flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
-
-    if (notificationsPlugin != null) {
-        try {
-            await notificationsPlugin.requestNotificationsPermission();
-        } catch (e) {
-            print("PlatformException during permission request: $e");
-        }
-    }
-
-    // 3. Foreground Message Listener
+    // 2. Foreground Message Listener
     try {
         FirebaseMessaging.onMessage.listen((RemoteMessage message) {
             RemoteNotification? notification = message.notification;
