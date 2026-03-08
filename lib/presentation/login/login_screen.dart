@@ -11,8 +11,6 @@ import 'package:syathiby/routing/app_router.dart';
 import 'package:syathiby/utils/extension/color.dart';
 import 'package:syathiby/utils/extension/ui.dart';
 
-import 'package:restart_app/restart_app.dart';
-import 'package:syathiby/res/environment_config.dart';
 import 'login_controller.dart';
 
 class LoginScreen extends HookConsumerWidget {
@@ -22,6 +20,11 @@ class LoginScreen extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     ref.listen(loginControllerProvider, (previous, next) {
       next.showToastOnError(context);
+
+      // Router redirect will move user after session is saved.
+      if (previous?.isLoading == true && next.hasValue && context.mounted) {
+        // Navigation handled by router redirect
+      }
     });
     final state = ref.watch(loginControllerProvider);
     final formKey = useMemoized(GlobalKey<FormState>.new, const []);
@@ -30,6 +33,14 @@ class LoginScreen extends HookConsumerWidget {
     final passwordController = useTextEditingController();
 
     return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            context.go('/guest-user');
+          },
+        ),
+      ),
       body: Form(
         key: formKey,
         child: Center(
@@ -41,83 +52,15 @@ class LoginScreen extends HookConsumerWidget {
               ),
               child: Column(
                 children: [
-                  GestureDetector(
-                    onLongPress: () {
-                      final baseUrlController = TextEditingController(
-                        text: EnvironmentConfig.baseUrl,
-                      );
-                      final linkBaseController = TextEditingController(
-                        text: EnvironmentConfig.linkBase,
-                      );
-                      showDialog(
-                        context: context,
-                        builder: (context) {
-                          return AlertDialog(
-                            title: const Text('Debug Mode: Ganti API URL'),
-                            content: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                TextField(
-                                  controller: baseUrlController,
-                                  decoration: const InputDecoration(
-                                    labelText: 'API_URL',
-                                    hintText: 'https://...',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                ),
-                                const Gap(16),
-                                TextField(
-                                  controller: linkBaseController,
-                                  decoration: const InputDecoration(
-                                    labelText: 'LINK_BASE',
-                                    hintText: 'https://...',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () async {
-                                  await EnvironmentConfig.reset();
-                                  if (context.mounted) Navigator.pop(context);
-                                  Restart.restartApp();
-                                },
-                                child: const Text(
-                                  'Reset',
-                                  style: TextStyle(color: Colors.red),
-                                ),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: const Text('Batal'),
-                              ),
-                              FilledButton(
-                                onPressed: () async {
-                                  await EnvironmentConfig.updateConfig(
-                                    baseUrl: baseUrlController.text,
-                                    linkBase: linkBaseController.text,
-                                  );
-                                  if (context.mounted) Navigator.pop(context);
-                                  Restart.restartApp();
-                                },
-                                child: const Text('Simpan & Restart'),
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                    },
-                    child: Image.asset(
-                      Assets.imagesLogo,
-                      width: 175,
-                      height: 175,
-                    ),
+                  Image.asset(
+                    Assets.imagesLogo,
+                    width: 175,
+                    height: 175,
                   ),
                   const Gap(16),
-                  const Text(
+                  Text(
                     AppConstant.appName,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 28.0,
                       fontWeight: FontWeight.bold,
                     ),

@@ -4,6 +4,7 @@ import 'package:syathiby/di/providers.dart';
 import 'package:syathiby/models/hostel/hostel.dart';
 import 'package:syathiby/models/medicine/medicine.dart';
 import 'package:syathiby/models/news/news.dart';
+import 'package:syathiby/models/wordpress/wp_post.dart';
 import 'package:syathiby/models/place/inventaris.dart';
 import 'package:syathiby/models/prayer/hadith/book_response.dart';
 import 'package:syathiby/models/prayer/surah/surah.dart';
@@ -33,6 +34,10 @@ import 'package:syathiby/presentation/data_obat/medicine_request_screen.dart';
 import 'package:syathiby/presentation/data_obat/medicine_screen.dart';
 import 'package:syathiby/presentation/data_obat/upsert_medicine_screen.dart';
 import 'package:syathiby/presentation/forgot/forgot_screen.dart';
+import 'package:syathiby/presentation/guest/guest_news_screen.dart';
+import 'package:syathiby/presentation/guest/guest_prayer_screen.dart';
+import 'package:syathiby/presentation/guest/guest_shell.dart';
+import 'package:syathiby/presentation/guest/guest_user_screen.dart';
 import 'package:syathiby/presentation/home/home_screen.dart';
 import 'package:syathiby/presentation/jadwal/class_journal_screen.dart';
 import 'package:syathiby/presentation/jadwal/classroom_screen.dart';
@@ -145,6 +150,7 @@ import '../presentation/izin_santri/student_permit_screen.dart';
 import '../presentation/manage_job/manage_job_screen.dart';
 import '../presentation/manage_job/upsert_manage_job.dart';
 import '../presentation/news/detail_news_screen.dart';
+import '../presentation/wordpress/wp_post_detail_screen.dart';
 import '../presentation/penilaian/score_screen.dart';
 import '../presentation/prayer/qibla_compass_screen.dart';
 import '../presentation/presensi_tahfidz/tahfidz_teacher_presence_screen.dart';
@@ -167,11 +173,23 @@ import '../presentation/transaction/request_items_screen.dart';
 import '../presentation/ubah_jadwal/change_shift_screen.dart';
 import '../presentation/webview/webview_screen.dart';
 
-import 'package:syathiby/presentation/prayer/qibla_compass_screen.dart';
-
 part 'app_router.g.dart';
 
 enum AppRoute {
+  // Guest Routes (accessible without login)
+  guestNews,
+  guestDetailNews,
+  guestPrayer,
+  guestPrayerTime,
+  guestQuran,
+  guestAyah,
+  guestQibla,
+  guestMurottal,
+  guestUser,
+  guestLogin,
+  guestForgot,
+  
+  // Member Routes (require login)
   home,
   login,
   forgot,
@@ -347,6 +365,11 @@ enum AppRoute {
 }
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
+final _guestShellStateKey = GlobalKey<StatefulNavigationShellState>();
+final _memberShellStateKey = GlobalKey<StatefulNavigationShellState>();
+final _guestUserNavigatorKey = GlobalKey<NavigatorState>();
+final _guestNewsNavigatorKey = GlobalKey<NavigatorState>();
+final _guestPrayerNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorAKey = GlobalKey<NavigatorState>();
 final _shellNavigatorBKey = GlobalKey<NavigatorState>();
 final _shellNavigatorCKey = GlobalKey<NavigatorState>();
@@ -356,28 +379,154 @@ final _shellNavigatorEKey = GlobalKey<NavigatorState>();
 @riverpod
 GoRouter goRouter(GoRouterRef ref) {
   return GoRouter(
-    initialLocation: '/',
+    initialLocation: '/guest-news',
     navigatorKey: _rootNavigatorKey,
     // errorBuilder: (context, state) => const NotFoundScreen(),
     redirect: (context, state) async {
+      final goingToLogin = state.matchedLocation.startsWith('/auth');
+      final goingToGuest = state.matchedLocation.contains('/guest-');
+
+      Map<String, dynamic>? session;
       try {
-        final session = ref
+        session = ref
             .read(sharedPreferencesHelperProvider)
             .getObject<Map<String, dynamic>>(AppConstant.keyLoginSession);
-
-        final goingToLogin = state.matchedLocation.contains('/login');
-        if (session == null && !goingToLogin) {
-          return '/login';
-        }
-        return null;
-      }catch(e){
-       return '/login';
+      } catch (_) {
+        session = null;
       }
+
+      final sessionKey = session?['key']?.toString().trim();
+      final isLoggedIn = sessionKey != null &&
+          sessionKey.isNotEmpty &&
+          sessionKey.toLowerCase() != 'null';
+
+      // Auto-cleanup disabled temporarily for debugging
+      // if (session != null && !isLoggedIn) {
+      //   try {
+      //     ref
+      //         .read(sharedPreferencesHelperProvider)
+      //         .remove(AppConstant.keyLoginSession);
+      //   } catch (_) {
+      //     // Silent fail - cleanup is best-effort
+      //   }
+      // }
+
+      // If user is not logged in
+      if (!isLoggedIn) {
+        // Allow guest routes and login route.
+        if (goingToGuest || goingToLogin) {
+          return null;
+        }
+        // Redirect unknown private route to guest home.
+        return '/guest-news';
+      }
+
+      // If user is logged in, prevent access to guest/login routes.
+      if (goingToGuest || goingToLogin) {
+        return '/';
+      }
+
+      return null;
     },
     routes: [
+      // ========== GUEST MODE ROUTES (No login required) ==========
       StatefulShellRoute.indexedStack(
+        key: _guestShellStateKey,
+        restorationScopeId: 'guestShell',
+        builder: (context, state, navigationShell) {
+          return GuestShell(
+            key: ValueKey('guestShell'),
+            navigationShell: navigationShell,
+          );
+        },
+        branches: [
+          // Guest - News Tab
+          StatefulShellBranch(
+            navigatorKey: _guestNewsNavigatorKey,
+            routes: [
+              GoRoute(
+                path: '/guest-news',
+                name: AppRoute.guestNews.name,
+                builder: (context, state) => const GuestNewsScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'detail',
+                    name: AppRoute.guestDetailNews.name,
+                    builder: (context, state) => WpPostDetailScreen(
+                      post: state.extra as WpPost,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          // Guest - Prayer Tab
+          StatefulShellBranch(
+            navigatorKey: _guestPrayerNavigatorKey,
+            routes: [
+              GoRoute(
+                path: '/guest-prayer',
+                name: AppRoute.guestPrayer.name,
+                builder: (context, state) => const GuestPrayerScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'qibla',
+                    name: AppRoute.guestQibla.name,
+                    builder: (context, state) => const QiblaCompassScreen(),
+                  ),
+                  GoRoute(
+                    path: 'quran',
+                    name: AppRoute.guestQuran.name,
+                    builder: (context, state) => const SurahScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'ayah',
+                        name: AppRoute.guestAyah.name,
+                        builder: (context, state) {
+                          return AyahScreen(
+                            surah: state.extra as Surah,
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'prayer-time',
+                    name: AppRoute.guestPrayerTime.name,
+                    builder: (context, state) => const PrayerTimeScreen(),
+                  ),
+                  GoRoute(
+                    path: 'murottal',
+                    name: AppRoute.guestMurottal.name,
+                    builder: (context, state) => const MurottalScreen(),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          // Guest - User/Login Tab
+          StatefulShellBranch(
+            navigatorKey: _guestUserNavigatorKey,
+            routes: [
+              GoRoute(
+                path: '/guest-user',
+                name: AppRoute.guestUser.name,
+                builder: (context, state) => const GuestUserScreen(),
+              ),
+            ],
+          ),
+        ],
+      ),
+      
+      // ========== MEMBER MODE ROUTES (Login required) ==========
+      StatefulShellRoute.indexedStack(
+        key: _memberShellStateKey,
+        restorationScopeId: 'memberShell',
         builder: (context, state, navigationShell) =>
-            ScaffoldNestedNavigation(navigationShell),
+            ScaffoldNestedNavigation(
+              navigationShell,
+              key: ValueKey('memberShell'),
+            ),
         branches: [
           StatefulShellBranch(
             navigatorKey: _shellNavigatorAKey,
@@ -1365,8 +1514,8 @@ GoRouter goRouter(GoRouterRef ref) {
                   GoRoute(
                     path: 'detail-news',
                     name: AppRoute.detailNews.name,
-                    builder: (context, state) => DetailNewsScreen(
-                      news: state.extra as News,
+                    builder: (context, state) => WpPostDetailScreen(
+                      post: state.extra as WpPost,
                     ),
                   ),
                 ],
@@ -1531,7 +1680,7 @@ GoRouter goRouter(GoRouterRef ref) {
         ],
       ),
       GoRoute(
-        path: '/login',
+        path: '/auth/login',
         name: AppRoute.login.name,
         builder: (context, state) => const LoginScreen(),
         routes: [

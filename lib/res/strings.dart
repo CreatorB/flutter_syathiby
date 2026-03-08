@@ -1,9 +1,9 @@
-import 'package:syathiby/res/env.dart';
 import 'package:syathiby/res/environment_config.dart';
 
 abstract class AppConstant {
   //    rename setAppName --targets ios,android --value "Syathiby"
-  static const String appName = 'Syathiby';
+  static String get appName =>
+      EnvironmentConfig.isLocalEnvironment ? 'Syathiby LOCAL' : 'Syathiby';
   static const String youtubeChannelName = 'Syathiby';
   static String get teachingPlannerUrl => '${EnvironmentConfig.linkBase}/rpp/';
   static const String keyLoginSession = 'login_session';

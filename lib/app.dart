@@ -1,4 +1,5 @@
 import 'package:adaptive_theme/adaptive_theme.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:syathiby/di/providers.dart';
 import 'package:syathiby/generated/l10n.dart';
+import 'package:syathiby/res/environment_config.dart';
 import 'package:syathiby/res/strings.dart';
 import 'package:syathiby/routing/app_router.dart';
 
@@ -19,6 +21,9 @@ class MyApp extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final goRouter = ref.watch(goRouterProvider);
+    final isLocalEnv = EnvironmentConfig.isLocalEnvironment;
+    final environmentLabel = EnvironmentConfig.environmentLabel;
+    final environmentColor = isLocalEnv ? Colors.red : Colors.green;
     useEffect(() {
       setupInteractedMessage(ref);
       return null;
@@ -48,16 +53,35 @@ class MyApp extends HookConsumerWidget {
         theme: light,
         darkTheme: dark,
         debugShowCheckedModeBanner: false,
+        builder: (context, child) {
+          final appChild = child ?? const SizedBox.shrink();
+          // Show banner only for LOCAL environment (development)
+          // For PROD, no banner (clean production UI)
+          if (!isLocalEnv) {
+            return appChild;
+          }
+          return Banner(
+            message: environmentLabel,
+            location: BannerLocation.topEnd,
+            color: environmentColor,
+            child: appChild,
+          );
+        },
       ),
     );
   }
 
   // It is assumed that all messages contain a data field with the key 'type'
   Future<void> setupInteractedMessage(WidgetRef ref) async {
+    if (Firebase.apps.isEmpty) {
+      debugPrint('Firebase not initialized yet; skip interacted-message setup.');
+      return;
+    }
+
     // Get any messages which caused the application to open from
     // a terminated state.
     RemoteMessage? initialMessage =
-        await ref.watch(firebaseMessagingProvider).getInitialMessage();
+        await ref.read(firebaseMessagingProvider).getInitialMessage();
     const AndroidNotificationChannel channel = AndroidNotificationChannel(
       'high_importance_channel', // id
       'High Importance Notifications', // title
@@ -67,10 +91,6 @@ class MyApp extends HookConsumerWidget {
     );
 
     final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
-    flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
     // If the message also contains a data property with a "type" of "chat",
     // navigate to a chat screen
     if (initialMessage != null) {

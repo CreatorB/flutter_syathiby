@@ -32,6 +32,9 @@ class Absent with _$Absent {
     String? distance,
     String? name_event,
     String? reason,
+    // Error response fields - added to handle error messages from server
+    String? errCode,
+    String? msg,
   }) = _Absent;
 
   factory Absent.fromJson(Map<String, dynamic> json) => _$AbsentFromJson(json);

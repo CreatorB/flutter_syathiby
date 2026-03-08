@@ -30,20 +30,18 @@ class ResponseInterceptor extends Interceptor {
           handler.next(response);
           break;
 
-        // ============================================================
-        // PERBAIKAN: TAMBAHKAN CASE '02' (DATA KOSONG)
-        // ============================================================
-        case '02': 
-          // Jangan throw Error! Berikan List Kosong agar UI tidak crash.
-          // Retrofit akan membacanya sebagai List kosong dan UI menampilkan "No Data".
-          response.data = []; 
-          handler.next(response);
+        case RestException.RESPONSE_ERROR: // '02'
+          // Jika ada field `data` berupa list → endpoint list → kembalikan [] 
+          if (responseData.data is List) {
+            response.data = responseData.data;
+            handler.next(response);
+          } else {
+            // Endpoint single-object (contoh: attendance) → lempar error agar UI bisa tampilkan pesan
+            throw RestException(responseData.msg, responseData.errCode);
+          }
           break;
-        // ============================================================
 
         case RestException.RESPONSE_USER_NOT_FOUND:
-          throw RestException(responseData.msg, responseData.errCode);
-        case RestException.RESPONSE_ERROR:
           throw RestException(responseData.msg, responseData.errCode);
         case RestException.RESPONSE_MAINTENANCE:
           throw RestException(responseData.msg, responseData.errCode);
@@ -51,7 +49,6 @@ class ResponseInterceptor extends Interceptor {
           throw RestException(responseData.msg, responseData.errCode);
         
         default:
-          // Jika kode aneh, baru lempar error
           throw RestException(responseData.msg, responseData.errCode);
       }
     } else {

@@ -35,6 +35,7 @@ import 'package:syathiby/models/transaction/transaction_service.dart';
 import 'package:syathiby/models/unit/unit_service.dart';
 import 'package:syathiby/models/user/user_service.dart';
 import 'package:syathiby/models/violation/violation_service.dart';
+import 'package:syathiby/models/wordpress/wp_api_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'allocation/allocation_service.dart';
@@ -56,6 +57,11 @@ AsramaRestInterface hostelService(HostelServiceRef ref) {
 @Riverpod(keepAlive: true)
 NewsRestInterface newsService(NewsServiceRef ref) {
   return NewsRestInterface(ref.watch(dioProvider));
+}
+
+@Riverpod(keepAlive: true)
+WpApiService wpApiService(WpApiServiceRef ref) {
+  return WpApiService(ref.watch(wordpressDioProvider));
 }
 
 @Riverpod(keepAlive: true)

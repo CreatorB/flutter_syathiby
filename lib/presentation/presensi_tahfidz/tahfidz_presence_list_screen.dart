@@ -179,14 +179,14 @@ class TahfidzPresenceListScreen extends HookConsumerWidget {
                             DropdownMenuItem(
                               value: "sakit",
                               child: Text(
-                                'Izin',
+                                'Sakit',
                                 style: context.bodyMedium,
                               ),
                             ),
                             DropdownMenuItem(
                               value: "izin",
                               child: Text(
-                                'Sakit',
+                                'Izin',
                                 style: context.bodyMedium,
                               ),
                             ),

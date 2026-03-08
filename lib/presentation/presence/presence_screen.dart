@@ -1,4 +1,5 @@
 import 'package:adaptive_dialog/adaptive_dialog.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -21,8 +22,14 @@ import '../setting/account_controller.dart';
 import '../setting/local_auth_controller.dart';
 import '../setting/presence_type.dart';
 
+enum AttendanceMethod {
+  location,
+  wifi,
+}
+
 class PresenceScreen extends HookConsumerWidget {
   final PresenceType type;
+  static const String _requiredWifiPublicIp = '103.178.146.98';
 
   const PresenceScreen({super.key, required this.type});
 
@@ -59,6 +66,30 @@ class PresenceScreen extends HookConsumerWidget {
       );
       if (selected == null || !context.mounted) return;
       locationSelected.value = selected;
+
+      final method = await showConfirmationDialog<AttendanceMethod>(
+        context: context,
+        title: 'Metode Absensi',
+        message: 'Silakan pilih metode absensi',
+        actions: const [
+          AlertDialogAction(
+            key: AttendanceMethod.location,
+            label: 'Lokasi / GPS',
+          ),
+          AlertDialogAction(
+            key: AttendanceMethod.wifi,
+            label: 'Wi-Fi',
+          ),
+        ],
+      );
+      if (method == null || !context.mounted) return;
+
+      final isWifiMethod = method == AttendanceMethod.wifi;
+      if (isWifiMethod) {
+        final isWifiIpValid = await _validateWifiPublicIp(context, ref);
+        if (!isWifiIpValid || !context.mounted) return;
+      }
+
       if (type == PresenceType.biometric) {
         await presenceBiometric(
           context: context,
@@ -67,6 +98,7 @@ class PresenceScreen extends HookConsumerWidget {
           key: key,
           biometricsTitle: biometricsTitle,
           locationPresenceId: '${selected.idAsrama}',
+          useWifiMethod: isWifiMethod,
         );
         return;
       }
@@ -75,6 +107,7 @@ class PresenceScreen extends HookConsumerWidget {
         ref: ref,
         key: key,
         locationPresenceId: '${selected.idAsrama}',
+        useWifiMethod: isWifiMethod,
       );
     }
 
@@ -164,19 +197,34 @@ class PresenceScreen extends HookConsumerWidget {
     required WidgetRef ref,
     required String key,
     required String locationPresenceId,
+    required bool useWifiMethod,
   }) async {
     try {
-      final position = await ref.read(getCurrentLocationProvider.future);
+      final position =
+        useWifiMethod ? null : await ref.read(getCurrentLocationProvider.future);
+      final latitude = useWifiMethod ? 0.0 : position!.latitude;
+      final longitude = useWifiMethod ? 0.0 : position!.longitude;
+      final mock = useWifiMethod ? false : position!.isMocked;
       final result = await ref.read(accountControllerProvider.notifier).presence(
             key: key,
             presenceType: type,
-            latitude: position.latitude,
-            longitude: position.longitude,
+            latitude: latitude,
+            longitude: longitude,
             locationPresenceName: locationPresenceId,
-            mock: position.isMocked,
+            mock: mock,
           );
 
       if (result == null || !context.mounted) return;
+
+      // Check if response is an error (has errCode that's not '01')
+      if (result.errCode != null && result.errCode != '01') {
+        // Error response from server
+        if (!context.mounted) return;
+        context.showErrorMessage(
+          result.msg ?? 'Terjadi kesalahan saat absen',
+        );
+        return;
+      }
 
       if (result.status == 'late') {
         showReasonLate(context, ref, key, '${result.status}');
@@ -223,9 +271,14 @@ class PresenceScreen extends HookConsumerWidget {
     required String key,
     required String biometricsTitle,
     required String locationPresenceId,
+    required bool useWifiMethod,
   }) async {
     try {
-      final position = await ref.read(getCurrentLocationProvider.future);
+      final position =
+        useWifiMethod ? null : await ref.read(getCurrentLocationProvider.future);
+      final latitude = useWifiMethod ? 0.0 : position!.latitude;
+      final longitude = useWifiMethod ? 0.0 : position!.longitude;
+      final mock = useWifiMethod ? false : position!.isMocked;
       final bool didAuthenticate = await auth.authenticate(
         localizedReason:
             'Gunakan $biometricsTitle Anda untuk absensi'.hardcoded,
@@ -242,10 +295,10 @@ class PresenceScreen extends HookConsumerWidget {
                 key: key,
                 presenceType: type,
                 token: token,
-                latitude: position.latitude,
-                longitude: position.longitude,
+                latitude: latitude,
+                longitude: longitude,
                 locationPresenceName: locationPresenceId,
-                mock: position.isMocked,
+                mock: mock,
               );
 
       if (result == null || !context.mounted) return;
@@ -296,6 +349,33 @@ class PresenceScreen extends HookConsumerWidget {
         return;
       }
       context.showErrorMessage(errorMessage);
+    }
+  }
+
+  Future<bool> _validateWifiPublicIp(BuildContext context, WidgetRef ref) async {
+    try {
+      final dio = ref.read(dioProvider);
+      final response = await dio.get(
+        'https://api.ipify.org?format=json',
+        options: Options(responseType: ResponseType.json),
+      );
+      if (!context.mounted) return false;
+      final data = response.data;
+      final ip = data is Map<String, dynamic> ? '${data['ip'] ?? ''}' : '';
+      if (ip == _requiredWifiPublicIp) {
+        return true;
+      }
+
+      context.showErrorMessage(
+        'Pastikan menggunakan Wi-Fi ma\'had. IP publik saat ini: ${ip.isEmpty ? '-' : ip}',
+      );
+      return false;
+    } catch (_) {
+      if (!context.mounted) return false;
+      context.showErrorMessage(
+        'Gagal mengecek IP publik. Pastikan menggunakan Wi-Fi ma\'had dan internet aktif.',
+      );
+      return false;
     }
   }
 
