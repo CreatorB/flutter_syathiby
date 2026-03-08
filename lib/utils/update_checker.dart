@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:syathiby/res/flavor_config.dart';
 
 /// Info tentang versi terbaru yang tersedia di GitHub.
 class UpdateInfo {
@@ -16,9 +17,14 @@ class UpdateInfo {
 }
 
 class UpdateChecker {
-  /// URL raw CHANGELOG.md dari GitHub
-  static const String changelogUrl =
-      'https://raw.githubusercontent.com/CreatorB/flutter_syathiby/dev/CHANGELOG.md';
+  /// Get the appropriate branch based on current flavor
+  /// - local flavor: uses 'test' branch
+  /// - prod flavor: uses 'dev' branch
+  static String get _branch => FlavorConfig.isLocal ? 'test' : 'dev';
+
+  /// URL raw CHANGELOG.md dari GitHub dengan branch dinamis
+  static String get changelogUrl =>
+      'https://raw.githubusercontent.com/CreatorB/flutter_syathiby/$_branch/CHANGELOG.md';
 
   /// Play Store URL untuk membuka halaman update
   static const String playStoreUrl =

@@ -100,8 +100,13 @@ extension UiX on BuildContext {
   }) {
     toastification.show(
       context: this,
-      title: Text(message),
-      autoCloseDuration: Duration(seconds: autoCloseDuration ?? 2),
+      title: Text(
+        message,
+        maxLines: 4,
+        overflow: TextOverflow.visible,
+        style: const TextStyle(fontSize: 14),
+      ),
+      autoCloseDuration: Duration(seconds: autoCloseDuration ?? 3),
       style: ToastificationStyle.fillColored,
       type: ToastificationType.success,
       callbacks: ToastificationCallbacks(
@@ -119,8 +124,11 @@ extension UiX on BuildContext {
       context: this,
       title: Text(
         _errorMessage(error),
+        maxLines: 4,
+        overflow: TextOverflow.visible,
+        style: const TextStyle(fontSize: 14),
       ),
-      autoCloseDuration: const Duration(seconds: 3),
+      autoCloseDuration: const Duration(seconds: 4),
       type: ToastificationType.error,
       style: ToastificationStyle.flat,
       backgroundColor: Colors.red.withOpacity(0.65),

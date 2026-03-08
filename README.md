@@ -426,6 +426,9 @@ The app supports two attendance methods:
 
 - Automatically checks for a new version on app startup (Home screen)
 - Compares current app version with the latest version in [CHANGELOG.md](CHANGELOG.md) on GitHub
+- **Dynamic Branch Selection**: Selects the appropriate GitHub branch based on current flavor:
+  - **LOCAL flavor** (`--flavor local`): Fetches CHANGELOG from **`test`** branch for development updates
+  - **PROD flavor** (`--flavor prod`): Fetches CHANGELOG from **`dev`** branch for stable releases
 - Displays a bottom sheet modal with the changelog content when an update is available
 - Provides a direct link to the Play Store for the update
 - Non-blocking: users can dismiss and continue using the current version

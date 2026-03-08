@@ -69,7 +69,16 @@ class HomeScreen extends HookConsumerWidget {
     final timeAttandFormat = ref.watch(
       formatTimeProvider('${fetchPresence.valueOrNull?.timeattand}'),
     );
+    final timeAttandOutFormat = ref.watch(
+      formatTimeProvider('${fetchPresence.valueOrNull?.timeattandOut}'),
+    );
     final displayTimeAttand = timeAttandFormat ?? '--:--';
+    final rawWorkHour = fetchPresence.valueOrNull?.workhour?.trim();
+    final displayWorkHour =
+        (rawWorkHour != null && rawWorkHour.isNotEmpty)
+            ? rawWorkHour
+            : (fetchUserProfile.valueOrNull?.absensi ?? '-');
+    final displayTimeOut = timeAttandOutFormat ?? '--:--';
     final isWorking = displayTimeAttand != '--:--';
     final isClockIn = fetchPresence.valueOrNull?.absen == "1";
     final isHoliday = fetchPresence.valueOrNull?.holiday == "YES";
@@ -304,11 +313,11 @@ class HomeScreen extends HookConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Jam Kerja',
+                          'Jadwal Kerja',
                           style: context.bodyMediumBold,
                         ),
                         Text(
-                          '${fetchUserProfile.valueOrNull?.absensi}',
+                          displayWorkHour,
                           style: context.bodyMedium,
                         ),
                       ],
@@ -323,6 +332,20 @@ class HomeScreen extends HookConsumerWidget {
                         ),
                         Text(
                           displayTimeAttand,
+                          style: context.bodyMedium,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Jam Pulang',
+                          style: context.bodyMediumBold,
+                        ),
+                        Text(
+                          displayTimeOut,
                           style: context.bodyMedium,
                         ),
                       ],

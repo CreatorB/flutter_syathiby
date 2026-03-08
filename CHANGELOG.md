@@ -4,8 +4,7 @@ All notable changes to Syathiby App will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [1.0.6] - 2026-03-07
+## [1.0.5] - 2026-03-07
 
 ### Added
 - **WordPress REST API Integration**: News feeds now pull from syathiby.id WordPress site
@@ -39,30 +38,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `WpApiService` to dependency injection
   - Registered WordPress services in `ServiceInjection`
   - Updated routing configuration for WordPress screens
-
-### Technical Details
-- **API Endpoint**: `https://syathiby.id/wp-json/wp/v2/posts?_embed=true`
-- **Image Priority Strategy**:
-  1. Yoast SEO og_image: `yoast_head_json.og_image[0].url` (SEO-optimized WebP)
-  2. Featured media: `_embedded['wp:featuredmedia'][0].source_url`
-- **Models Created**:
-  - `WpPost`: Main post model with title, content, excerpt, featured_media
-  - `WpEmbedded`: Embedded resources container
-  - `WpFeaturedMedia`: Featured media with source_url and media_details
-  - `YoastHeadJson`: Yoast SEO metadata container
-  - `OgImage`: Open Graph image with width, height, url, type
-- **Presentation Layer**:
-  - `WpPostsController`: Riverpod controller for fetching posts
-  - `WpPostListItem`: List item widget with featured image and excerpt
-  - `WpPostDetailScreen`: Full article view with WebView rendering
-- **Flutter Dependencies**:
-  - `retrofit` + `dio`: REST API client
-  - `freezed` + `json_serializable`: Model generation
-  - `flutter_inappwebview`: Rich content display
-  - `cached_network_image`: Image caching (replaced with Image.network for WebP support)
-  - `skeletonizer`: Loading animations
+- **Update Checker Branch Configuration**: Implemented dynamic GitHub branch selection based on flavor
+  - Feature: UpdateChecker now uses environment-specific branches for version checking
+  - **Local flavor** (`--flavor local`): Checks `test` branch for development releases
+  - **Production flavor** (`--flavor prod`): Checks `dev` branch for stable releases
+  - Implementation: Added `FlavorConfig` dependency to `UpdateChecker` class
+  - Benefit: Allows testing new versions on `test` branch before promoting to `dev` for production
+  - File: `lib/utils/update_checker.dart` — Changed `changelogUrl` from static constant to dynamic getter
 
 ### Fixed
+- **Kinerja Screen**: Performance list (Tab "List Penilaian") could not be scrolled down
+  - Removed `NeverScrollableScrollPhysics` from `PagedListView` and `ListView.builder`
+  - Infinite scroll pagination now works correctly to load next pages
+- **Overnight Shift Attendance**: Fixed button logic for attendance spanning midnight
+  - Issue: Security guards and night shift workers checking in at 23:00 and checking out at 07:00 saw incorrect button
+  - Expected: "Absen Pulang" (Check Out) button at 07:00
+  - Previous behavior: "Absen Masuk" (Check In) button appeared incorrectly
+  - **Root cause**: Backend only checked attendance records for current date, missing shifts that started yesterday
+  - **Solution**: Modified `detailstore.php` to search for login records within last 36 hours instead of current date only
+  - Now correctly handles shifts that span across midnight (e.g., 23:00 Day 1 → 07:00 Day 2)
+  - Also fixed work duration calculation for overnight shifts
+- **Tahfidz Attendance Labels**: Fixed swapped dropdown labels for Sakit and Izin  
+  - Issue: When selecting "Sakit" in app, dashboard showed it as "Izin" and vice versa
+  - **Root cause**: Dropdown UI labels were reversed - value "sakit" had label "Izin", value "izin" had label "Sakit"
+  - **Solution**: Corrected dropdown labels in both teacher and student tahfidz attendance screens
+  - Now "Sakit" correctly saves as "sakit" and "Izin" correctly saves as "izin"
+  - Dashboard properly displays counts in correct columns (SAKIT, IZIN, ALFA)
+- **Notification Text Truncation**: Fixed success and error messages being cut off
+  - Issue: Long notification messages like "Anda sudah melakukan absen masuk dan absen keluar hari ini. Absen berikutnya bisa dilakukan besok" were truncated
+  - **Root cause**: Toast notification Text widget had no maxLines constraint, causing single-line truncation
+  - **Solution**: Added `maxLines: 4` with `overflow: TextOverflow.visible` to show full message
+  - Increased default auto-close duration from 2s to 3s for success messages, 3s to 4s for errors
+  - Messages now wrap to multiple lines and display completely
 - **Thumbnail Loading Issues**: Resolved image display problems
   - Fixed field mapping: og_image moved from root to `yoast_head_json.og_image`
   - Addressed SQLite cache database corruption (switched to Image.network)
@@ -77,15 +84,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed old news service and models
   - Kept backup files for reference (*.backup)
 
-## [1.0.5] - 2026-03-04
+### Technical Details
+- **WordPress Integration Files**:
+  - **API Endpoint**: `https://syathiby.id/wp-json/wp/v2/posts?_embed=true`
+  - **Image Priority Strategy**:
+    1. Yoast SEO og_image: `yoast_head_json.og_image[0].url` (SEO-optimized WebP)
+    2. Featured media: `_embedded['wp:featuredmedia'][0].source_url`
+  - **Models Created**:
+    - `WpPost`: Main post model with title, content, excerpt, featured_media
+    - `WpEmbedded`: Embedded resources container
+    - `WpFeaturedMedia`: Featured media with source_url and media_details
+    - `YoastHeadJson`: Yoast SEO metadata container
+    - `OgImage`: Open Graph image with width, height, url, type
+  - **Presentation Layer**:
+    - `WpPostsController`: Riverpod controller for fetching posts
+    - `WpPostListItem`: List item widget with featured image and excerpt
+    - `WpPostDetailScreen`: Full article view with WebView rendering
+  - **Flutter Dependencies**:
+    - `retrofit` + `dio`: REST API client
+    - `freezed` + `json_serializable`: Model generation
+    - `flutter_inappwebview`: Rich content display
+    - `cached_network_image`: Image caching (replaced with Image.network for WebP support)
+    - `skeletonizer`: Loading animations
 
-### Fixed
-- **Kinerja Screen**: Performance list (Tab "List Penilaian") could not be scrolled down
-  - Removed `NeverScrollableScrollPhysics` from `PagedListView` and `ListView.builder`
-  - Infinite scroll pagination now works correctly to load next pages
-
-### Changed
-- **Update Checker**: Version check now fetches CHANGELOG from `dev` branch instead of `test`
+- **Attendance System Updates**:
+  - **Backend File Modified**: `aplikasi/geten/settings/detailstore.php`
+  - **Changes**:
+    - Attendance login query now uses `date >= '$yesterday'` instead of `date = '$tanggal'`
+    - Added `ORDER BY date DESC, hour DESC LIMIT 1` to get most recent login
+    - Both login and logout queries updated to support 36-hour lookback window
+  - **Impact**: Affects all users with overnight shifts (security guards, night supervisors, etc.)
+  - **Flutter Files Modified for Tahfidz**: 
+    - `lib/presentation/presensi_tahfidz/tahfidz_teacher_presence_screen.dart`
+    - `lib/presentation/presensi_tahfidz/tahfidz_presence_list_screen.dart`
+  - **Changes**: Corrected DropdownMenuItem labels to match their values (Sakit ↔ sakit, Izin ↔ izin)
+  - **Backend Files Modified for Status Normalization**:
+    - `aplikasi/geten/siswa/absenpengamputahfidz.php` (teacher tahfidz attendance)
+    - `aplikasi/geten/siswa/absentahfidz.php` (student tahfidz attendance)
+  - **Changes**: Added `$status_key = strtolower(trim($status))` to normalize status before saving to database, ensuring consistent lowercase storage (hadir, sakit, izin, alfa) matching dashboard queries
+  - **Flutter File Modified for Notification Display**:
+    - `lib/utils/extension/ui.dart`
+  - **Changes**: 
+    - Added `maxLines: 4` and `overflow: TextOverflow.visible` to `showSuccessMessage` and `showErrorMessage`
+    - Increased `autoCloseDuration` for success messages (2s → 3s) and error messages (3s → 4s)
+    - Added explicit `fontSize: 14` for better readability
 
 ## [1.0.4] - 2026-03-04
 
