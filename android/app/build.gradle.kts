@@ -10,6 +10,19 @@ android {
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
+    flavorDimensions += "env"
+    productFlavors {
+        create("prod") {
+            dimension = "env"
+            manifestPlaceholders["appLabel"] = "Syathiby"
+        }
+        create("local") {
+            dimension = "env"
+            applicationIdSuffix = ".local"
+            manifestPlaceholders["appLabel"] = "Syathiby LOCAL"
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -29,7 +42,6 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        manifestPlaceholders["appLabel"] = "Syathiby"
     }
 
     signingConfigs {
@@ -55,7 +67,6 @@ android {
         getByName("debug") {
             // Note: The assignment operator (=) is often required in KTS for setting properties
             signingConfig = signingConfigs.getByName("debug")
-            applicationIdSuffix = ".local"
         }
         
         getByName("release") {
