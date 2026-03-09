@@ -1,0 +1,10 @@
+{
+  "version": "1.0.6",
+  "buildNumber": "6",
+  "buildDate": "2026-03-08",
+  "features": [
+    "Guest Mode",
+    "WordPress News",
+    "Web Routing Fix"
+  ]
+}

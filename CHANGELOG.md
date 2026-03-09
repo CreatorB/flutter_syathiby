@@ -4,6 +4,162 @@ All notable changes to Syathiby App will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.0.7] - 2026-03-09
+
+### Changed
+- **Web Deployment Architecture**: Migrated Flutter web dari `mobile.syathiby.id` ke `aplikasi.syathiby.id/web/`
+  - Flutter web di-deploy sebagai subfolder `/web/` di bawah `aplikasi.syathiby.id`
+  - Arsitektur same-origin menghilangkan semua masalah CORS antara Flutter web dan backend
+  - Root `.htaccess` redirect `aplikasi.syathiby.id/` → `/web/`
+  - Build command sekarang wajib pakai `--base-href /web/`
+- **WordPress Proxy URL Rewriting**: Ganti regex yang rusak dengan `str_replace`
+  - Regex sebelumnya gagal pada escaped slashes (`\/`) dan `\"` di field HTML content
+  - Pendekatan baru pakai prefix replacement — aman untuk semua konteks JSON
+- **Production URL Paths**: Fix path proxy untuk production server
+  - WordPress proxy: `/geten/wordpress_proxy.php` (hapus prefix `/aplikasi/`)
+  - Image proxy: `/wordpress_images.php` (hapus prefix `/aplikasi/`)
+  - Path localhost tidak berubah: `localhost/aplikasi/...`
+
+### Fixed
+- **CORS pada Flutter Web**: Gambar dari `syathiby.id` diblokir oleh browser CORS policy
+  - **Problem**: `Image.network` di Flutter Web (CanvasKit) pakai XMLHttpRequest yang enforce CORS
+  - **Root cause**: URL gambar WordPress tidak di-rewrite ke proxy
+  - **Solution**: Same-origin architecture + `str_replace` URL rewriting di PHP proxy + Dart-side fallback
+- **JSON Parse Error di WordPress Proxy**: Fix broken JSON response dari proxy
+  - **Problem**: `SyntaxError: Expected ',' or '}' after property value in JSON`
+  - **Root cause**: Regex menangkap `\` dari `\"` (escaped quotes di HTML content dalam JSON)
+  - **Solution**: Ganti regex dengan `str_replace` pada URL prefix saja
+
+### Technical Details
+- **Files Modified**:
+  - `aplikasi/.htaccess`: Redirect root → `/web/`, skip folder `web/` dari PHP rules
+  - `aplikasi/geten/wordpress_proxy.php`: Fix image URL rewriting dengan `str_replace`
+  - `lib/models/service_injection.dart`: Update production WordPress proxy URL
+  - `lib/models/wordpress/wp_post.dart`: Update production image proxy URL
+  - `web/.htaccess`: Hapus legacy `/login` redirect
+- **Build Command**: `fvm flutter build web --release --base-href /web/ --tree-shake-icons`
+- **Architecture**: `aplikasi.syathiby.id/web/` (Flutter) + `aplikasi.syathiby.id/geten/` (API) = same origin, no CORS
+
+## [1.0.6] - 2026-03-08
+
+### Added
+- **Web Version Guest Mode**: Guest mode now fully functional on web platform
+  - Landing page: `/guest-news` (News feed accessible without login)
+  - Guest Shell with 3 tabs: Berita (News), Ibadah (Prayer), Pengguna (User/Login)
+  - WordPress news integration works seamlessly on web
+  - Prayer schedule, Quran, and Qibla features accessible in guest mode
+- **Web Routing Error Handling**: Improved error handling for unknown routes
+  - Added `errorBuilder` in GoRouter to redirect invalid URLs to guest mode
+  - Legacy route handler: `/login` automatically redirects to `/auth/login`
+  - Server-level redirects via `.htaccess` for cached/bookmarked old URLs
+- **Web Deployment Tools**: New deployment automation and verification tools
+  - `deploy-web.ps1`: PowerShell script for automated build with verification
+  - `version.json`: Version tracking endpoint for deployment verification
+  - `WEB_DEPLOYMENT_GUIDE.md`: Comprehensive deployment troubleshooting guide
+  - `build-info.json`: Auto-generated build metadata with timestamp
+
+### Changed
+- **Web Build Documentation**: Updated README with comprehensive web deployment guide
+  - Added browser cache clearing instructions
+  - Troubleshooting section for localStorage cleanup
+  - `.htaccess` configuration for proper SPA routing
+- **Web Caching Strategy**: Improved cache control for deployments
+  - HTML and JSON files: No-cache headers (always fresh)
+  - Static assets (JS/CSS/images): Long-term cache with hash-based versioning
+  - Prevents "old version" display after deployment
+  - Server-level cache control via `.htaccess` headers
+
+### Fixed
+- **Web Deployment Caching Issue**: Fixed web showing old version after upload
+  - **Problem**: Web version showed 1.0.4 even after building and uploading 1.0.6
+  - **Symptoms**: 
+    - "ENV" text still visible on login screen (should only show in LOCAL flavor)
+    - Guest mode not appearing (old routing)
+    - Version number not updating
+  - **Root Cause**: Browser cache and server cache serving old assets
+  - **Solution**: 
+    - Added no-cache headers for index.html and version.json
+    - Created deployment verification endpoint (version.json)
+    - Mandated deletion of old files before new upload
+    - Provided deployment automation script with checks
+  - **Deployment Requirements**:
+    1. Delete all old files on server before upload
+    2. Upload all files from `build/web/` 
+    3. Clear server cache (Cloudflare/cPanel/Nginx)
+    4. Verify `version.json` endpoint shows correct version
+    5. Clear browser cache or use incognito mode
+  - **Files Modified**:
+    - `web/index.html`: Added no-cache meta tags
+    - `web/.htaccess`: Cache-Control headers for HTML/JSON vs assets
+    - `deploy-web.ps1`: Automated build and verification script
+    - `WEB_DEPLOYMENT_GUIDE.md`: Step-by-step deployment checklist
+
+### Platform Differences
+
+**⚠️ Important**: While APK and Web share the same version number, some features work differently due to platform limitations:
+
+#### 🔔 **Push Notifications**
+- **APK**: ✅ Full Firebase Cloud Messaging support with background notifications
+- **Web**: ❌ Disabled (Firebase initialization skipped for Safari compatibility)
+  - No push notifications on web version
+  - Service worker background messages not implemented
+
+#### 📍 **Location & Permissions**
+- **APK**: ✅ Native permission requests with "Open Settings" option
+  - Full GPS and location accuracy
+  - Wi-Fi-based attendance supported
+- **Web**: ⚠️ Limited browser geolocation API
+  - Permission dialogs show "Mengerti" (Understand) instead of "Open Settings"
+  - Browser must grant location permission manually
+  - May have lower GPS accuracy depending on device/browser
+  - Wi-Fi IP detection works but depends on server IP headers
+
+#### 🔐 **Biometric Authentication**
+- **APK**: ✅ Fingerprint and Face Unlock supported
+- **Web**: ❌ Not available (no browser Web Authentication API implementation)
+
+#### 📱 **Native Features**
+- **APK**: 
+  - ✅ Barcode/QR scanner
+  - ✅ Camera access for photos
+  - ✅ Local file system access
+  - ✅ Background services
+- **Web**:
+  - ⚠️ Browser-based camera (limited)
+  - ⚠️ File downloads only (no direct file system)
+  - ❌ No background services
+
+#### 🌐 **Connectivity**
+- **APK**: ✅ Works offline with local database caching
+- **Web**: ⚠️ Requires internet connection (no offline mode)
+
+#### 🎨 **User Experience**
+- **APK**: Clean native UI with system integrations
+- **Web**: Responsive web design, works on any device with browser
+
+#### ✅ **Features Available on Both Platforms**
+- ✅ Guest Mode (News, Prayer, Quran)
+- ✅ Login & Authentication
+- ✅ WordPress News Feed
+- ✅ Prayer Times & Qibla
+- ✅ Attendance (with limitations on web)
+- ✅ Staff Management
+- ✅ Reports & Analytics
+- ✅ Dark/Light Theme
+
+**Recommendation**: 
+- **Use APK** for staff with daily attendance requirements and need for push notifications
+- **Use Web** for occasional access, viewing reports, or devices without Play Store access
+
+### Technical Details
+- **Files Modified**:
+  - `lib/routing/app_router.dart`: Added error handler and legacy route redirect
+  - `web/.htaccess`: Server-level URL rewrite rules for SPA routing
+  - `README.md`: Web deployment and troubleshooting documentation
+- **Web Build Command**: `fvm flutter build web --release --tree-shake-icons`
+- **Platform Detection**: Uses `kIsWeb` constant for conditional feature enabling
+
 ## [1.0.5] - 2026-03-07
 
 ### Added

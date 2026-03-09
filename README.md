@@ -14,7 +14,7 @@ Enhanced and customized version of Syathiby Vendor App — [https://github.com/c
 - [Prerequisites](#-prerequisites)
 - [Installation](#-installation)
 - [URL Environment Setup](#-url-environment-setup-flavor-based)
-- [Development](#-development)
+- [Development](#-development) → **[Web Dev Cheatsheet](WEB_DEV_CHEATSHEET.md)**
 - [Building & Deployment](#-building--deployment)
 - [Features](#-features)
 - [Environment Indicators](#-environment-indicators)
@@ -27,6 +27,15 @@ Enhanced and customized version of Syathiby Vendor App — [https://github.com/c
 - [Branches](#-branches)
 - [Team & Contact](#-team--contact)
 - [License](#-license)
+
+---
+
+## 📚 Quick Documentation Links
+
+- **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - One-page quick reference (print-friendly!)
+- **[WEB_DEV_CHEATSHEET.md](WEB_DEV_CHEATSHEET.md)** - Quick reference for web development commands
+- **[WEB_DEPLOYMENT_GUIDE.md](WEB_DEPLOYMENT_GUIDE.md)** - Detailed deployment troubleshooting & checklist
+- **[CHANGELOG.md](CHANGELOG.md)** - Version history and feature changes
 
 ---
 
@@ -264,6 +273,40 @@ fvm flutter run -d 127.0.0.1:5555 --flavor local --dart-define=FLAVOR=local
 - **Hot Restart**: `R`
 - **Quit**: `q`
 
+### Web Development
+
+Run Flutter web version locally for development and debugging:
+
+#### Production Mode
+```bash
+# Simulates production environment (uses production API)
+fvm flutter run -d chrome
+```
+- URL: `http://localhost:8080`
+- API: `https://aplikasi.syathiby.id` (production)
+- Best for: Final testing before deployment
+
+#### Local/Development Mode
+```bash
+# Development environment (uses local backend API)
+fvm flutter run -d chrome --web-hostname 192.168.50.100 --web-port 8082
+```
+- URL: `http://192.168.50.100:8082`
+- API: `http://192.168.50.100/aplikasi` (local)
+- Hot reload: Enabled (press `r` for instant reload)
+- Best for: Debugging with local backend
+
+#### Run Both Simultaneously
+```powershell
+# Starts PROD and LOCAL servers in separate browser windows
+.\run-web-both.ps1
+
+# PROD: http://localhost:8080
+# LOCAL: http://192.168.50.100:8082
+```
+
+**See [WEB_DEV_CHEATSHEET.md](WEB_DEV_CHEATSHEET.md) for more web development tips & tricks!**
+
 ### Code Generation
 
 Run whenever you modify models or environment config:
@@ -360,29 +403,262 @@ Use the PowerShell script to install PROD and LOCAL simultaneously:
 
 ### Web Build
 
+**Production build (deployed to `aplikasi.syathiby.id/web/`):**
+
 ```bash
+# Manual build (step by step)
 fvm flutter clean
 fvm flutter pub get
 fvm flutter pub run build_runner build --delete-conflicting-outputs
-fvm flutter build web --release --tree-shake-icons
+fvm flutter build web --release --base-href /web/ --tree-shake-icons
+```
+
+> **⚠️ PENTING:** Flag `--base-href /web/` **WAJIB** karena Flutter web di-deploy sebagai subfolder `/web/` di `aplikasi.syathiby.id`.
+
+**OR use automated deployment script:**
+
+```powershell
+# Automated build with verification
+.\deploy-web.ps1
+
+# Skip clean step (faster for minor changes)
+.\deploy-web.ps1 -SkipClean
 ```
 
 Output: `build/web/`
 
-**`.htaccess` for web deployment:**
+> **⚠️ CRITICAL: Web Deployment**
+>
+> 1. Upload isi `build/web/` ke folder `web/` di server `aplikasi.syathiby.id`
+> 2. **DELETE file lama** di folder `web/` sebelum upload
+> 3. **Clear server cache** (Cloudflare/cPanel/Nginx)
+> 4. **Verify**: `https://aplikasi.syathiby.id/web/version.json`
+>
+> **See comprehensive guide:** [WEB_DEPLOYMENT_GUIDE.md](WEB_DEPLOYMENT_GUIDE.md)
 
-```apache
-RewriteEngine On
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^ index.html [L]
+> **Note**: Web version includes **Guest Mode** with News, Prayer Schedule, and Quran features accessible without login. The app automatically starts in guest mode at `/guest-news` when no session exists.
+
+**Web Architecture (Same-Origin, No CORS):**
+
+```
+aplikasi.syathiby.id/           → redirect ke /web/
+aplikasi.syathiby.id/web/       → Flutter web app (subfolder)
+aplikasi.syathiby.id/geten/     → Backend API
+aplikasi.syathiby.id/wordpress_images.php → Image proxy
 ```
 
-**Run web locally:**
+Flutter web dan backend berada di **satu origin** (`aplikasi.syathiby.id`), sehingga **tidak ada masalah CORS**.
 
+**After deployment:**
+1. Clear browser cache (Ctrl+Shift+Delete) to avoid old cached routes
+2. Test guest mode: Open incognito/private window → should land on News page
+3. Test login: Click "Pengguna" tab → "Masuk" button
+
+### Run Web Locally for Development & Debugging
+
+**⚠️ Important**: Web requires Chrome browser and active internet connection to backend server.
+
+#### 1. Production Mode (Simulates Production Server)
 ```bash
-fvm flutter run -d chrome --web-hostname 192.168.50.100 --web-port 8082
+# Run production build on Chrome (default: localhost:8080)
+fvm flutter run -d chrome
+
+# Or specify production server URL
+fvm flutter run -d chrome --web-hostname localhost --web-port 8080
 ```
+
+**Features:**
+- Uses production API URL: `https://aplikasi.syathiby.id`
+- No banner (clean production UI)
+- Resembles deployed version
+- Best for final testing before deployment
+
+#### 2. Local Development Mode (For Debugging)
+```bash
+# Run local build on Chrome with custom hostname/port
+fvm flutter run -d chrome --web-hostname 192.168.50.100 --web-port 8082
+
+# Or if using localhost (same machine)
+fvm flutter run -d chrome --web-hostname localhost --web-port 8082
+```
+
+**Configuration:**
+- Change `192.168.50.100` to your machine's IP address
+- Change `8082` to any available port
+- Requires local backend server running at `http://192.168.50.100/aplikasi`
+
+**Features:**
+- Uses local/development API URL
+- Shows RED banner with "LOCAL" indicator
+- Hot reload enabled (press `r` in terminal)
+- Perfect for debugging and development
+- Preserves app state on refresh
+
+#### 3. Debug Mode with Hot Reload
+```bash
+# Start development server with full debugging
+fvm flutter run -d chrome --web-hostname 192.168.50.100 --web-port 8082 -v
+
+# After app loads, press 'r' for hot reload
+# Press 'q' to quit
+```
+
+**Development Workflow:**
+1. Run command above
+2. Browser opens automatically at `http://192.168.50.100:8082`
+3. Edit Dart code in IDE
+4. Press `r` in terminal → app reloads instantly
+5. See changes immediately
+6. Check DevTools for logs (`http://localhost:9222` in new browser tab)
+
+#### 4. Chrome DevTools for Debugging
+```bash
+# Run with debugging support
+fvm flutter run -d chrome --web-hostname 192.168.50.100 --web-port 8082 -v
+
+# Open new Chrome tab and go to:
+chrome://inspect/#devices
+
+# Click "inspect" on the Flutter app
+```
+
+**Available in DevTools:**
+- Widget tree explorer
+- Performance profiler
+- Network requests
+- Console logs
+- Breakpoints & step debugging
+
+#### 5. Quick Test Both Variants
+```powershell
+# Run PROD environment
+Write-Host "Starting PROD server..." -ForegroundColor Green
+Start-Process -NoNewWindow pwsh -ArgumentList @"-NoExit", "-Command", "fvm flutter run -d chrome --web-hostname localhost --web-port 8080"
+
+# Wait a moment for server to start
+Start-Sleep -Seconds 3
+
+# Run LOCAL environment in another terminal
+Write-Host "Starting LOCAL server..." -ForegroundColor Yellow
+Start-Process -NoNewWindow pwsh -ArgumentList @"-NoExit", "-Command", "fvm flutter run -d chrome --web-hostname 192.168.50.100 --web-port 8082"
+
+Write-Host ""
+Write-Host "✓ PROD: http://localhost:8080" -ForegroundColor Green
+Write-Host "✓ LOCAL: http://192.168.50.100:8082" -ForegroundColor Yellow
+```
+
+Save as `run-web-both.ps1` and run: `.\run-web-both.ps1`
+
+---
+
+**Troubleshooting web routing:**
+- If landing on login instead of guest mode: Clear browser localStorage
+- Open DevTools → Application → Local Storage → Delete all entries
+- Refresh page → Should redirect to guest news
+- Use incognito/private mode to avoid cached assets
+
+---
+
+## 📱 Platform Differences: APK vs Web
+
+⚠️ **Important**: While APK and Web versions share the same version number, certain features have different capabilities due to platform constraints.
+
+### Quick Comparison Table
+
+| Feature | APK (Mobile) | Web (Browser) |
+|---------|-------------|---------------|
+| **Push Notifications** | ✅ Full FCM support | ❌ Disabled |
+| **GPS Location** | ✅ Native GPS | ⚠️ Browser geolocation (limited) |
+| **Biometric Auth** | ✅ Fingerprint/Face | ❌ Not available |
+| **Camera/QR Scanner** | ✅ Native camera | ⚠️ Browser camera (limited) |
+| **Offline Mode** | ✅ Local caching | ❌ Requires internet |
+| **Background Services** | ✅ Supported | ❌ Not available |
+| **File System** | ✅ Full access | ⚠️ Downloads only |
+| **Guest Mode** | ✅ Full support | ✅ Full support |
+| **WordPress News** | ✅ Full support | ✅ Full support |
+| **Attendance** | ✅ GPS + Wi-Fi | ⚠️ Browser location + Wi-Fi |
+| **Login/Auth** | ✅ Full support | ✅ Full support |
+| **Reports & Analytics** | ✅ Full support | ✅ Full support |
+
+### Detailed Feature Comparison
+
+#### 🔔 Push Notifications
+- **APK**: Firebase Cloud Messaging with background notifications, notification channels, and message handling
+- **Web**: Completely disabled. Firebase initialization is skipped on web for Safari compatibility
+- **Impact**: Web users won't receive real-time notifications about attendance, announcements, or updates
+
+#### 📍 Location & Permissions
+- **APK**: 
+  - Native Android location services with high accuracy
+  - Permission dialogs with "Open Settings" direct link
+  - Wi-Fi attendance with IP validation
+  - GPS-based attendance with radius validation
+- **Web**: 
+  - Browser Geolocation API (accuracy varies by device/browser)
+  - Permission dialogs show "Mengerti" (Understand) only
+  - Users must grant location manually via browser settings
+  - Wi-Fi attendance works via IP detection from server headers
+- **Impact**: Web attendance may have lower GPS accuracy; users need to manually enable browser location
+
+#### 🔐 Biometric Authentication
+- **APK**: Local Auth plugin supports fingerprint and face unlock
+- **Web**: Not implemented (no Web Authentication API integration)
+- **Impact**: Web users can only use password authentication
+
+#### 📱 Native Device Features
+- **APK**:
+  - Barcode/QR scanner for attendance, meetings, inventory
+  - Full camera access for photo capture
+  - Local file system read/write
+  - Background service for location tracking
+- **Web**:
+  - Browser camera API (may require HTTPS)
+  - File downloads only, no direct filesystem
+  - No background services
+  - QR scanner works but limited by browser camera quality
+- **Impact**: QR scanning and photo features work better on APK
+
+#### 🌐 Connectivity & Offline Mode
+- **APK**: Local database caching allows viewing previously loaded data offline
+- **Web**: Requires active internet connection for all operations
+- **Impact**: APK more reliable in areas with poor connectivity
+
+#### 🎨 User Experience
+- **APK**: Native UI with smooth animations, system integration, navigation gestures
+- **Web**: Responsive design that adapts to screen size, works on any device with browser
+- **Impact**: APK feels more native, Web more accessible cross-platform
+
+### ✅ Features That Work Identically
+
+Both platforms support:
+- ✅ **Guest Mode**: News, Prayer Times, Quran, Qibla
+- ✅ **Authentication**: Login, password change, session management
+- ✅ **WordPress News**: Full news feed with images and rich content
+- ✅ **Attendance**: Check-in/out (with platform-specific location handling)
+- ✅ **Staff Management**: View and manage staff data
+- ✅ **Reports**: Attendance reports, performance tracking, analytics
+- ✅ **Dark/Light Theme**: Adaptive theme switching
+
+### 💡 Usage Recommendations
+
+**Use APK when:**
+- Staff needs daily attendance check-in/out
+- Push notifications are required
+- Working in areas with intermittent internet
+- Need QR scanner for meetings/events
+- Prefer native app experience
+
+**Use Web when:**
+- Occasional access to view information
+- No access to Play Store (restricted devices)
+- Need quick access from any device/computer
+- Only need to view reports and data
+- Don't need push notifications
+
+**Hybrid Approach:**
+- Give field staff APK for daily use
+- Use Web for management/admin dashboard access
+- Both platforms share same backend API and data
 
 ---
 
