@@ -552,7 +552,7 @@ fvm flutter pub run build_runner build --delete-conflicting-outputs
 fvm flutter build web --release --base-href /web/ --tree-shake-icons
 ```
 
-> **⚠️ PENTING:** Flag `--base-href /web/` **WAJIB** karena Flutter web di-deploy sebagai subfolder `/web/` di `aplikasi.syathiby.id`.
+> **⚠️ IMPORTANT:** Flag `--base-href /web/` is **REQUIRED** because Flutter web is deployed as a subfolder `/web/` at `aplikasi.syathiby.id`.
 
 **OR use automated deployment script:**
 
@@ -568,8 +568,8 @@ Output: `build/web/`
 
 > **⚠️ CRITICAL: Web Deployment**
 >
-> 1. Upload isi `build/web/` ke folder `web/` di server `aplikasi.syathiby.id`
-> 2. **DELETE file lama** di folder `web/` sebelum upload
+> 1. Upload contents of `build/web/` to `web/` folder on server `aplikasi.syathiby.id`
+> 2. **DELETE old files** in `web/` folder before uploading
 > 3. **Clear server cache** (Cloudflare/cPanel/Nginx)
 > 4. **Verify**: `https://aplikasi.syathiby.id/web/version.json`
 >
@@ -580,13 +580,38 @@ Output: `build/web/`
 **Web Architecture (Same-Origin, No CORS):**
 
 ```
-aplikasi.syathiby.id/           → redirect ke /web/
-aplikasi.syathiby.id/web/       → Flutter web app (subfolder)
-aplikasi.syathiby.id/geten/     → Backend API
-aplikasi.syathiby.id/wordpress_images.php → Image proxy
+aplikasi.syathiby.id/           -> redirect to /web/
+aplikasi.syathiby.id/web/       -> Flutter web app (subfolder)
+aplikasi.syathiby.id/geten/     -> Backend API
+aplikasi.syathiby.id/wordpress_images.php -> Image proxy
 ```
 
-Flutter web dan backend berada di **satu origin** (`aplikasi.syathiby.id`), sehingga **tidak ada masalah CORS**.
+Flutter web and backend run on the **same origin** (`aplikasi.syathiby.id`), so there are **no CORS issues**.
+
+#### Web Changelog Notification
+
+**Problem**: Unlike native apps that show update dialogs from Play Store, web users don't know when new features are deployed because files are replaced instantly.
+
+**Solution**: Web-specific changelog notification system using localStorage version tracking:
+
+- **Automatic detection**: App checks current version vs last seen version on home screen load
+- **First-time visitors**: See changelog modal for current version on first visit
+- **After updates**: When deployment replaces files with new version, modal appears automatically
+- **Content**: Changelog fetched from GitHub CHANGELOG.md (same as native)
+- **User control**: "Understood" action closes the modal and marks the version as seen
+- **Storage**: Uses browser localStorage to persist last seen version
+
+**Implementation**:
+- `UpdateChecker.checkForWeb()`: Check if changelog should be shown (web only)
+- `UpdateChecker.markChangelogAsSeen()`: Save current version to localStorage
+- Modal shows "What's New" instead of "Update Available"
+- No Play Store button on web (replaced with an "Understood" acknowledgment)
+
+**Benefits**:
+- Web users always informed about new features after deployment
+- Consistent changelog experience across native and web platforms
+- No manual user action required (automatic detection)
+- Non-intrusive (appears once per version, can be dismissed)
 
 **After deployment:**
 1. Clear browser cache (Ctrl+Shift+Delete) to avoid old cached routes
@@ -734,7 +759,7 @@ Save as `run-web-both.ps1` and run: `.\run-web-both.ps1`
   - GPS-based attendance with radius validation
 - **Web**: 
   - Browser Geolocation API (accuracy varies by device/browser)
-  - Permission dialogs show "Mengerti" (Understand) only
+  - Permission dialogs show an acknowledgment-only action ("Mengerti")
   - Users must grant location manually via browser settings
   - Wi-Fi attendance works via IP detection from server headers
 - **Impact**: Web attendance may have lower GPS accuracy; users need to manually enable browser location
@@ -777,6 +802,14 @@ Both platforms support:
 - ✅ **Staff Management**: View and manage staff data
 - ✅ **Reports**: Attendance reports, performance tracking, analytics
 - ✅ **Dark/Light Theme**: Adaptive theme switching
+
+### 📰 WordPress Detail Rendering Strategy
+
+- **Web**: `WpPostDetailScreen` loads the article URL directly from WordPress response (`post.link`) via WebView URL request.
+- **Android/iOS (APK)**: `WpPostDetailScreen` keeps the previous rich HTML rendering flow (`initialData`) for stable native behavior.
+- **Fallback**: If `post.link` is missing/invalid on web, the screen falls back to HTML rendering.
+
+This split approach keeps native behavior unchanged while avoiding black/blank embed rendering issues on web.
 
 ### 💡 Usage Recommendations
 

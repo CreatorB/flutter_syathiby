@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -13,8 +14,12 @@ class WpPostDetailScreen extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isLoading = useState(true);
     final progress = useState(0.0);
+    final articleUrl = post.link?.trim();
+    final articleUri =
+        (articleUrl != null && articleUrl.isNotEmpty) ? Uri.tryParse(articleUrl) : null;
+    final shouldLoadUrlOnWeb = kIsWeb && articleUri != null;
 
-    // Build HTML content with proper styling
+    // Fallback content if URL is missing/invalid.
     final htmlContent = _buildHtmlContent();
 
     return Scaffold(
@@ -39,10 +44,17 @@ class WpPostDetailScreen extends HookConsumerWidget {
       body: Stack(
         children: [
           InAppWebView(
-            initialData: InAppWebViewInitialData(
-              data: htmlContent,
-              baseUrl: WebUri('https://syathiby.id'),
-            ),
+            initialUrlRequest: shouldLoadUrlOnWeb
+                ? URLRequest(url: WebUri.uri(articleUri))
+                : null,
+            // Mobile/iOS/Android: always use legacy HTML rendering.
+            // Web: use HTML only as fallback when article URL is missing/invalid.
+            initialData: !shouldLoadUrlOnWeb
+                ? InAppWebViewInitialData(
+                    data: htmlContent,
+                    baseUrl: WebUri('https://syathiby.id'),
+                  )
+                : null,
             initialSettings: InAppWebViewSettings(
               supportZoom: false,
               useShouldOverrideUrlLoading: true,

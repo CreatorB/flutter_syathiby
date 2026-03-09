@@ -22,6 +22,13 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   - `version.json`: Endpoint untuk verifikasi versi setelah deployment
   - `WEB_DEPLOYMENT_GUIDE.md`: Panduan lengkap troubleshooting deployment
   - `build-info.json`: Metadata build yang di-generate otomatis dengan timestamp
+- **Notifikasi Changelog untuk Web**: Sistem notifikasi "Apa yang Baru" khusus platform web
+  - Platform web mendapat modal changelog otomatis setelah deployment versi baru
+  - Tracking versi menggunakan localStorage (last seen version)
+  - Modal tampil otomatis saat first visit atau version berubah
+  - Konten changelog di-fetch dari GitHub CHANGELOG.md (sama seperti native app)
+  - Button "Mengerti" untuk menutup modal dan menandai changelog sudah dibaca
+  - Mengatasi masalah web users tidak tahu sudah ada update apa karena file langsung di-replace
 
 ### Diubah
 - **Arsitektur Deployment Web**: Migrasi Flutter web dari `mobile.syathiby.id` ke `aplikasi.syathiby.id/web/`
@@ -53,8 +60,22 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   - Tombol terkunci sementara untuk mencegah double tap
   - Durasi minimum animasi dijaga singkat agar UX terasa halus namun cepat
   - Refresh data profil/presensi disinkronkan sebelum tombol kembali idle
+- **Strategi Rendering Detail Berita per Platform**: Penyesuaian perilaku `WpPostDetailScreen` antara web dan mobile
+  - **Web**: Memuat URL artikel WordPress langsung dari response (`post.link`) menggunakan request URL pada WebView
+  - **Android/iOS (APK)**: Mengembalikan alur rendering HTML rich content seperti sebelumnya (`initialData`)
+  - **Fallback Web**: Jika `post.link` kosong/tidak valid, otomatis fallback ke rendering HTML
+  - Tujuan: menjaga stabilitas mobile sambil mengurangi kasus blank/hitam pada embed video di web
 
 ### Diperbaiki
+- **Video Embed di Detail Berita Flutter Web**: Perbaikan video/iframe tidak bisa diputar di halaman detail berita
+  - **Masalah**: Video embed (YouTube, iframe) tidak tampil normal dan area konten menjadi hitam pada web
+  - **Penyebab**: Pendekatan render HTML mentah di WebView tidak stabil di browser untuk konten embed tertentu
+  - **Solusi**: Ubah detail berita WordPress agar memuat URL artikel langsung dari response (`post.link`) ke WebView
+  - **Benefit**:
+    - Konten artikel dan embed mengikuti rendering native situs sumber
+    - Mengurangi risiko blank/black area saat memuat iframe video
+    - Implementasi lebih sederhana karena memanfaatkan URL final dari WordPress
+  - **File yang Dimodifikasi**: `lib/presentation/wordpress/wp_post_detail_screen.dart`
 - **CORS pada Flutter Web**: Gambar dari `syathiby.id` diblokir oleh browser CORS policy
   - **Masalah**: `Image.network` di Flutter Web (CanvasKit) pakai XMLHttpRequest yang enforce CORS
   - **Penyebab**: URL gambar WordPress tidak di-rewrite ke proxy

@@ -202,7 +202,13 @@ class HomeScreen extends HookConsumerWidget {
     useEffect(() {
       Future.microtask(() async {
         final info = await PackageInfo.fromPlatform();
-        final updateInfo = await UpdateChecker.check(info.version);
+
+        // Web: cek changelog dari localStorage version tracking
+        // Native: cek update dari Play Store
+        final updateInfo = kIsWeb
+            ? await UpdateChecker.checkForWeb(info.version)
+            : await UpdateChecker.check(info.version);
+
         if (updateInfo != null && context.mounted) {
           _showUpdateDialog(context, info.version, updateInfo);
         }
@@ -1668,21 +1674,26 @@ class HomeScreen extends HookConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: [
-                  const Icon(Icons.system_update, size: 28),
+                  Icon(
+                    kIsWeb ? Icons.new_releases : Icons.system_update,
+                    size: 28,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Update Tersedia',
-                          style: TextStyle(
+                        Text(
+                          kIsWeb ? 'Apa yang Baru' : 'Update Tersedia',
+                          style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         Text(
-                          'v$currentVersion → v${updateInfo.latestVersion}${updateInfo.releaseDate.isNotEmpty ? '  •  ${updateInfo.releaseDate}' : ''}',
+                          kIsWeb
+                              ? 'Versi ${updateInfo.latestVersion}${updateInfo.releaseDate.isNotEmpty ? '  •  ${updateInfo.releaseDate}' : ''}'
+                              : 'v$currentVersion → v${updateInfo.latestVersion}${updateInfo.releaseDate.isNotEmpty ? '  •  ${updateInfo.releaseDate}' : ''}',
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.grey.shade600,
@@ -1716,27 +1727,46 @@ class HomeScreen extends HookConsumerWidget {
               ),
               child: Column(
                 children: [
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      icon: const Icon(Icons.open_in_new, size: 18),
-                      label: const Text('Update Sekarang'),
-                      onPressed: () async {
-                        Navigator.of(ctx).pop();
-                        await InAppBrowser.openWithSystemBrowser(
-                          url: WebUri(UpdateChecker.playStoreUrl),
-                        );
-                      },
+                  // Web: show "Mengerti" button only
+                  // Native: show "Update Sekarang" button with Play Store link
+                  if (kIsWeb)
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        icon: const Icon(Icons.check_circle, size: 18),
+                        label: const Text('Mengerti'),
+                        onPressed: () async {
+                          await UpdateChecker.markChangelogAsSeen(
+                            currentVersion,
+                          );
+                          if (ctx.mounted) Navigator.of(ctx).pop();
+                        },
+                      ),
+                    )
+                  else
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        icon: const Icon(Icons.open_in_new, size: 18),
+                        label: const Text('Update Sekarang'),
+                        onPressed: () async {
+                          Navigator.of(ctx).pop();
+                          await InAppBrowser.openWithSystemBrowser(
+                            url: WebUri(UpdateChecker.playStoreUrl),
+                          );
+                        },
+                      ),
                     ),
-                  ),
                   const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(),
-                      child: const Text('Nanti Saja'),
+                  // Native only: show "Nanti Saja" button
+                  if (!kIsWeb)
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: const Text('Nanti Saja'),
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
