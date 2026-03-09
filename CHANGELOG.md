@@ -5,7 +5,7 @@ Semua perubahan penting pada Aplikasi Syathiby akan didokumentasikan dalam file 
 Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.6] - 2026-03-09
+## [1.0.7] - 2026-03-09
 
 ### Ditambahkan
 - **Mode Tamu Versi Web**: Mode tamu sekarang berfungsi penuh pada platform web
