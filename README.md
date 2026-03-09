@@ -14,6 +14,7 @@ Enhanced and customized version of Syathiby Vendor App — [https://github.com/c
 - [Prerequisites](#-prerequisites)
 - [Installation](#-installation)
 - [URL Environment Setup](#-url-environment-setup-flavor-based)
+- [Color Palette & Theme](#-color-palette--theme)
 - [Development](#-development) → **[Web Dev Cheatsheet](WEB_DEV_CHEATSHEET.md)**
 - [Building & Deployment](#-building--deployment)
 - [Features](#-features)
@@ -248,6 +249,144 @@ fvm flutter run --flavor local --dart-define=FLAVOR=local
 - Long-press the logo to verify the actual URL in use
 - Ensure the URL uses `http://` (not `https://`) for local
 - Confirm the IP matches the local pattern: `192.168.x.x`
+
+---
+
+## 🎨 Color Palette & Theme
+
+The app uses a custom green color palette with a modern 3D gradient design.
+
+### Base Colors
+
+| Role | Hex Code | Color Preview |
+|------|----------|---------------|
+| **Primary** | `#26774e` | ![#26774e](https://via.placeholder.com/80x20/26774e/000000?text=+) |
+| **Dark** | `#19633f` | ![#19633f](https://via.placeholder.com/80x20/19633f/000000?text=+) |
+| **Light** | `#82aa68` | ![#82aa68](https://via.placeholder.com/80x20/82aa68/000000?text=+) |
+
+### Theme Features
+
+✨ **Modern 3D Gradient Design:**
+- **Strong gradient colors** using base color palette (Dark → Primary → Light)
+- **3D elevation effects** with deep shadows (elevation 8-16)
+- **Bold visual depth** with multi-layer shadows
+- Material 3 design system with enhanced depth perception
+- Gradient accents on AppBar, buttons, cards, and navigation
+- Support for dark and light modes with adaptive gradients
+- Rounded corners (16-28px) and generous padding
+- High-contrast color scheme for better visibility
+
+**Key Design Elements:**
+- 🎨 **AppBar**: Gradient background with 8px elevation
+- 💳 **Cards**: Strong 3D shadow with 8-10px elevation
+- 🔘 **Buttons**: Bold gradient colors with 8-12px elevation
+- 📱 **Navigation Bar**: Gradient indicators with 12px elevation
+- 🎯 **Inputs**: Gradient focus borders (2.5px)
+- ✨ **Dialogs & Sheets**: Deep shadows with 16px elevation
+
+### 3D Icon Grid Design
+
+🎯 **Elegant 3D Menu Icons:**
+All grid menu icons throughout the app feature an elegant 3D design:
+- **Multi-layer shadows**: 3 shadow layers for realistic depth perception
+  - Top-left highlight (simulated light source)
+  - Main shadow (bottom-right)
+  - Additional depth shadow (deeper)
+- **Gradient backgrounds**: Smooth color transitions from light to dark
+- **Icon shadows**: Individual icon elements have subtle shadows
+- **Text shadows**: Labels feature depth shadows
+- **Rounded corners**: 20px border radius for smooth, modern look
+- **Border highlights**: Semi-transparent borders for edge definition
+- **Compact size**: 58x58px menu icon containers for cleaner layout density
+
+Applied in:
+- Home screen menu grids (all menu categories)
+- Prayer/Ibadah screen icons
+- Book selection grid
+- All other menu navigation elements
+
+### Attendance Button Motion (Premium + Fast)
+
+The main attendance CTA (`Absen Masuk` / `Absen Pulang`) now uses a compact, premium interaction model:
+- **Compact geometry**: 44px rendered height on Home for a tighter, modern look
+- **Fast premium tap animation**: quick bounce timing tuned for responsiveness
+- **Fetch-aware loading state**: inline spinner + dynamic label (`Absen masuk...` / `Absen pulang...`)
+- **Tap lock during processing**: prevents accidental double-submit while status is updating
+- **Smooth state handoff**: waits for refreshed presence/profile data before returning to idle
+
+### Reusable 3D Widgets
+
+📦 **Custom 3D Components:**
+The app includes reusable widgets for consistent 3D styling:
+
+**Elegant3DIcon** - Beautiful 3D icon container
+- Multi-layer shadows with adjustable depth
+- Gradient backgrounds
+- Customizable size and colors
+- Icon shadow effects
+
+**Elegant3DCard** - 3D elevated card widget
+- Multi-layer shadow system
+- Optional gradient backgrounds
+- Customizable borders and corners
+- Adjustable depth intensity (0.0 to 1.0)
+
+**Elegant3DButton** - compact premium action button
+- Fast bounce animation on press
+- Built-in loading mode (`isLoading`) with inline progress indicator
+- Dynamic loading label support (`loadingLabel`)
+- Designed for primary CTAs like attendance check-in/check-out
+
+**Usage Example:**
+```dart
+// Simple 3D icon
+Elegant3DIcon(
+  iconData: Icons.home,
+  size: 58,
+  iconSize: 24,
+)
+
+// Interactive 3D icon button
+Elegant3DIconButton(
+  iconData: Icons.settings,
+  onTap: () { /* action */ },
+  depth: 0.72,
+)
+
+// Compact attendance button with loading state
+Elegant3DButton(
+  label: 'Absen Masuk',
+  icon: Icons.check_circle,
+  height: 44,
+  depth: 0.62,
+  isLoading: false,
+  loadingLabel: 'Absen masuk...',
+  onPressed: () { /* action */ },
+)
+
+// 3D card with gradient
+Elegant3DCard(
+  borderRadius: 20,
+  useGradient: true,
+  child: YourContent(),
+)
+```
+
+📄 **Theme Configuration Files:**
+- [`lib/app.dart`](lib/app.dart) - Main theme setup with 3D gradient styling
+- [`lib/res/colors.dart`](lib/res/colors.dart) - Color scheme definitions
+- [`lib/utils/extension/color.dart`](lib/utils/extension/color.dart) - Color extensions
+- [`lib/presentation/home/home_screen.dart`](lib/presentation/home/home_screen.dart) - 3D icon grid implementation
+- [`lib/presentation/widgets/elegant_3d_icon.dart`](lib/presentation/widgets/elegant_3d_icon.dart) - Reusable 3D icon widget
+- [`lib/presentation/widgets/elegant_3d_button.dart`](lib/presentation/widgets/elegant_3d_button.dart) - Reusable compact 3D action button
+- [`lib/presentation/widgets/elegant_3d_card.dart`](lib/presentation/widgets/elegant_3d_card.dart) - Reusable 3D card widget
+
+**To modify the theme:**
+1. Edit the color values in `lib/res/colors.dart`
+2. Update theme configuration in `lib/app.dart`
+3. Adjust 3D icon effects in `buildListMenu()` method or use reusable widgets
+4. Customize `Elegant3DIcon` and `Elegant3DCard` depth parameter (0.0 - 1.0)
+5. Rebuild the app with `fvm flutter run`
 
 ---
 

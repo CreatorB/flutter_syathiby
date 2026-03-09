@@ -1,4 +1,5 @@
 import 'package:adaptive_dialog/adaptive_dialog.dart';
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -25,10 +26,11 @@ import 'package:syathiby/utils/extension/typography.dart';
 import 'package:syathiby/utils/extension/ui.dart';
 import 'package:responsive_grid/responsive_grid.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import 'package:syathiby/presentation/widgets/elegant_3d_icon.dart';
+import 'package:syathiby/presentation/widgets/elegant_3d_button.dart';
 
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import '../presence/presence_controller.dart';
-import '../setting/local_auth_controller.dart';
 import '../setting/presence_type.dart';
 import 'menu_home.dart';
 
@@ -44,6 +46,8 @@ class HomeScreen extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final activeMenuKey = useState<String?>(null);
+    final isAttendanceLoading = useState(false);
     final currentUser = ref.watch(getCurrentUserProvider);
     final key = '${currentUser?.key}';
     ref.listen(fetchProfileProvider(key: key), (previous, next) {
@@ -74,10 +78,9 @@ class HomeScreen extends HookConsumerWidget {
     );
     final displayTimeAttand = timeAttandFormat ?? '--:--';
     final rawWorkHour = fetchPresence.valueOrNull?.workhour?.trim();
-    final displayWorkHour =
-        (rawWorkHour != null && rawWorkHour.isNotEmpty)
-            ? rawWorkHour
-            : (fetchUserProfile.valueOrNull?.absensi ?? '-');
+    final displayWorkHour = (rawWorkHour != null && rawWorkHour.isNotEmpty)
+        ? rawWorkHour
+        : (fetchUserProfile.valueOrNull?.absensi ?? '-');
     final displayTimeOut = timeAttandOutFormat ?? '--:--';
     final isWorking = displayTimeAttand != '--:--';
     final isClockIn = fetchPresence.valueOrNull?.absen == "1";
@@ -394,33 +397,67 @@ class HomeScreen extends HookConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: Visibility(
-                        visible: !isHoliday,
-                        child: FilledButton(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: isClockIn
-                                ? context
-                                    .colorPrimary // Warna Hijau/Utama (Masuk)
-                                : context.colorError, // Warna Merah (Pulang)
-                          ),
-                          onPressed: () async {
+                    Visibility(
+                      visible: !isHoliday,
+                      child: Elegant3DButton(
+                        label: isClockIn ? 'Absen Masuk' : 'Absen Pulang',
+                        loadingLabel:
+                            isClockIn ? 'Absen masuk...' : 'Absen pulang...',
+                        backgroundColor: isClockIn
+                            ? context.colorPrimary // Hijau untuk masuk
+                            : context.colorError, // Merah untuk pulang
+                        icon:
+                            isClockIn ? Icons.check_circle : Icons.exit_to_app,
+                        isLoading: isAttendanceLoading.value,
+                        height: 44,
+                        depth: 0.62,
+                        onPressed: () async {
+                          if (isAttendanceLoading.value) return;
+
+                          const minAnimationDuration = Duration(
+                            milliseconds: 520,
+                          );
+                          final startedAt = DateTime.now();
+                          isAttendanceLoading.value = true;
+
+                          try {
                             if (isClockIn) {
-                              _showPresenceIn(context, ref, key);
-                              return;
+                              await _showPresenceIn(context, ref, key);
+                            } else {
+                              await _showPresenceOut(
+                                context,
+                                ref,
+                                key,
+                                '${currentUser?.device}',
+                              );
                             }
-                            _showPresenceOut(
-                              context,
-                              ref,
-                              key,
-                              '${currentUser?.device}',
+
+                            if (!context.mounted) return;
+
+                            // Pastikan transisi state tombol (Masuk/Pulang) terasa halus.
+                            await Future.wait([
+                              ref.refresh(
+                                  fetchPresenceProvider(key: key).future),
+                              ref.refresh(
+                                  fetchProfileProvider(key: key).future),
+                            ]).timeout(
+                              const Duration(seconds: 3),
+                              onTimeout: () => <Object?>[],
                             );
-                          },
-                          child: Text(
-                            isClockIn ? 'Absen Masuk' : 'Absen Pulang',
-                          ),
-                        ),
+                          } finally {
+                            final elapsed =
+                                DateTime.now().difference(startedAt);
+                            if (elapsed < minAnimationDuration) {
+                              await Future.delayed(
+                                minAnimationDuration - elapsed,
+                              );
+                            }
+
+                            if (context.mounted) {
+                              isAttendanceLoading.value = false;
+                            }
+                          }
+                        },
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -522,6 +559,46 @@ class HomeScreen extends HookConsumerWidget {
       String? title,
       bool enabled = false,
     }) {
+      Future<void> handleMenuTap(MenuGrid menu) async {
+        const minBounceDuration = Duration(milliseconds: 520);
+        const maxBackgroundWait = Duration(seconds: 2);
+        final menuKey = '${menu.goToRouteName}|${menu.title}';
+
+        if (activeMenuKey.value == menuKey) return;
+        activeMenuKey.value = menuKey;
+
+        try {
+          final preloadTask = menu.preload == null
+              ? Future<void>.value()
+              : Future<void>.sync(menu.preload!).timeout(
+                  maxBackgroundWait,
+                  onTimeout: () {},
+                );
+
+          await Future.wait([
+            Future.delayed(minBounceDuration),
+            preloadTask,
+          ]);
+
+          if (!context.mounted) return;
+
+          if (menu.onClicked != null) {
+            await Future<void>.sync(menu.onClicked!);
+            return;
+          }
+
+          context.goNamed(
+            menu.goToRouteName,
+            extra: menu.extra,
+            queryParameters: menu.queryParameters ?? {},
+          );
+        } finally {
+          if (context.mounted && activeMenuKey.value == menuKey) {
+            activeMenuKey.value = null;
+          }
+        }
+      }
+
       if (!enabled) return Container();
       final menuGrid = ResponsiveGridRow(
         children: menus
@@ -531,44 +608,38 @@ class HomeScreen extends HookConsumerWidget {
                 md: 3,
                 sm: 3,
                 xs: 4,
-                child: InkWell(
-                  onTap: menu.onClicked ??
-                      () {
-                        context.goNamed(
-                          menu.goToRouteName,
-                          extra: menu.extra,
-                          queryParameters: menu.queryParameters ?? {},
-                        );
-                      },
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        width: 60,
-                        height: 60,
-                        child: Card(
-                          elevation: 4,
-                          color: context.colorPrimaryContainer,
-                          shape: RoundedRectangleBorder(
-                            side: BorderSide(
-                              color: context.colorPrimary,
-                              width: 1,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
+                child: Column(
+                  children: [
+                    // 3D Elegant Sphere Icon Button with Bounce Effect
+                    Elegant3DIconButton(
+                      iconData: menu.iconData,
+                      primaryColor: context.colorPrimary,
+                      size: 58,
+                      iconSize: 24,
+                      depth: 0.72,
+                      isLoading: activeMenuKey.value ==
+                          '${menu.goToRouteName}|${menu.title}',
+                      onTap: () => handleMenuTap(menu),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      menu.title,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: context.colorOnSurface,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withOpacity(0.1),
+                            offset: const Offset(0, 1),
+                            blurRadius: 2,
                           ),
-                          child: Icon(
-                            menu.iconData,
-                            color: context.colorPrimary,
-                          ),
-                        ),
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        menu.title,
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 6),
+                  ],
                 ),
               ),
             )
@@ -605,7 +676,7 @@ class HomeScreen extends HookConsumerWidget {
               buildHeader(),
               const SizedBox(height: 8),
               buildPresenceAndJob(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               buildListMenu(
                 enabled: true,
                 menus: [
@@ -1198,7 +1269,7 @@ class HomeScreen extends HookConsumerWidget {
         dismissLoading();
       }
       if (result == null || !context.mounted) return;
-      
+
       // Check if response is an error (has errCode that's not '01')
       if (result.errCode != null && result.errCode != '01') {
         // Error response from server
@@ -1207,7 +1278,7 @@ class HomeScreen extends HookConsumerWidget {
         );
         return;
       }
-      
+
       final status = result.status;
 
       if (result.status == 'late') {
@@ -1306,7 +1377,8 @@ class HomeScreen extends HookConsumerWidget {
 
       if (allowedIp.isEmpty) {
         if (!context.mounted) return false;
-        context.showErrorMessage('Konfigurasi IP Wi\'Fi ma\'had tidak ditemukan.');
+        context
+            .showErrorMessage('Konfigurasi IP Wi\'Fi ma\'had tidak ditemukan.');
         return false;
       }
 
@@ -1320,7 +1392,8 @@ class HomeScreen extends HookConsumerWidget {
             )
             .timeout(const Duration(seconds: 8));
         final data = res.data;
-        detectedIp = data is Map<String, dynamic> ? '${data['ip'] ?? ''}' : null;
+        detectedIp =
+            data is Map<String, dynamic> ? '${data['ip'] ?? ''}' : null;
       } catch (_) {
         try {
           final res = await dioClient
@@ -1330,7 +1403,8 @@ class HomeScreen extends HookConsumerWidget {
               )
               .timeout(const Duration(seconds: 8));
           final data = res.data;
-          detectedIp = data is Map<String, dynamic> ? '${data['ip'] ?? ''}' : null;
+          detectedIp =
+              data is Map<String, dynamic> ? '${data['ip'] ?? ''}' : null;
         } catch (_) {
           try {
             final res = await dioClient
