@@ -554,15 +554,21 @@ fvm flutter build web --release --base-href /web/ --tree-shake-icons
 
 > **⚠️ IMPORTANT:** Flag `--base-href /web/` is **REQUIRED** because Flutter web is deployed as a subfolder `/web/` at `aplikasi.syathiby.id`.
 
-**OR use automated deployment script:**
+**OR use automated deployment script (recommended):**
 
 ```powershell
-# Automated build with verification
+# Full build + auto-copy to ../aplikasi/web/ + rename htaccess -> .htaccess
 .\deploy-web.ps1
 
 # Skip clean step (faster for minor changes)
 .\deploy-web.ps1 -SkipClean
 ```
+
+The script will:
+1. Clean, get dependencies, generate code
+2. Build web with `--base-href /web/`
+3. Verify critical files (`htaccess`, `flutter_bootstrap.js`, `main.dart.js`, `version.json`)
+4. **Prompt to auto-copy** build output to `../aplikasi/web/` (with auto-rename `htaccess` → `.htaccess`)
 
 Output: `build/web/`
 
@@ -574,6 +580,45 @@ Output: `build/web/`
 > 4. **Verify**: `https://aplikasi.syathiby.id/web/version.json`
 >
 > **See comprehensive guide:** [WEB_DEPLOYMENT_GUIDE.md](WEB_DEPLOYMENT_GUIDE.md)
+
+#### Local Testing Before Deployment (Laragon)
+
+Test the built web app locally before uploading to production.
+
+**Recommended: Laragon Virtual Host**
+
+Laragon auto-creates a virtual host for every folder in `C:/laragon/www/`. The `aplikasi` folder becomes `aplikasi.test`:
+
+```
+http://aplikasi.test/web/    ← same path as production, works with --base-href /web/
+```
+
+No extra configuration needed — just run the deploy script with auto-copy, then open `http://aplikasi.test/web/`.
+
+**Alternative: localhost/aplikasi/web/ via `.htaccess` Rewrite**
+
+If you prefer `localhost/aplikasi/web/`, create `C:/laragon/www/.htaccess`:
+
+```apache
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{REQUEST_URI} ^/web/
+  RewriteCond %{REQUEST_URI} !^/aplikasi/
+  RewriteRule ^web/(.*)$ /aplikasi/web/$1 [L]
+</IfModule>
+```
+
+This rewrites `localhost/web/*` → `localhost/aplikasi/web/*` so Flutter can find its assets.
+
+> A pre-made template is available at `aplikasi/web/htaccess_xampp_root` — copy and rename to `.htaccess` in your Laragon/XAMPP www root.
+
+**Local testing workflow:**
+
+```
+1. .\deploy-web.ps1           → build + auto-copy to aplikasi/web/
+2. Open http://aplikasi.test/web/  → test (should match native app)
+3. Confirmed OK → upload aplikasi/web/ to server
+```
 
 > **Note**: Web version includes **Guest Mode** with News, Prayer Schedule, and Quran features accessible without login. The app automatically starts in guest mode at `/guest-news` when no session exists.
 
@@ -614,9 +659,20 @@ Flutter web and backend run on the **same origin** (`aplikasi.syathiby.id`), so 
 - Non-intrusive (appears once per version, can be dismissed)
 
 **After deployment:**
-1. Clear browser cache (Ctrl+Shift+Delete) to avoid old cached routes
-2. Test guest mode: Open incognito/private window → should land on News page
+1. Open incognito/private window (Ctrl+Shift+N) — old service worker won't interfere
+2. Test guest mode: Should land on News page automatically
 3. Test login: Click "Pengguna" tab → "Masuk" button
+4. Verify icons and UI match the native APK — if different, the `.htaccess` cache headers may not be active
+
+**Why icons/UI may appear outdated after rebuild:**
+
+Flutter web uses a service worker (`flutter_service_worker.js`) to cache assets. If this file is cached by the browser, the old service worker keeps serving old assets even after you rebuild and upload.
+
+The `.htaccess` in `web/` includes `Cache-Control: no-store` for critical files:
+- `flutter_service_worker.js` — **most important**: must always be fresh
+- `flutter_bootstrap.js`, `index.html`, `version.json`, `manifest.json`
+
+Static assets (`.js`, `.wasm`, fonts, images) use long-term caching — the service worker handles invalidation via content hash manifests.
 
 ### Run Web Locally for Development & Debugging
 
@@ -1206,9 +1262,15 @@ flutter_syathiby/
 │       └── update_checker.dart     # GitHub CHANGELOG version check
 ├── test/                           # Unit & widget tests
 ├── build/                          # Build outputs (gitignored)
+├── web/
+│   ├── htaccess                    # Apache config: SPA routing + Cache-Control headers
+│   ├── index.html                  # Flutter web entry point
+│   └── ...
 ├── CHANGELOG.md                    # Version history
 ├── ATTENDANCE_WIFI_TEST_CHECKLIST.md  # Wi-Fi attendance test guide
+├── WEB_DEPLOYMENT_GUIDE.md         # Web deployment checklist & troubleshooting
 ├── install-both-apks.ps1           # Dual APK installer script
+├── deploy-web.ps1                  # Web build + auto-copy + verification script
 ├── pubspec.yaml                    # Flutter dependencies
 └── README.md                       # This file
 ```

@@ -1,10 +1,11 @@
 {
-  "version": "1.0.6",
-  "buildNumber": "6",
-  "buildDate": "2026-03-08",
+  "version": "1.0.7",
+  "buildNumber": "7",
+  "buildDate": "2026-03-09",
   "features": [
-    "Guest Mode",
-    "WordPress News",
-    "Web Routing Fix"
+    "Guest Mode for Web",
+    "Changelog Notification for Web",
+    "WordPress Detail Rendering Fix",
+    "Attendance Button Improvements"
   ]
 }

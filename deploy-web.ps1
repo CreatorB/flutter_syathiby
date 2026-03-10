@@ -1,8 +1,14 @@
 # ========================================
-# Syathiby Web Deployment Script  
+# Syathiby Web Deployment Script
 # ========================================
 # This script automates the complete web build process
-# Usage: .\deploy-web.ps1
+#
+# Usage:
+#   .\deploy-web.ps1             - build + auto-copy ke aplikasi/web/ (production base-href)
+#   .\deploy-web.ps1 -SkipClean - skip flutter clean (build lebih cepat)
+#
+# Setelah build, file otomatis di-copy ke ..\aplikasi\web\
+# File htaccess otomatis di-rename ke .htaccess di folder tujuan.
 
 param(
     [switch]$SkipClean = $false
@@ -20,7 +26,7 @@ function Write-Step {
 
 function Write-Success {
     param($Message)
-    Write-Host "✓ $Message" -ForegroundColor Green
+    Write-Host "[OK] $Message" -ForegroundColor Green
 }
 
 function Write-Info {
@@ -30,16 +36,16 @@ function Write-Info {
 
 function Write-Error-Custom {
     param($Message)
-    Write-Host "✗ $Message" -ForegroundColor Red
+    Write-Host "[ERR] $Message" -ForegroundColor Red
 }
 
 # Banner
 Clear-Host
 Write-Host ""
-Write-Host "╔════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║   SYATHIBY WEB DEPLOYMENT SCRIPT      ║" -ForegroundColor Cyan
-Write-Host "║   Version: 1.0.6                      ║" -ForegroundColor Cyan
-Write-Host "╚════════════════════════════════════════╝" -ForegroundColor Cyan
+Write-Host "=======================================" -ForegroundColor Cyan
+Write-Host "   SYATHIBY WEB DEPLOYMENT SCRIPT     " -ForegroundColor Cyan
+Write-Host "   Version: 1.0.7                     " -ForegroundColor Cyan
+Write-Host "=======================================" -ForegroundColor Cyan
 Write-Host ""
 
 # Check if in correct directory
@@ -69,7 +75,7 @@ if (!$SkipClean) {
     }
     Write-Success "Clean complete"
 } else {
-    Write-Host "Skipping clean (--SkipClean flag)" -ForegroundColor Yellow
+    Write-Host "Skipping clean (-SkipClean flag)" -ForegroundColor Yellow
 }
 
 # Step 2: Dependencies
@@ -93,7 +99,10 @@ Write-Success "Code generation complete"
 # Step 4: Web Build
 Write-Step "STEP 4/5: Building Web (Release Mode)"
 Write-Host "This may take 1-2 minutes..." -ForegroundColor Yellow
-fvm flutter build web --release --tree-shake-icons
+# --base-href /web/ sesuai struktur server production (aplikasi.syathiby.id/web/)
+# Untuk testing lokal pakai Laragon: akses via http://aplikasi.test/web/
+# (Laragon auto-mapping: aplikasi.test -> C:/laragon/www/aplikasi/)
+fvm flutter build web --release --base-href /web/ --tree-shake-icons
 if ($LASTEXITCODE -ne 0) {
     Write-Error-Custom "Web build failed!"
     exit 1
@@ -125,8 +134,8 @@ if (Test-Path "build\web\version.json") {
 # Check critical files
 $criticalFiles = @(
     "build\web\index.html",
-    "build\web\.htaccess",
-    "build\web\flutter.js",
+    "build\web\htaccess",
+    "build\web\flutter_bootstrap.js",
     "build\web\main.dart.js"
 )
 
@@ -146,9 +155,9 @@ $buildSizeMB = [math]::Round($buildSize/1MB, 2)
 
 # Success Banner
 Write-Host ""
-Write-Host "╔════════════════════════════════════════╗" -ForegroundColor Green
-Write-Host "║        BUILD SUCCESSFUL! ✓            ║" -ForegroundColor Green
-Write-Host "╚════════════════════════════════════════╝" -ForegroundColor Green
+Write-Host "=======================================" -ForegroundColor Green
+Write-Host "       BUILD SUCCESSFUL!              " -ForegroundColor Green
+Write-Host "=======================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "Build Summary:" -ForegroundColor Cyan
 Write-Info "Output Location: build\web\"
@@ -157,16 +166,16 @@ Write-Info "Version: $($version.version)+$($version.buildNumber)"
 Write-Host ""
 
 # Deployment Instructions
-Write-Host "╔════════════════════════════════════════╗" -ForegroundColor Yellow
-Write-Host "║       DEPLOYMENT INSTRUCTIONS         ║" -ForegroundColor Yellow
-Write-Host "╚════════════════════════════════════════╝" -ForegroundColor Yellow
+Write-Host "=======================================" -ForegroundColor Yellow
+Write-Host "      DEPLOYMENT INSTRUCTIONS        " -ForegroundColor Yellow
+Write-Host "=======================================" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "CRITICAL STEPS (MUST FOLLOW IN ORDER):" -ForegroundColor Red
 Write-Host ""
 Write-Host "1. DELETE ALL FILES ON SERVER" -ForegroundColor White
 Write-Info "   - Login ke cPanel/FTP"
-Write-Info "   - Navigate to web folder (e.g., public_html/mobile/)"
-Write-Info "   - DELETE semua file lama (Select All → Delete)"
+Write-Info "   - Navigate to web folder"
+Write-Info "   - DELETE semua file lama (Select All, Delete)"
 Write-Host ""
 Write-Host "2. UPLOAD BUILD FILES" -ForegroundColor White
 Write-Info "   - Upload SEMUA file dari: build\web\"
@@ -176,51 +185,89 @@ Write-Host ""
 Write-Host "3. CLEAR SERVER CACHE" -ForegroundColor White
 Write-Info "   - Cloudflare: Purge Everything"
 Write-Info "   - cPanel: Clear All Caches"
-Write-Info "   - Nginx/Apache: sudo systemctl restart nginx"
 Write-Host ""
 Write-Host "4. VERIFY DEPLOYMENT" -ForegroundColor White
-Write-Info "   - Open: https://mobile.syathiby.id/version.json"
+Write-Info "   - Open: https://aplikasi.syathiby.id/web/version.json"
 Write-Info "   - Should show version: $($version.version)"
-Write-Info "   - If old version shows: upload failed or cache issue"
 Write-Host ""
-Write-Host "5. CLEAR BROWSER CACHE" -ForegroundColor White
-Write-Info "   - Chrome: Ctrl+Shift+Delete"
-Write-Info "   - Or use Incognito Mode: Ctrl+Shift+N"
-Write-Info "   - Force reload: Ctrl+Shift+R"
-Write-Host ""
-Write-Host "6. TEST APPLICATION" -ForegroundColor White
-Write-Info "   - Should land on Guest Mode (Berita page)"
-Write-Info "   - Login screen should NOT show 'ENV' text"
-Write-Info "   - Check version in app settings"
+Write-Host "5. TEST IN INCOGNITO" -ForegroundColor White
+Write-Info "   - Buka Chrome incognito (Ctrl+Shift+N)"
+Write-Info "   - Akses: https://aplikasi.syathiby.id/web/"
 Write-Host ""
 
 # Final reminders
-Write-Host "═══════════════════════════════════════" -ForegroundColor Cyan
-Write-Host "⚠️  IMPORTANT REMINDERS:" -ForegroundColor Yellow
+Write-Host "=======================================" -ForegroundColor Cyan
+Write-Host "IMPORTANT REMINDERS:" -ForegroundColor Yellow
 Write-Host ""
-Write-Info "• ALWAYS delete old files before upload"
-Write-Info "• Verify .htaccess is uploaded correctly"
-Write-Info "• Check version.json endpoint after upload"
-Write-Info "• Clear both server AND browser cache"
-Write-Info "• Test in incognito/private mode first"
-Write-Host ""
-Write-Host "For detailed troubleshooting, see:" -ForegroundColor Cyan
-Write-Host "  WEB_DEPLOYMENT_GUIDE.md" -ForegroundColor White
+Write-Info "- ALWAYS delete old files before upload"
+Write-Info "- Verify .htaccess is uploaded correctly"
+Write-Info "- Check version.json endpoint after upload"
+Write-Info "- Clear both server AND browser cache"
+Write-Info "- Test in incognito/private mode first"
 Write-Host ""
 
 # Create deployment timestamp
 $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 $deploymentLog = @{
-    buildTime = $timestamp
-    version = $version.version
-    buildNumber = $version.buildNumber
-    buildSizeMB = $buildSizeMB
-    outputPath = "build\web\"
+    buildTime    = $timestamp
+    version      = $version.version
+    buildNumber  = $version.buildNumber
+    buildSizeMB  = $buildSizeMB
+    outputPath   = "build\web\"
 } | ConvertTo-Json
 
 Set-Content -Path "build\web\build-info.json" -Value $deploymentLog
 Write-Success "Build info saved to: build\web\build-info.json"
 Write-Host ""
+
+# ============================================================
+# AUTO COPY ke ../aplikasi/web/
+# ============================================================
+$destPath = "..\aplikasi\web"
+
+if (Test-Path $destPath) {
+    Write-Host ""
+    Write-Host "=======================================" -ForegroundColor Magenta
+    Write-Host "   AUTO-COPY KE APLIKASI/WEB         " -ForegroundColor Magenta
+    Write-Host "=======================================" -ForegroundColor Magenta
+    Write-Host ""
+
+    $copyResponse = Read-Host "Copy build ke $destPath untuk testing lokal? (Y/N)"
+    if ($copyResponse -eq "Y" -or $copyResponse -eq "y") {
+        Write-Host "  Menghapus file lama di $destPath..." -ForegroundColor Yellow
+        Get-ChildItem -Path $destPath -Recurse | Remove-Item -Force -Recurse
+        Write-Success "File lama dihapus"
+
+        Write-Host "  Meng-copy file baru..." -ForegroundColor Yellow
+        Copy-Item -Path "build\web\*" -Destination $destPath -Recurse -Force
+        Write-Success "File di-copy ke $destPath"
+
+        # Rename htaccess -> .htaccess di folder tujuan
+        $htaccessSrc = Join-Path $destPath "htaccess"
+        $htaccessDst = Join-Path $destPath ".htaccess"
+        if (Test-Path $htaccessSrc) {
+            if (Test-Path $htaccessDst) { Remove-Item $htaccessDst -Force }
+            Rename-Item -Path $htaccessSrc -NewName ".htaccess"
+            Write-Success "htaccess -> .htaccess (renamed)"
+        }
+
+        Write-Host ""
+        Write-Host "  Siap testing lokal di:" -ForegroundColor Cyan
+        Write-Host "  [REKOMENDASI] http://aplikasi.test/web/" -ForegroundColor Green
+        Write-Host "  [HP/device]   http://192.168.50.100/aplikasi/web/" -ForegroundColor White
+        Write-Host ""
+        Write-Host "  Catatan Laragon:" -ForegroundColor Yellow
+        Write-Host "  Gunakan aplikasi.test/web/ bukan localhost/aplikasi/web/" -ForegroundColor Yellow
+        Write-Host "  Laragon auto-mapping: aplikasi.test -> C:/laragon/www/aplikasi/" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "  Setelah puas testing lokal, upload ke server." -ForegroundColor Cyan
+    } else {
+        Write-Host "  Skip copy. File build ada di: build/web/" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "  Folder $destPath tidak ditemukan, skip auto-copy." -ForegroundColor Yellow
+    Write-Host "  Copy manual dari: build/web/" -ForegroundColor White
+}
 
 # Ask if user wants to open build folder
 $response = Read-Host "Open build\web folder now? (Y/N)"

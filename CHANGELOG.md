@@ -5,7 +5,7 @@ Semua perubahan penting pada Aplikasi Syathiby akan didokumentasikan dalam file 
 Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.7] - 2026-03-09
+## [1.0.7] - 2026-03-10
 
 ### Ditambahkan
 - **Mode Tamu Versi Web**: Mode tamu sekarang berfungsi penuh pada platform web
@@ -22,6 +22,19 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   - `version.json`: Endpoint untuk verifikasi versi setelah deployment
   - `WEB_DEPLOYMENT_GUIDE.md`: Panduan lengkap troubleshooting deployment
   - `build-info.json`: Metadata build yang di-generate otomatis dengan timestamp
+- **Auto-Copy Build ke Folder Lokal**: `deploy-web.ps1` sekarang menawarkan copy otomatis hasil build
+  - Setelah build selesai, script menanyakan apakah ingin langsung copy ke `../aplikasi/web/`
+  - File `htaccess` otomatis di-rename menjadi `.htaccess` di folder tujuan
+  - Menghilangkan langkah copy manual setiap kali build
+- **Setup Testing Lokal Laragon**: Konfigurasi multi-environment untuk testing sebelum deploy ke production
+  - File `C:/laragon/www/.htaccess` merewrite `/web/*` ke `/aplikasi/web/*` untuk akses lokal
+  - Memungkinkan akses `localhost/aplikasi/web/` dengan base-href `/web/` yang sama seperti production
+  - Rekomendasi: akses via `http://aplikasi.test/web/` (Laragon auto virtual host, tanpa perlu rewrite)
+  - File template `aplikasi/web/htaccess_xampp_root` tersedia untuk referensi dan XAMPP users
+- **Cache-Control Headers pada `.htaccess`**: Penambahan header cache untuk mencegah browser/service worker memuat aset lama
+  - File kritis (`flutter_service_worker.js`, `flutter_bootstrap.js`, `index.html`, `version.json`) diberi `Cache-Control: no-store`
+  - Aset statis (JS, WASM, gambar, font) diberi `Cache-Control: public, max-age=31536000`
+  - Diterapkan di `flutter_syathiby/web/htaccess` (source) dan `aplikasi/web/htaccess` (destination)
 - **Notifikasi Changelog untuk Web**: Sistem notifikasi "Apa yang Baru" khusus platform web
   - Platform web mendapat modal changelog otomatis setelah deployment versi baru
   - Tracking versi menggunakan localStorage (last seen version)
@@ -67,6 +80,18 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   - Tujuan: menjaga stabilitas mobile sambil mengurangi kasus blank/hitam pada embed video di web
 
 ### Diperbaiki
+- **Ikon Lama di Flutter Web Setelah Build Ulang**: Tampilan web tetap menampilkan ikon kotak (versi lama) meski sudah build ulang berkali-kali
+  - **Masalah**: `flutter_service_worker.js` ter-cache oleh browser. Service worker lama tetap aktif dan menyajikan aset lama
+  - **Penyebab**: Tidak ada `Cache-Control` header di `.htaccess` sehingga browser meng-cache `flutter_service_worker.js` tanpa batas waktu
+  - **Solusi**: Tambahkan `Cache-Control: no-store` untuk semua file kritis di `.htaccess` (service worker, bootstrap, index.html, version.json)
+  - **Cara verifikasi**: Buka tab incognito setelah deploy ulang — tampilan harus langsung menampilkan versi terbaru
+- **Build Command Tanpa `--base-href`**: `deploy-web.ps1` sebelumnya build web tanpa flag `--base-href /web/`
+  - **Masalah**: Flutter web berjalan di `aplikasi.syathiby.id/web/` (subfolder), tanpa `--base-href /web/` semua request aset gagal
+  - **Solusi**: Flag `--base-href /web/` ditambahkan permanen di `deploy-web.ps1`
+- **Flutter Web Blank Putih di Lokal (`localhost/aplikasi/web/`)**: Halaman Flutter web tidak tampil sama sekali saat diakses lewat XAMPP/Laragon
+  - **Masalah**: Flutter dengan `<base href="/web/">` meminta aset dari `localhost/web/...` padahal folder ada di `localhost/aplikasi/web/...`
+  - **Solusi**: Tambahkan `C:/laragon/www/.htaccess` yang merewrite `/web/*` ke `/aplikasi/web/*` untuk environment lokal
+  - **Alternatif lebih bersih**: Akses via `http://aplikasi.test/web/` (Laragon auto virtual host, tidak butuh rewrite apapun)
 - **Video Embed di Detail Berita Flutter Web**: Perbaikan video/iframe tidak bisa diputar di halaman detail berita
   - **Masalah**: Video embed (YouTube, iframe) tidak tampil normal dan area konten menjadi hitam pada web
   - **Penyebab**: Pendekatan render HTML mentah di WebView tidak stabil di browser untuk konten embed tertentu
@@ -181,6 +206,12 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - **Perintah Build**: `fvm flutter build web --release --base-href /web/ --tree-shake-icons`
 - **Arsitektur**: `aplikasi.syathiby.id/web/` (Flutter) + `aplikasi.syathiby.id/geten/` (API) = same origin, no CORS
 - **Deteksi Platform**: Menggunakan konstanta `kIsWeb` untuk mengaktifkan fitur secara kondisional
+- **File yang Dimodifikasi (update 2026-03-10)**:
+  - `web/htaccess`: Tambah Cache-Control headers (no-store untuk file kritis, long-term untuk aset)
+  - `aplikasi/web/htaccess`: Sinkron dengan `web/htaccess`
+  - `deploy-web.ps1`: Tambah `--base-href /web/`, auto-copy ke `../aplikasi/web/`, rename htaccess ke .htaccess
+  - `C:/laragon/www/.htaccess`: Rewrite `/web/*` ke `/aplikasi/web/*` untuk lokal
+  - `aplikasi/web/htaccess_xampp_root`: Template rewrite untuk XAMPP/Laragon
 
 ## [1.0.5] - 2026-03-07
 

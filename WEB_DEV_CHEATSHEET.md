@@ -6,13 +6,14 @@ Quick reference untuk command-command web development.
 
 ### Run Web (Production Mode)
 ```bash
-fvm flutter run -d chrome
+fvm flutter run -d chrome --web-hostname localhost --web-port 9000
 ```
-- URL: `http://localhost:8080`
+- URL: `http://localhost:9000`
 - Uses: Production API (`https://aplikasi.syathiby.id`)
 - WordPress proxy: `http://localhost/aplikasi/geten/wordpress_proxy.php`
 - Environment: GREEN banner or no banner
 - Hot reload: ✅ Enabled
+- Note: Port 9000 to avoid conflict with UniFi (port 8080)
 
 ### Run Web (Local/Development Mode)
 ```bash
@@ -37,7 +38,7 @@ fvm flutter run -d chrome --web-hostname localhost --web-port 3000
 .\run-web-both.ps1
 ```
 - Starts both servers in separate jobs
-- PROD: `http://localhost:8080`
+- PROD: `http://localhost:9000`
 - LOCAL: `http://192.168.50.100:8082`
 - Perfect for comparing both environments
 
@@ -185,7 +186,7 @@ Web app automatically detects environment from hostname:
 
 | Type | URL |
 |------|-----|
-| App (PROD) | `http://localhost:8080` |
+| App (PROD) | `http://localhost:9000` |
 | App (LOCAL) | `http://192.168.50.100:8082` |
 | Version Check | `http://<host>:<port>/version.json` |
 | DevTools | `chrome://inspect/#devices` |
@@ -292,7 +293,7 @@ Output: `build/web/`
 4. No need to rebuild entire app
 
 ### Test Production Before Deploying
-1. Run PROD mode locally (`fvm flutter run -d chrome`)
+1. Run PROD mode locally (`fvm flutter run -d chrome --web-hostname localhost --web-port 9000`)
 2. Test guest mode, login, features
 3. Compare with LOCAL mode
 4. Verify no "ENV" text appears

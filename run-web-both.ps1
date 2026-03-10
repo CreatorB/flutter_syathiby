@@ -2,14 +2,14 @@
 # Run Web PROD and LOCAL Simultaneously
 # ========================================
 # This script starts both production and local web servers
-# PROD (simulates production): http://localhost:8080
+# PROD (simulates production): http://localhost:9000
 # LOCAL (debugging): http://192.168.50.100:8082
 # 
 # Usage: .\run-web-both.ps1
 
 param(
     [string]$LocalIP = "192.168.50.100",
-    [int]$ProdPort = 8080,
+    [int]$ProdPort = 9000,
     [int]$LocalPort = 8082
 )
 
