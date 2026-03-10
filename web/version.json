@@ -1,0 +1,11 @@
+{
+  "version": "1.0.7",
+  "buildNumber": "7",
+  "buildDate": "2026-03-09",
+  "features": [
+    "Guest Mode for Web",
+    "Changelog Notification for Web",
+    "WordPress Detail Rendering Fix",
+    "Attendance Button Improvements"
+  ]
+}

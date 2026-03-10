@@ -5,10 +5,15 @@ import 'package:syathiby/models/wordpress/wp_post.dart';
 part 'wp_api_service.g.dart';
 
 /// WordPress REST API v2 Service
-/// Base URL: https://syathiby.id/wp-json/wp/v2
+/// Base URL can be:
+/// - Production: https://syathiby.id/wp-json/wp/v2
+/// - Dev proxy: http://localhost/aplikasi/geten/wordpress_proxy.php
 @RestApi(baseUrl: 'https://syathiby.id/wp-json/wp/v2')
 abstract class WpApiService {
-  factory WpApiService(Dio dio, {String baseUrl}) = _WpApiService;
+  factory WpApiService(
+    Dio dio, {
+    String baseUrl,
+  }) = _WpApiService;
 
   /// Get list of posts
   /// 

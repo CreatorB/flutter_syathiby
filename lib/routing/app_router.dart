@@ -381,8 +381,24 @@ GoRouter goRouter(GoRouterRef ref) {
   return GoRouter(
     initialLocation: '/guest-news',
     navigatorKey: _rootNavigatorKey,
-    // errorBuilder: (context, state) => const NotFoundScreen(),
+    // Redirect unknown routes to guest mode
+    errorBuilder: (context, state) {
+      // Redirect error pages to guest news
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        context.go('/guest-news');
+      });
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    },
     redirect: (context, state) async {
+      // Handle legacy /login route (redirect to /auth/login)
+      if (state.matchedLocation == '/login') {
+        return '/auth/login';
+      }
+      
       final goingToLogin = state.matchedLocation.startsWith('/auth');
       final goingToGuest = state.matchedLocation.contains('/guest-');
 

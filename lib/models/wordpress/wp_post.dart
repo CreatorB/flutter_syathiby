@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 part 'wp_post.freezed.dart';
 part 'wp_post.g.dart';
@@ -107,11 +108,42 @@ extension WpPostExtension on WpPost {
     // 1. Try og_image first (from Yoast SEO, optimized)
     final ogImageUrl = yoastHeadJson?.ogImage?.firstOrNull?.url;
     if (ogImageUrl != null && ogImageUrl.isNotEmpty) {
-      return ogImageUrl;
+      return _rewriteWordpressUploadUrl(ogImageUrl);
     }
     
     // 2. Fallback to embedded media
-    return embedded?.featuredMediaList?.firstOrNull?.sourceUrl;
+    return _rewriteWordpressUploadUrl(
+      embedded?.featuredMediaList?.firstOrNull?.sourceUrl,
+    );
+  }
+
+  String? _rewriteWordpressUploadUrl(String? url) {
+    if (!kIsWeb || url == null || url.isEmpty) {
+      return url;
+    }
+
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      return url;
+    }
+
+    final isWpUploads =
+        uri.host == 'syathiby.id' && uri.path.startsWith('/wp-content/uploads/');
+    if (!isWpUploads) {
+      return url;
+    }
+
+    final relativePath = uri.path.replaceFirst('/wp-content/uploads/', '');
+    final host = Uri.base.host;
+    final isLocalHost = host == 'localhost' ||
+        host == '127.0.0.1' ||
+        host == '192.168.50.100';
+
+    final proxyBase = isLocalHost
+        ? 'http://localhost/aplikasi/wordpress_images.php'
+        : 'https://aplikasi.syathiby.id/wordpress_images.php';
+
+    return '$proxyBase?url=${Uri.encodeComponent(relativePath)}';
   }
 
   String get plainTitle {
