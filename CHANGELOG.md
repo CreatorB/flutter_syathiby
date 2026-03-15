@@ -5,6 +5,47 @@ Semua perubahan penting pada Aplikasi Syathiby akan didokumentasikan dalam file 
 Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.8] - 2026-03-15
+
+### Diubah
+- **Splash Screen Redesign**: Tampilan splash screen diperbarui untuk semua platform (Android, iOS, Web)
+  - Background splash diubah dari putih (#FFFFFF) ke hitam (#000000)
+  - Gambar logo splash (`syathiby_splash_1152.png`) dimodifikasi: background hitam diinvert menjadi putih dengan rounded corners
+  - Logo hijau gradient tetap dipertahankan di tengah
+  - Konsistensi tampilan antara light mode dan dark mode (keduanya background hitam)
+  - Tampilan lebih modern dan premium dengan kontras hitam-putih
+- **Web Splash Screen Diaktifkan**: Konfigurasi `web: true` pada `flutter_native_splash`
+  - Sebelumnya splash screen web dinonaktifkan (`web: false`)
+  - Sekarang splash screen tampil di Flutter web dengan gambar dan warna yang sama seperti Android/iOS
+  - File splash CSS dan gambar (light/dark 1x-4x) di-generate otomatis ke folder `web/splash/`
+
+### Ditambahkan
+- **Deploy Script Dev/Prod Mode**: Kedua script deploy (PowerShell & bash) mendukung mode DEV dan PROD
+  - **PROD** (default): `--base-href /web/` — untuk `aplikasi.test/web/` dan `aplikasi.syathiby.id/web/`
+  - **DEV**: `--base-href /aplikasi/web/` — untuk akses via IP `192.168.50.100/aplikasi/web/`
+  - PowerShell: `.\deploy-web.ps1` (prod) / `.\deploy-web.ps1 -Dev` (dev)
+  - Bash: `bash ./deploy_web.sh` (prod) / `bash ./deploy_web.sh --dev` (dev)
+  - Banner menampilkan mode dan base-href yang digunakan
+- **Script Deploy Web (`deploy_web.sh`)**: Script bash untuk otomasi build dan deploy Flutter web
+  - `bash ./deploy_web.sh` — build PROD + sync ke `../aplikasi/web/`
+  - `bash ./deploy_web.sh --dev` — build DEV untuk akses via IP
+  - `bash ./deploy_web.sh --skip-build` — sync saja tanpa build ulang
+  - `bash ./deploy_web.sh --commit "pesan"` — build + sync + git commit & push otomatis
+  - Auto-detect path FVM di Windows (Git Bash compatible)
+
+### Detail Teknis
+- **File yang Dimodifikasi**:
+  - `pubspec.yaml`: `color`/`color_dark` → `#000000`, `web: false` → `web: true`
+  - `assets/images/syathiby_splash_1152.png`: Background diinvert hitam→putih, ditambah rounded corners
+  - `web/index.html`: Ditambahkan splash screen markup oleh flutter_native_splash
+  - `web/splash/`: Folder baru berisi CSS dan gambar splash untuk web
+  - `deploy_web.sh`: Script deploy bash baru (dev/prod mode, auto-detect FVM)
+  - `deploy-web.ps1`: v1.0.8→v1.1.0 — ditambah flag `-Dev` untuk mode DEV
+- **Perintah Regenerasi Splash**: `fvm dart run flutter_native_splash:create`
+- **Perintah Build Web**:
+  - PROD: `fvm flutter build web --base-href /web/ --release`
+  - DEV: `fvm flutter build web --base-href /aplikasi/web/ --release`
+
 ## [1.0.7] - 2026-03-10
 
 ### Ditambahkan

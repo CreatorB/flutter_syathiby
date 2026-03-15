@@ -1,20 +1,32 @@
 # ========================================
 # Syathiby Web Deployment Script
 # ========================================
-# This script automates the complete web build process
-#
 # Usage:
-#   .\deploy-web.ps1             - build + auto-copy ke aplikasi/web/ (production base-href)
-#   .\deploy-web.ps1 -SkipClean - skip flutter clean (build lebih cepat)
+#   .\deploy-web.ps1                - build PROD (base-href /web/) + copy ke aplikasi/web/
+#   .\deploy-web.ps1 -Dev           - build DEV  (base-href /aplikasi/web/) + copy
+#   .\deploy-web.ps1 -SkipClean     - skip flutter clean (build lebih cepat)
+#   .\deploy-web.ps1 -Dev -SkipClean
 #
-# Setelah build, file otomatis di-copy ke ..\aplikasi\web\
-# File htaccess otomatis di-rename ke .htaccess di folder tujuan.
+# PROD: untuk aplikasi.syathiby.id/web/ dan aplikasi.test/web/
+# DEV:  untuk 192.168.50.100/aplikasi/web/ (akses via IP)
 
 param(
+    [switch]$Dev = $false,
     [switch]$SkipClean = $false
 )
 
 $ErrorActionPreference = "Stop"
+
+# Config
+if ($Dev) {
+    $baseHref = "/aplikasi/web/"
+    $mode = "DEV"
+    $modeColor = "Yellow"
+} else {
+    $baseHref = "/web/"
+    $mode = "PROD"
+    $modeColor = "Green"
+}
 
 function Write-Step {
     param($Message)
@@ -44,8 +56,11 @@ Clear-Host
 Write-Host ""
 Write-Host "=======================================" -ForegroundColor Cyan
 Write-Host "   SYATHIBY WEB DEPLOYMENT SCRIPT     " -ForegroundColor Cyan
-Write-Host "   Version: 1.0.7                     " -ForegroundColor Cyan
+Write-Host "   Version: 1.1.0                     " -ForegroundColor Cyan
 Write-Host "=======================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "  Mode:      $mode" -ForegroundColor $modeColor
+Write-Host "  Base-href: $baseHref" -ForegroundColor $modeColor
 Write-Host ""
 
 # Check if in correct directory
@@ -97,12 +112,9 @@ if ($LASTEXITCODE -ne 0) {
 Write-Success "Code generation complete"
 
 # Step 4: Web Build
-Write-Step "STEP 4/5: Building Web (Release Mode)"
-Write-Host "This may take 1-2 minutes..." -ForegroundColor Yellow
-# --base-href /web/ sesuai struktur server production (aplikasi.syathiby.id/web/)
-# Untuk testing lokal pakai Laragon: akses via http://aplikasi.test/web/
-# (Laragon auto-mapping: aplikasi.test -> C:/laragon/www/aplikasi/)
-fvm flutter build web --release --base-href /web/ --tree-shake-icons
+Write-Step "STEP 4/5: Building Web [$mode] (Release Mode)"
+Write-Host "  base-href: $baseHref" -ForegroundColor Yellow
+fvm flutter build web --release --base-href $baseHref --tree-shake-icons
 if ($LASTEXITCODE -ne 0) {
     Write-Error-Custom "Web build failed!"
     exit 1
@@ -134,7 +146,6 @@ if (Test-Path "build\web\version.json") {
 # Check critical files
 $criticalFiles = @(
     "build\web\index.html",
-    "build\web\htaccess",
     "build\web\flutter_bootstrap.js",
     "build\web\main.dart.js"
 )
@@ -156,54 +167,14 @@ $buildSizeMB = [math]::Round($buildSize/1MB, 2)
 # Success Banner
 Write-Host ""
 Write-Host "=======================================" -ForegroundColor Green
-Write-Host "       BUILD SUCCESSFUL!              " -ForegroundColor Green
+Write-Host "       BUILD SUCCESSFUL! [$mode]      " -ForegroundColor Green
 Write-Host "=======================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "Build Summary:" -ForegroundColor Cyan
-Write-Info "Output Location: build\web\"
-Write-Info "Total Size: $buildSizeMB MB"
-Write-Info "Version: $($version.version)+$($version.buildNumber)"
-Write-Host ""
-
-# Deployment Instructions
-Write-Host "=======================================" -ForegroundColor Yellow
-Write-Host "      DEPLOYMENT INSTRUCTIONS        " -ForegroundColor Yellow
-Write-Host "=======================================" -ForegroundColor Yellow
-Write-Host ""
-Write-Host "CRITICAL STEPS (MUST FOLLOW IN ORDER):" -ForegroundColor Red
-Write-Host ""
-Write-Host "1. DELETE ALL FILES ON SERVER" -ForegroundColor White
-Write-Info "   - Login ke cPanel/FTP"
-Write-Info "   - Navigate to web folder"
-Write-Info "   - DELETE semua file lama (Select All, Delete)"
-Write-Host ""
-Write-Host "2. UPLOAD BUILD FILES" -ForegroundColor White
-Write-Info "   - Upload SEMUA file dari: build\web\"
-Write-Info "   - Pastikan .htaccess ikut terupload"
-Write-Info "   - Jangan lupa folder: assets/, canvaskit/, icons/"
-Write-Host ""
-Write-Host "3. CLEAR SERVER CACHE" -ForegroundColor White
-Write-Info "   - Cloudflare: Purge Everything"
-Write-Info "   - cPanel: Clear All Caches"
-Write-Host ""
-Write-Host "4. VERIFY DEPLOYMENT" -ForegroundColor White
-Write-Info "   - Open: https://aplikasi.syathiby.id/web/version.json"
-Write-Info "   - Should show version: $($version.version)"
-Write-Host ""
-Write-Host "5. TEST IN INCOGNITO" -ForegroundColor White
-Write-Info "   - Buka Chrome incognito (Ctrl+Shift+N)"
-Write-Info "   - Akses: https://aplikasi.syathiby.id/web/"
-Write-Host ""
-
-# Final reminders
-Write-Host "=======================================" -ForegroundColor Cyan
-Write-Host "IMPORTANT REMINDERS:" -ForegroundColor Yellow
-Write-Host ""
-Write-Info "- ALWAYS delete old files before upload"
-Write-Info "- Verify .htaccess is uploaded correctly"
-Write-Info "- Check version.json endpoint after upload"
-Write-Info "- Clear both server AND browser cache"
-Write-Info "- Test in incognito/private mode first"
+Write-Info "Mode:      $mode (base-href: $baseHref)"
+Write-Info "Output:    build\web\"
+Write-Info "Size:      $buildSizeMB MB"
+Write-Info "Version:   $($version.version)+$($version.buildNumber)"
 Write-Host ""
 
 # Create deployment timestamp
@@ -213,12 +184,13 @@ $deploymentLog = @{
     version      = $version.version
     buildNumber  = $version.buildNumber
     buildSizeMB  = $buildSizeMB
+    mode         = $mode
+    baseHref     = $baseHref
     outputPath   = "build\web\"
 } | ConvertTo-Json
 
 Set-Content -Path "build\web\build-info.json" -Value $deploymentLog
 Write-Success "Build info saved to: build\web\build-info.json"
-Write-Host ""
 
 # ============================================================
 # AUTO COPY ke ../aplikasi/web/
@@ -232,7 +204,7 @@ if (Test-Path $destPath) {
     Write-Host "=======================================" -ForegroundColor Magenta
     Write-Host ""
 
-    $copyResponse = Read-Host "Copy build ke $destPath untuk testing lokal? (Y/N)"
+    $copyResponse = Read-Host "Copy build ke $destPath? (Y/N)"
     if ($copyResponse -eq "Y" -or $copyResponse -eq "y") {
         Write-Host "  Menghapus file lama di $destPath..." -ForegroundColor Yellow
         Get-ChildItem -Path $destPath -Recurse | Remove-Item -Force -Recurse
@@ -252,21 +224,36 @@ if (Test-Path $destPath) {
         }
 
         Write-Host ""
-        Write-Host "  Siap testing lokal di:" -ForegroundColor Cyan
-        Write-Host "  [REKOMENDASI] http://aplikasi.test/web/" -ForegroundColor Green
-        Write-Host "  [HP/device]   http://192.168.50.100/aplikasi/web/" -ForegroundColor White
+        if ($Dev) {
+            Write-Host "  Testing lokal (DEV mode):" -ForegroundColor Cyan
+            Write-Host "  [IP]   http://192.168.50.100/aplikasi/web/" -ForegroundColor Green
+            Write-Host "  [HP]   http://192.168.50.100/aplikasi/web/" -ForegroundColor Green
+        } else {
+            Write-Host "  Testing lokal (PROD mode):" -ForegroundColor Cyan
+            Write-Host "  [OK]   http://aplikasi.test/web/" -ForegroundColor Green
+            Write-Host "  [WARN] http://192.168.50.100/aplikasi/web/ (TIDAK JALAN di mode PROD)" -ForegroundColor Yellow
+        }
         Write-Host ""
-        Write-Host "  Catatan Laragon:" -ForegroundColor Yellow
-        Write-Host "  Gunakan aplikasi.test/web/ bukan localhost/aplikasi/web/" -ForegroundColor Yellow
-        Write-Host "  Laragon auto-mapping: aplikasi.test -> C:/laragon/www/aplikasi/" -ForegroundColor Yellow
-        Write-Host ""
-        Write-Host "  Setelah puas testing lokal, upload ke server." -ForegroundColor Cyan
     } else {
         Write-Host "  Skip copy. File build ada di: build/web/" -ForegroundColor Yellow
     }
 } else {
     Write-Host "  Folder $destPath tidak ditemukan, skip auto-copy." -ForegroundColor Yellow
     Write-Host "  Copy manual dari: build/web/" -ForegroundColor White
+}
+
+# Deployment instructions (only for PROD)
+if (!$Dev) {
+    Write-Host ""
+    Write-Host "=======================================" -ForegroundColor Yellow
+    Write-Host "      DEPLOY KE SERVER (PROD)        " -ForegroundColor Yellow
+    Write-Host "=======================================" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Info "1. git add & commit di ../aplikasi/"
+    Write-Info "2. git push, lalu git pull di server"
+    Write-Info "3. Clear Cloudflare cache"
+    Write-Info "4. Test: https://aplikasi.syathiby.id/web/"
+    Write-Host ""
 }
 
 # Ask if user wants to open build folder
@@ -276,5 +263,5 @@ if ($response -eq "Y" -or $response -eq "y") {
 }
 
 Write-Host ""
-Write-Host "Script completed successfully!" -ForegroundColor Green
+Write-Host "Script completed successfully! [$mode]" -ForegroundColor Green
 Write-Host ""
