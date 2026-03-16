@@ -185,6 +185,10 @@ enum AppRoute {
   guestAyah,
   guestQibla,
   guestMurottal,
+  guestHadith,
+  guestBooks,
+  guestDhikr,
+  guestTv,
   guestUser,
   guestLogin,
   guestForgot,
@@ -515,6 +519,30 @@ GoRouter goRouter(GoRouterRef ref) {
                     path: 'murottal',
                     name: AppRoute.guestMurottal.name,
                     builder: (context, state) => const MurottalScreen(),
+                  ),
+                  GoRoute(
+                    path: 'books',
+                    name: AppRoute.guestBooks.name,
+                    builder: (context, state) => const BooksScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'hadith',
+                        name: AppRoute.guestHadith.name,
+                        builder: (context, state) => HadithScreen(book: state.extra as Book),
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'dhikr',
+                    name: AppRoute.guestDhikr.name,
+                    builder: (context, state) => DhikrScreen(
+                      type: state.extra as DhikrType,
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'tv',
+                    name: AppRoute.guestTv.name,
+                    builder: (context, state) => const TvScreen(),
                   ),
                 ],
               ),

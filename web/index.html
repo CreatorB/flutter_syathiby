@@ -79,37 +79,115 @@
       object-fit: cover;
     }
 
-    .bottom {
+    .progress-bar-container {
       position: absolute;
-      bottom: 0;
+      top: 80%;
       left: 50%;
-      -ms-transform: translate(-50%, 0);
-      transform: translate(-50%, 0);
+      transform: translate(-50%, -50%);
+      width: 280px;
+      height: 10px;
+      background-color: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      overflow: hidden;
+      z-index: 9999;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.6);
     }
 
-    .bottomLeft {
-      position: absolute;
-      bottom: 0;
-      left: 0;
+    .progress-bar-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(
+        90deg, 
+        #26774e 0%, 
+        #3e9a6c 25%, 
+        #ffffff 50%, 
+        #3e9a6c 75%, 
+        #26774e 100%
+      );
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite linear, glow 2s infinite ease-in-out;
+      transition: width 0.3s ease;
+      box-shadow: 0 0 20px rgba(38, 119, 78, 0.8);
+      border-radius: 12px;
     }
 
-    .bottomRight {
-      position: absolute;
-      bottom: 0;
-      right: 0;
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    @keyframes glow {
+      0%, 100% { box-shadow: 0 0 15px rgba(38, 119, 78, 0.6); }
+      50% { box-shadow: 0 0 25px rgba(62, 154, 108, 1); }
     }
 
     @media (prefers-color-scheme: dark) {
       body {
         background-color: #000000;
-          }
+      }
+      .progress-bar-container {
+        background-color: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.1);
+      }
     }
   </style>
   <script id="splash-screen-script">
+    let progress = 0;
+    let progressInterval;
+
+    function startProgress() {
+      const fill = document.getElementById("progress-fill");
+      if (!fill) {
+        // Try again in a bit if DOM not ready
+        setTimeout(startProgress, 100);
+        return;
+      }
+
+      console.log("Splash progress started");
+      
+      // Clear existing interval if any
+      if (progressInterval) clearInterval(progressInterval);
+
+      progressInterval = setInterval(() => {
+        if (progress < 90) {
+          // Accelerate progress slightly at first, then slow down
+          const step = (90 - progress) * 0.05 + (Math.random() * 2);
+          progress += step;
+          if (progress > 90) progress = 90;
+          fill.style.width = progress + "%";
+        }
+      }, 150);
+    }
+
     function removeSplashFromWeb() {
-      document.getElementById("splash")?.remove();
-      document.getElementById("splash-branding")?.remove();
-      document.body.style.background = "transparent";
+      const splash = document.getElementById("splash");
+      const branding = document.getElementById("splash-branding");
+      const progressContainer = document.getElementById("progress-container");
+      const fill = document.getElementById("progress-fill");
+
+      console.log("Removing splash from web");
+
+      if (fill) {
+        clearInterval(progressInterval);
+        fill.style.transition = "width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)";
+        fill.style.width = "100%";
+      }
+
+      setTimeout(() => {
+        splash?.remove();
+        branding?.remove();
+        progressContainer?.remove();
+        document.body.style.background = "transparent";
+      }, 600);
+    }
+
+    // Attempt to start on various events to ensure reliability
+    if (document.readyState === "complete" || document.readyState === "interactive") {
+      startProgress();
+    } else {
+      window.addEventListener("DOMContentLoaded", startProgress);
+      window.addEventListener("load", startProgress);
     }
   </script>
 </head>
@@ -119,6 +197,9 @@
       <source srcset="splash/img/dark-1x.png 1x, splash/img/dark-2x.png 2x, splash/img/dark-3x.png 3x, splash/img/dark-4x.png 4x" media="(prefers-color-scheme: dark)">
       <img class="center" aria-hidden="true" src="splash/img/light-1x.png" alt="">
   </picture>
+  <div id="progress-container" class="progress-bar-container">
+    <div id="progress-fill" class="progress-bar-fill"></div>
+  </div>
   <script src="flutter_bootstrap.js" async=""></script>
 
 

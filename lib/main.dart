@@ -14,6 +14,7 @@ import 'package:syathiby/app.dart';
 
 import 'di/providers.dart';
 import 'firebase_options.dart';
+import 'utils/web_splash_utility.dart';
 
 // FIX: Removed top-level FlutterLocalNotificationsPlugin instantiation to prevent Safari crash.
 // The plugin is now instantiated lazily inside _initServices().
@@ -68,17 +69,17 @@ Future<void> main() async {
     try {
         final results = await Future.wait<dynamic>([
             SharedPreferences.getInstance()
-                .timeout(const Duration(seconds: 3), onTimeout: () {
+                .timeout(Duration(seconds: kIsWeb ? 1 : 3), onTimeout: () {
                     print("SharedPreferences timeout, using default");
                     return SharedPreferences.getInstance();
                 }),
             AdaptiveTheme.getThemeMode()
-                .timeout(const Duration(seconds: 2), onTimeout: () {
+                .timeout(Duration(seconds: kIsWeb ? 1 : 2), onTimeout: () {
                     print("AdaptiveTheme timeout, using default");
                     return AdaptiveThemeMode.light;
                 }),
         ]).timeout(
-            const Duration(seconds: 5),
+            Duration(seconds: kIsWeb ? 1 : 5),
             onTimeout: () {
                 print("Overall initialization timeout");
                 return [null, AdaptiveThemeMode.light];
@@ -106,6 +107,7 @@ Future<void> main() async {
         globalContainer = ProviderContainer();
     }
     // --- AKHIR BLOK I/O ---
+    WebSplashUtility.remove();
 
     // 3. Initialize services in PostFrameCallback to avoid blocking startup
     WidgetsBinding.instance.addPostFrameCallback((_) {

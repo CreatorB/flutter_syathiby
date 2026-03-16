@@ -651,7 +651,7 @@ This rewrites `localhost/web/*` → `localhost/aplikasi/web/*` so Flutter can fi
 3. Setelah OK, rebuild PROD untuk deploy: .\deploy-web.ps1
 ```
 
-> **Note**: Web version includes **Guest Mode** with News, Prayer Schedule, and Quran features accessible without login. The app automatically starts in guest mode at `/guest-news` when no session exists.
+> **Note**: Web version includes **Guest Mode** with full access to all **Ibadah** features (Al-Quran, Hadith, Prayer Schedule, Dhikr, etc.) accessible without login. The app automatically starts in guest mode at `/guest-news` when no session exists.
 
 **Web Architecture (Same-Origin, No CORS):**
 

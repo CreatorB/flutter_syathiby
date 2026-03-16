@@ -18,6 +18,14 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   - Sebelumnya splash screen web dinonaktifkan (`web: false`)
   - Sekarang splash screen tampil di Flutter web dengan gambar dan warna yang sama seperti Android/iOS
   - File splash CSS dan gambar (light/dark 1x-4x) di-generate otomatis ke folder `web/splash/`
+- **Dzikir Offline Migration**: Menu "Dzikir Pagi dan Petang" kini menggunakan data offline JSON
+  - Implementasi warna baris selang-seling untuk pembacaan yang lebih nyaman
+  - Fitur **Progress Step** (Tap-to-Increment) untuk melacak jumlah bacaan secara interaktif
+  - Tampilan lengkap 6 komponen: Jumlah bacaan, Arab, Latin, Terjemah, Riwayat, dan Faidah
+- **Ibadah Menu Synchronization**: Sinkronisasi menu Ibadah antara mode Guest dan Member
+  - Guest kini memiliki akses ke semua 9 fitur Ibadah (sebelumnya hanya 4)
+  - Tampilan menu Guest diperbarui menggunakan grid layout premium yang konsisten dengan mode Member
+  - Penambahan route aman untuk Hadits, Dzikir, dan TV pada mode Guest
 
 ### Ditambahkan
 - **Deploy Script Dev/Prod Mode**: Kedua script deploy (PowerShell & bash) mendukung mode DEV dan PROD
