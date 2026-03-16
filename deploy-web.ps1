@@ -119,7 +119,11 @@ if ($LASTEXITCODE -ne 0) {
     Write-Error-Custom "Web build failed!"
     exit 1
 }
-Write-Success "Web build complete"
+
+Write-Host "  Injecting Cache Buster..." -ForegroundColor Yellow
+$buildVersion = Get-Date -Format "yyyyMMddHHmmss"
+(Get-Content build\web\index.html) -replace '\{\{BUILD_VERSION\}\}', $buildVersion | Set-Content build\web\index.html
+Write-Success "Web build complete (Version: $buildVersion)"
 
 # Step 5: Verification
 Write-Step "STEP 5/5: Verifying Build"

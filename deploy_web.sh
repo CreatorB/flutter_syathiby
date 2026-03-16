@@ -59,7 +59,17 @@ if [ "$SKIP_BUILD" = false ]; then
     cd "$FLUTTER_DIR"
     export MSYS_NO_PATHCONV=1
     "$FVM" flutter build web --base-href "$BASE_HREF" --release
-    echo "      Build complete."
+    
+    echo "      Injecting Cache Buster..."
+    BUILD_ID=$(date +%Y%m%d%H%M%S)
+    # Gunakan sed untuk mengganti {{BUILD_VERSION}} dengan BUILD_ID di build/web/index.html
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS sed needs an empty string for -i
+        sed -i "" "s/{{BUILD_VERSION}}/$BUILD_ID/g" build/web/index.html
+    else
+        sed -i "s/{{BUILD_VERSION}}/$BUILD_ID/g" build/web/index.html
+    fi
+    echo "      Build complete (Version: $BUILD_ID)."
 else
     echo "[1/3] Skipping build (--skip-build)"
 fi

@@ -135,8 +135,11 @@
   <script id="splash-screen-script">
     let progress = 0;
     let progressInterval;
+    window.isSplashRemoved = false;
 
     function startProgress() {
+      if (window.isSplashRemoved) return;
+      
       const fill = document.getElementById("progress-fill");
       if (!fill) {
         // Try again in a bit if DOM not ready
@@ -161,26 +164,69 @@
     }
 
     function removeSplashFromWeb() {
+      if (window.isSplashRemoved) return;
+      window.isSplashRemoved = true;
+      if (progressInterval) clearInterval(progressInterval);
+
       const splash = document.getElementById("splash");
       const branding = document.getElementById("splash-branding");
       const progressContainer = document.getElementById("progress-container");
       const fill = document.getElementById("progress-fill");
 
-      console.log("Removing splash from web");
+      console.log("Removing splash from web (event or call)");
 
       if (fill) {
-        clearInterval(progressInterval);
-        fill.style.transition = "width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)";
+        fill.style.transition = "width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)";
         fill.style.width = "100%";
       }
 
-      setTimeout(() => {
+      // Ensure elements are hidden/removed quickly
+      const cleanup = () => {
         splash?.remove();
         branding?.remove();
         progressContainer?.remove();
         document.body.style.background = "transparent";
-      }, 600);
+        // Double check by ID if references were null during capture
+        document.getElementById("splash")?.remove();
+        document.getElementById("progress-container")?.remove();
+        console.log("Splash cleanup complete");
+      };
+
+      setTimeout(cleanup, 500);
     }
+
+    // Listen for the event from Flutter (more reliable than direct JS call sometimes)
+    window.addEventListener('remove-splash', removeSplashFromWeb);
+
+    // Listen for the event from Flutter
+    window.addEventListener('remove-splash', removeSplashFromWeb);
+
+    // DETECTION: Navigation change often means we've left the splash
+    window.addEventListener('hashchange', removeSplashFromWeb);
+    window.addEventListener('popstate', removeSplashFromWeb);
+
+    // AUTOMATIC DETECTION: Watch for Flutter UI but with a small delay to avoid 
+    // interrupting the initial splash display/animation.
+    setTimeout(() => {
+      const observer = new MutationObserver((mutations) => {
+        if (document.querySelector('flt-glass-pane') || 
+            document.querySelector('flutter-view') || 
+            document.querySelector('flt-scene-host')) {
+          console.log("Flutter UI detected via MutationObserver (delayed)");
+          removeSplashFromWeb();
+          observer.disconnect();
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+    }, 2000); // 2 second delay before we start aggressive detection
+
+    // Safety fallback: 15 seconds
+    setTimeout(() => {
+      if (!window.isSplashRemoved) {
+        console.warn("Safety fallback triggered");
+        removeSplashFromWeb();
+      }
+    }, 15000);
 
     // Attempt to start on various events to ensure reliability
     if (document.readyState === "complete" || document.readyState === "interactive") {
@@ -200,7 +246,7 @@
   <div id="progress-container" class="progress-bar-container">
     <div id="progress-fill" class="progress-bar-fill"></div>
   </div>
-  <script src="flutter_bootstrap.js" async=""></script>
+  <script src="flutter_bootstrap.js?v={{BUILD_VERSION}}" async=""></script>
 
 
 </body></html>

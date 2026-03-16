@@ -69,19 +69,19 @@ Future<void> main() async {
     try {
         final results = await Future.wait<dynamic>([
             SharedPreferences.getInstance()
-                .timeout(Duration(seconds: kIsWeb ? 1 : 3), onTimeout: () {
-                    print("SharedPreferences timeout, using default");
-                    return SharedPreferences.getInstance();
+                .timeout(Duration(seconds: kIsWeb ? 2 : 5), onTimeout: () {
+                    debugPrint("SharedPreferences timeout, continuing...");
+                    return SharedPreferences.getInstance(); // Still potentially problematic, but let's increase timeout first
                 }),
             AdaptiveTheme.getThemeMode()
-                .timeout(Duration(seconds: kIsWeb ? 1 : 2), onTimeout: () {
-                    print("AdaptiveTheme timeout, using default");
+                .timeout(Duration(seconds: kIsWeb ? 1 : 3), onTimeout: () {
+                    debugPrint("AdaptiveTheme timeout, using light mode");
                     return AdaptiveThemeMode.light;
                 }),
         ]).timeout(
-            Duration(seconds: kIsWeb ? 1 : 5),
+            Duration(seconds: kIsWeb ? 3 : 7),
             onTimeout: () {
-                print("Overall initialization timeout");
+                debugPrint("Overall initialization timeout");
                 return [null, AdaptiveThemeMode.light];
             },
         );
@@ -89,10 +89,11 @@ Future<void> main() async {
         globalPrefs = results[0] as SharedPreferences?;
         globalThemeMode = results[1] as AdaptiveThemeMode?;
     } catch (e) {
-        print("Error during initialization: $e");
+        debugPrint("Error during initialization: $e");
         globalPrefs = null;
         globalThemeMode = AdaptiveThemeMode.light;
     }
+    // Call removal earlier - as soon as we have enough state to build the app (REMOVED)
 
     try {
         globalContainer = ProviderContainer(
@@ -103,11 +104,10 @@ Future<void> main() async {
              ],
         );
     } catch (e) {
-        print("Error creating ProviderContainer: $e");
+        debugPrint("Error creating ProviderContainer: $e");
         globalContainer = ProviderContainer();
     }
     // --- AKHIR BLOK I/O ---
-    WebSplashUtility.remove();
 
     // 3. Initialize services in PostFrameCallback to avoid blocking startup
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -123,6 +123,7 @@ Future<void> main() async {
                 ),
             ),
         );
+        WebSplashUtility.remove(); 
         if (kDebugMode) print('App started successfully');
     }, (error, stack) {
         // Catch any uncaught errors
