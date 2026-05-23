@@ -68,11 +68,15 @@ class JournalClassScreen extends HookConsumerWidget {
               description: description.text,
               timetableId: '${schedule.id_timetable}');
       if (result == null || !context.mounted) return;
+      context.pop();
+      ref.invalidate(fetchDetailTeachingScheduleProvider(
+        key: key,
+        timetableId: '${schedule.id_timetable}',
+        subjectId: '${schedule.id_mapel}',
+        classroomId: '${schedule.id_kelas}',
+      ));
       context.showSuccessMessage(
         'Berhasil menyimpan data',
-        onComplete: () {
-          context.pop();
-        },
       );
     }
 

@@ -37,11 +37,13 @@ fvm flutter run -d chrome --web-hostname 192.168.50.100 --web-port 8082
 ### APK (Mobile Phone Testing)
 ```bash
 # Production
-fvm flutter run --flavor prod --dart-define=FLAVOR=prod
+fvm flutter run --flavor prod -d <device-id> --dart-define=FLAVOR=prod
 
 # Local
-fvm flutter run --flavor local --dart-define=FLAVOR=local
+fvm flutter run --flavor local -d <device-id> --dart-define=FLAVOR=local
 ```
+
+> Pakai `--flavor` untuk memilih varian Android. `--dart-define=FLAVOR=...` hanya memilih konfigurasi API/Dart.
 
 ---
 
@@ -76,7 +78,18 @@ fvm flutter build apk --release --flavor prod --dart-define=FLAVOR=prod
 fvm flutter build apk --release --flavor local --dart-define=FLAVOR=local
 ```
 
-**Output:** `build\app\outputs\flutter-apk\app-prod-release.apk`
+**Output:** `build\app\outputs\flutter-apk\app-<flavor>-release.apk`
+
+### APK Debug Build
+```bash
+# Production
+fvm flutter build apk --debug --flavor prod --dart-define=FLAVOR=prod
+
+# Local
+fvm flutter build apk --debug --flavor local --dart-define=FLAVOR=local
+```
+
+**Output:** `build\app\outputs\flutter-apk\app-<flavor>-debug.apk`
 
 ---
 

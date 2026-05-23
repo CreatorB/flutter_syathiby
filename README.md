@@ -43,21 +43,41 @@ Enhanced and customized version of Syathiby Vendor App — [https://github.com/c
 ## 🚀 Quick Start
 
 ```bash
-# 1. Clone repository
-git clone https://github.com/creatorb/flutter_syathiby.git
-cd flutter_syathiby
-
-# 2. Install dependencies
+# 1. Install dependencies
 fvm flutter pub get
 
-# 3. Generate code
+# 2. Generate code
 fvm flutter pub run build_runner build --delete-conflicting-outputs
 
-# 4. Run app (PROD flavor — automatically uses production URL)
-fvm flutter run --flavor prod --dart-define=FLAVOR=prod
+# 3. Check device id
+fvm flutter devices
 
-# 5. Run app (LOCAL flavor — automatically uses local URL)
-fvm flutter run --flavor local --dart-define=FLAVOR=local
+# 4. Run app (LOCAL flavor)
+fvm flutter run --flavor local -d emulator-5554 --dart-define=FLAVOR=local
+
+# 5. Run app (PROD flavor)
+fvm flutter run --flavor prod -d <device-id> --dart-define=FLAVOR=prod
+```
+
+> `--flavor` memilih varian Android. `--dart-define=FLAVOR=...` memilih konfigurasi Dart/API.
+
+### Command Harian
+
+```bash
+# Debug local
+fvm flutter run --flavor local -d emulator-5554 --dart-define=FLAVOR=local
+
+# Debug prod
+fvm flutter run --flavor prod -d <device-id> --dart-define=FLAVOR=prod
+
+# Build APK debug local
+fvm flutter build apk --debug --flavor local --dart-define=FLAVOR=local
+
+# Build APK release local
+fvm flutter build apk --release --flavor local --dart-define=FLAVOR=local
+
+# Build APK release prod
+fvm flutter build apk --release --flavor prod --dart-define=FLAVOR=prod
 ```
 
 ---
@@ -130,13 +150,13 @@ The app uses **automatic flavor-based URL configuration**. The backend URL is se
 
 **Production:**
 ```bash
-fvm flutter run --flavor prod --dart-define=FLAVOR=prod
+fvm flutter run --flavor prod -d <device-id> --dart-define=FLAVOR=prod
 ```
 ✅ Automatically uses: `https://aplikasi.syathiby.id`
 
 **Local Development:**
 ```bash
-fvm flutter run --flavor local --dart-define=FLAVOR=local
+fvm flutter run --flavor local -d <device-id> --dart-define=FLAVOR=local
 ```
 ✅ Automatically uses: `http://192.168.50.100/aplikasi`
 

@@ -59,6 +59,7 @@ class AddActivityReportScreen extends HookConsumerWidget {
             image: imageSelected.value,
           );
       if (result == null || !context.mounted) return;
+      context.pop();
       context.showSuccessMessage(result.msg);
       ref.invalidate(
         fetchAllActivityReportProvider(
@@ -68,7 +69,6 @@ class AddActivityReportScreen extends HookConsumerWidget {
           type: '$type',
         ),
       );
-      context.pop();
     }
 
     return Scaffold(

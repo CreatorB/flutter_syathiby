@@ -74,9 +74,9 @@ class AddStudentHealthScreen extends HookConsumerWidget {
             image: imageSelected.value,
           );
       if (result == null || !context.mounted) return;
+      ref.invalidate(pagingStudentHealthControllerProvider(key: key));
       context.pop();
       context.showSuccessMessage(result.msg);
-      ref.invalidate(pagingStudentHealthControllerProvider(key: key));
     }
 
     return Scaffold(
