@@ -78,13 +78,36 @@ class HomeScreen extends HookConsumerWidget {
     );
     final displayTimeAttand = timeAttandFormat ?? '--:--';
     final rawWorkHour = fetchPresence.valueOrNull?.workhour?.trim();
-    final displayWorkHour = (rawWorkHour != null && rawWorkHour.isNotEmpty)
-        ? rawWorkHour
-        : (fetchUserProfile.valueOrNull?.absensi ?? '-');
     final displayTimeOut = timeAttandOutFormat ?? '--:--';
     final isWorking = displayTimeAttand != '--:--';
     final isClockIn = fetchPresence.valueOrNull?.absen == "1";
     final isHoliday = fetchPresence.valueOrNull?.holiday == "YES";
+    final isAnyLoading = fetchUserProfile.isLoading || fetchPresence.isLoading;
+
+    final profileData = fetchUserProfile.valueOrNull;
+    final presenceData = fetchPresence.valueOrNull;
+
+    final safeUserName = profileData?.fullName?.isNotEmpty == true ? profileData!.fullName! : 'User';
+    final safePosition = profileData?.position?.isNotEmpty == true ? profileData!.position! : '-';
+    final safeNameStore = profileData?.nameStore?.isNotEmpty == true ? profileData!.nameStore! : '-';
+    final safeUserImage = profileData?.img?.isNotEmpty == true ? profileData!.img! : '';
+    final safeWorkHour = (rawWorkHour != null && rawWorkHour.isNotEmpty)
+        ? rawWorkHour
+        : (profileData?.absensi?.isNotEmpty == true ? profileData!.absensi! : '-');
+    final safeAttendance = presenceData?.attandence?.toString() ?? '0';
+    final safeJob = presenceData?.job?.toString() ?? '0';
+    final safeLate = presenceData?.late ?? '-';
+    final safeDuring = presenceData?.during ?? '--:--';
+
+    final isKependidikan = presenceData?.kependidikan == 1 || presenceData?.guru == "YES";
+    final isKepengasuhan = presenceData?.kepengasuhan == 1;
+    final isKesehatan = presenceData?.kesehatan == 1;
+    final isKerumahtanggaan = presenceData?.kerumahtanggaan == 1;
+    final isTahfidz = presenceData?.tahfidz == 1;
+    final isKeuangan = presenceData?.keuangan == 1;
+    final isUnitUsaha = presenceData?.unitusaha == 1;
+    final isPermohonan = presenceData?.permohonan == 1;
+    final safeLevel = presenceData?.level ?? '';
 
     void buildJobAlertMessage() {
       final presence = fetchPresence.valueOrNull;
@@ -243,7 +266,7 @@ class HomeScreen extends HookConsumerWidget {
                         ),
                       ),
                       Text(
-                        '${fetchUserProfile.valueOrNull?.fullName}',
+                        safeUserName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -254,7 +277,7 @@ class HomeScreen extends HookConsumerWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${fetchUserProfile.valueOrNull?.position}',
+                        safePosition,
                         style: TextStyle(
                           fontSize: 12,
                           color: context.colorOnPrimary,
@@ -267,8 +290,8 @@ class HomeScreen extends HookConsumerWidget {
                   padding: const EdgeInsets.only(left: 16, right: 8.0),
                   child: CustomAvatar(
                     size: 50,
-                    imageUrl: '${fetchUserProfile.valueOrNull?.img}',
-                    name: '${fetchUserProfile.valueOrNull?.fullName}',
+                    imageUrl: safeUserImage,
+                    name: safeUserName,
                     color: context.colorInversePrimary,
                   ),
                 ),
@@ -294,7 +317,7 @@ class HomeScreen extends HookConsumerWidget {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            '${fetchUserProfile.valueOrNull?.nameStore}',
+                            safeNameStore,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: context.bodyMedium,
@@ -326,7 +349,7 @@ class HomeScreen extends HookConsumerWidget {
                           style: context.bodyMediumBold,
                         ),
                         Text(
-                          displayWorkHour,
+                          safeWorkHour,
                           style: context.bodyMedium,
                         ),
                       ],
@@ -360,8 +383,7 @@ class HomeScreen extends HookConsumerWidget {
                       ],
                     ),
                     Visibility(
-                      visible: fetchPresence.valueOrNull?.late !=
-                          "-", // Not Attendance
+                      visible: safeLate != "-", // Not Attendance
                       child: Column(
                         children: [
                           const SizedBox(height: 8),
@@ -373,7 +395,7 @@ class HomeScreen extends HookConsumerWidget {
                                 style: context.bodyMediumBold,
                               ),
                               Text(
-                                fetchPresence.valueOrNull?.late ?? '-',
+                                safeLate,
                                 style: context.bodyMedium,
                               ),
                             ],
@@ -394,7 +416,7 @@ class HomeScreen extends HookConsumerWidget {
                                 style: context.bodyMediumBold,
                               ),
                               Text(
-                                fetchPresence.valueOrNull?.during ?? '--:--',
+                                safeDuring,
                                 style: context.bodyMedium,
                               ),
                             ],
@@ -528,7 +550,7 @@ class HomeScreen extends HookConsumerWidget {
                       textAlign: TextAlign.center,
                     ),
                     subtitle: Text(
-                      '${fetchPresence.valueOrNull?.attandence}',
+                      safeAttendance,
                       style: context.bodyMediumBold,
                       textAlign: TextAlign.center,
                     ),
@@ -547,7 +569,7 @@ class HomeScreen extends HookConsumerWidget {
                       textAlign: TextAlign.center,
                     ),
                     subtitle: Text(
-                      '${fetchPresence.valueOrNull?.job}',
+                      safeJob,
                       style: context.bodyMediumBold,
                       textAlign: TextAlign.center,
                     ),
@@ -669,15 +691,26 @@ class HomeScreen extends HookConsumerWidget {
     return Scaffold(
       body: RefreshIndicator(
         key: refreshKey,
-        onRefresh: () => Future.wait(
-          [
-            ref.refresh(fetchPresenceProvider(key: key).future),
-            ref.refresh(fetchProfileProvider(key: key).future)
-          ],
-        ),
-        child: Skeletonizer(
-          enabled: fetchUserProfile.isLoading,
-          child: ListView(
+        onRefresh: () async {
+          try {
+            await Future.wait(
+              [
+                ref.refresh(fetchPresenceProvider(key: key).future),
+                ref.refresh(fetchProfileProvider(key: key).future)
+              ],
+            );
+            } catch (e) {
+            if (context.mounted) {
+              context.showErrorMessage(e);
+            }
+            rethrow;
+          }
+        },
+        child: Stack(
+          children: [
+            Skeletonizer(
+              enabled: isAnyLoading,
+              child: ListView(
             children: [
               buildHeader(),
               const SizedBox(height: 8),
@@ -722,8 +755,7 @@ class HomeScreen extends HookConsumerWidget {
               const SizedBox(height: 8),
               buildListMenu(
                 title: 'Menu Pendidikan',
-                enabled: fetchPresence.valueOrNull?.kependidikan == 1 ||
-                    fetchPresence.valueOrNull?.guru == "YES",
+                enabled: isKependidikan,
                 menus: [
                   MenuGrid(
                     title: 'Penilaian',
@@ -763,7 +795,7 @@ class HomeScreen extends HookConsumerWidget {
               ),
               buildListMenu(
                 title: 'Menu Kesantrian/Kepengasuhan',
-                enabled: fetchPresence.valueOrNull?.kepengasuhan == 1,
+                enabled: isKepengasuhan,
                 menus: [
                   MenuGrid(
                     title: 'Tugas Harian',
@@ -813,7 +845,7 @@ class HomeScreen extends HookConsumerWidget {
               ),
               buildListMenu(
                 title: 'Menu Kesehatan',
-                enabled: fetchPresence.valueOrNull?.kesehatan == 1,
+                enabled: isKesehatan,
                 menus: [
                   MenuGrid(
                     title: 'Kesehatan Santri',
@@ -847,7 +879,7 @@ class HomeScreen extends HookConsumerWidget {
               ),
               buildListMenu(
                 title: 'Menu Sarpras dan Dapur',
-                enabled: fetchPresence.valueOrNull?.kerumahtanggaan == 1,
+                enabled: isKerumahtanggaan,
                 menus: [
                   MenuGrid(
                     title: 'Laporan Makan',
@@ -894,7 +926,7 @@ class HomeScreen extends HookConsumerWidget {
               ),
               buildListMenu(
                 title: 'Menu Tahfidz',
-                enabled: fetchPresence.valueOrNull?.tahfidz == 1,
+                enabled: isTahfidz,
                 menus: [
                   MenuGrid(
                     title: 'Absensi Tahfidz',
@@ -940,7 +972,7 @@ class HomeScreen extends HookConsumerWidget {
               ),
               buildListMenu(
                 title: 'Menu Keuangan',
-                enabled: fetchPresence.valueOrNull?.keuangan == 1,
+                enabled: isKeuangan,
                 menus: [
                   MenuGrid(
                     title: 'Laporan Kerja',
@@ -960,7 +992,7 @@ class HomeScreen extends HookConsumerWidget {
               ),
               buildListMenu(
                 title: 'Menu Unit Usaha',
-                enabled: fetchPresence.valueOrNull?.unitusaha == 1,
+                enabled: isUnitUsaha,
                 menus: [
                   MenuGrid(
                       title: 'Laporan Kerja',
@@ -998,7 +1030,7 @@ class HomeScreen extends HookConsumerWidget {
                     iconData: Icons.swap_horizontal_circle,
                     goToRouteName: AppRoute.changeShift.name,
                     queryParameters: {
-                      'level': fetchPresence.valueOrNull?.level
+                      'level': safeLevel
                     },
                   ),
                   MenuGrid(
@@ -1015,26 +1047,24 @@ class HomeScreen extends HookConsumerWidget {
               ),
               buildListMenu(
                 title: 'Permohonan Barang/Dana',
-                enabled: (fetchPresence.valueOrNull?.permohonan == 1 &&
-                        fetchPresence.valueOrNull?.level == 'admin') ||
-                    (fetchPresence.valueOrNull?.level != 'staff' &&
-                        fetchPresence.valueOrNull?.level != 'pengabdian'),
+                enabled: (isPermohonan && safeLevel == 'admin') ||
+                    (safeLevel != 'staff' && safeLevel != 'pengabdian'),
                 menus: [
                   MenuGrid(
                     title: 'Permohonan',
                     iconData: Icons.monetization_on,
                     goToRouteName: AppRoute.historyTransaction.name,
                     queryParameters: {
-                      'level': fetchPresence.valueOrNull?.level
+                      'level': safeLevel
                     },
                   ),
                 ],
               ),
               buildListMenu(
                 title: 'Menu Kepala Bagian',
-                enabled: fetchPresence.valueOrNull?.level == 'master' ||
-                    fetchPresence.valueOrNull?.level == 'admin' ||
-                    fetchPresence.valueOrNull?.level == 'manager',
+                enabled: safeLevel == 'master' ||
+                    safeLevel == 'admin' ||
+                    safeLevel == 'manager',
                 menus: [
                   MenuGrid(
                     title: 'Tambah Pekerjaan',
@@ -1095,6 +1125,49 @@ class HomeScreen extends HookConsumerWidget {
               ),
             ],
           ),
+        ),
+        if (!isAnyLoading && (fetchUserProfile.hasError || fetchPresence.hasError) && fetchUserProfile.valueOrNull == null)
+          Container(
+            color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.9),
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.cloud_off_rounded,
+                      size: 64,
+                      color: Colors.grey.shade400,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Gagal memuat data',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: Colors.grey.shade700,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Terjadi kesalahan saat mengambil data dari server',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
+                    const SizedBox(height: 24),
+                    FilledButton.icon(
+                      onPressed: () {
+                        ref.invalidate(fetchPresenceProvider(key: key));
+                        ref.invalidate(fetchProfileProvider(key: key));
+                      },
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Coba Lagi'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          ],
         ),
       ),
     );
