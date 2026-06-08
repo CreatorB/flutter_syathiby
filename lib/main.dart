@@ -1,126 +1,230 @@
-import 'dart:io';
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:adaptive_theme/adaptive_theme.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-// import 'package:just_audio_background/just_audio_background.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:syathiby/app.dart';
 
 import 'di/providers.dart';
 import 'firebase_options.dart';
 
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-    FlutterLocalNotificationsPlugin();
-
-const AndroidNotificationChannel channel = AndroidNotificationChannel(
-  'high_importance_channel',
-  'High Importance Notifications',
-  description: 'This channel is used for important notifications.',
-  importance: Importance.max,
-);
+// FIX: Removed top-level FlutterLocalNotificationsPlugin instantiation to prevent Safari crash.
+// The plugin is now instantiated lazily inside _initServices().
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  print("Handling a background message: ${message.messageId}");
+    try {
+        if (Firebase.apps.isEmpty) { 
+            await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+        }
+    } catch (e) {
+        // Silently fail in production
+    }
 }
 
-// class MyHttpOverrides extends HttpOverrides {
-//   @override
-//   HttpClient createHttpClient(SecurityContext? context) {
-//     return super.createHttpClient(context)
-//       ..badCertificateCallback =
-//           (X509Certificate cert, String host, int port) => true;
-//   }
-// }
+// Global variables to hold the state before runApp
+SharedPreferences? globalPrefs;
+AdaptiveThemeMode? globalThemeMode;
+ProviderContainer? globalContainer;
 
 Future<void> main() async {
-  // HttpOverrides.global = MyHttpOverrides();
+    // Setup global error handling
+    FlutterError.onError = (FlutterErrorDetails details) {
+        FlutterError.presentError(details);
+        if (kDebugMode) {
+            print('═══ Flutter Error ═══');
+            print('Exception: ${details.exception}');
+            print('Stack: ${details.stack}');
+        }
+    };
 
-  WidgetsFlutterBinding.ensureInitialized();
+    runZonedGuarded(() async {
+        // 1. Ensure Flutter binding is ready.
+        WidgetsFlutterBinding.ensureInitialized();
 
-  await _initFirebase();
+        // 2. Initialize Firebase (skip on web for Safari compatibility)
+        if (!kIsWeb) {
+            await _initFirebase();
+        }
 
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    // On Web, background messages are handled by the service worker.
+    // On Android/iOS, we register the handler.
+    if (!kIsWeb) {
+        try {
+            FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+        } catch (e) {
+            print("Error registering background handler: $e");
+        }
+    }
 
-  await _initServices();
+    // --- OPTIMASI SPLASH SCREEN (PARALLEL I/O) ---
+    try {
+        final results = await Future.wait<dynamic>([
+            SharedPreferences.getInstance()
+                .timeout(const Duration(seconds: 3), onTimeout: () {
+                    print("SharedPreferences timeout, using default");
+                    return SharedPreferences.getInstance();
+                }),
+            AdaptiveTheme.getThemeMode()
+                .timeout(const Duration(seconds: 2), onTimeout: () {
+                    print("AdaptiveTheme timeout, using default");
+                    return AdaptiveThemeMode.light;
+                }),
+        ]).timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {
+                print("Overall initialization timeout");
+                return [null, AdaptiveThemeMode.light];
+            },
+        );
 
-  final container = await _bootstrap();
+        globalPrefs = results[0] as SharedPreferences?;
+        globalThemeMode = results[1] as AdaptiveThemeMode?;
+    } catch (e) {
+        print("Error during initialization: $e");
+        globalPrefs = null;
+        globalThemeMode = AdaptiveThemeMode.light;
+    }
 
-  final currentTheme = await AdaptiveTheme.getThemeMode();
+    try {
+        globalContainer = ProviderContainer(
+             overrides: [
+                 sharedPreferencesProvider.overrideWithValue(
+                     globalPrefs ?? await SharedPreferences.getInstance()
+                 ),
+             ],
+        );
+    } catch (e) {
+        print("Error creating ProviderContainer: $e");
+        globalContainer = ProviderContainer();
+    }
+    // --- AKHIR BLOK I/O ---
 
-  runApp(
-    UncontrolledProviderScope(
-      container: container,
-      child: MyApp(
-        adaptiveThemeMode: currentTheme,
-      ),
-    ),
-  );
+    // 3. Initialize services in PostFrameCallback to avoid blocking startup
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+        _initServices();
+    });
+
+        if (kDebugMode) print('Running app...');
+        runApp(
+            UncontrolledProviderScope(
+                container: globalContainer!,
+                child: MyApp(
+                    adaptiveThemeMode: globalThemeMode ?? AdaptiveThemeMode.light,
+                ),
+            ),
+        );
+        if (kDebugMode) print('App started successfully');
+    }, (error, stack) {
+        // Catch any uncaught errors
+        print('═══ Uncaught Error ═══');
+        print('Error: $error');
+        print('Stack: $stack');
+    });
 }
 
 Future<void> _initFirebase() async {
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
-  PlatformDispatcher.instance.onError = (error, stack) {
-    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-    return true;
-  };
+    if (Firebase.apps.isEmpty) {
+        try {
+            await Firebase.initializeApp(
+                options: DefaultFirebaseOptions.currentPlatform,
+            ).timeout(
+                const Duration(seconds: 10),
+                onTimeout: () {
+                    debugPrint("Firebase initialization timeout");
+                    throw TimeoutException('Firebase init timeout');
+                },
+            );
+        } catch (e) {
+            if (e.toString().contains('already exists')) {
+                debugPrint("Firebase already initialized.");
+            } else {
+                debugPrint("Firebase init error: $e");
+                // On web (especially Safari), Firebase might fail to initialize
+                // Continue app execution even if Firebase fails
+                if (kIsWeb) {
+                    debugPrint("Continuing without Firebase on web");
+                    return;
+                }
+            }
+        }
+    }
+
+    try {
+        if (Firebase.apps.isNotEmpty && !kIsWeb) {
+            // Crashlytics is not available on web
+            FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+            PlatformDispatcher.instance.onError = (error, stack) {
+                FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+                return true;
+            };
+        }
+    } catch (e) {
+        debugPrint("Crashlytics setup error: $e");
+    }
 }
 
 Future<void> _initServices() async {
-  // await JustAudioBackground.init(
-  //   androidNotificationChannelId: 'com.ryanheise.audioservice.channel.audio',
-  //   androidNotificationChannelName: 'Audio playback',
-  //   androidNotificationOngoing: true,
-  // );
-
-  await flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>()
-      ?.createNotificationChannel(channel);
-
-  final notificationsPlugin =
-      flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
-  if (notificationsPlugin != null) {
-    await notificationsPlugin.requestNotificationsPermission();
-  }
-
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    RemoteNotification? notification = message.notification;
-    AndroidNotification? android = message.notification?.android;
-    if (notification != null && android != null) {
-      flutterLocalNotificationsPlugin.show(
-        notification.hashCode,
-        notification.title,
-        notification.body,
-        NotificationDetails(
-          android: AndroidNotificationDetails(
-            channel.id,
-            channel.name,
-            channelDescription: channel.description,
-            icon: '@mipmap/ic_launcher',
-          ),
-        ),
-      );
+    // Skip notification services on web
+    if (kIsWeb) {
+        debugPrint("Skipping notification services on web platform");
+        return;
     }
-  });
-}
 
-Future<ProviderContainer> _bootstrap() async {
-  final prefs = await SharedPreferences.getInstance();
-  return ProviderContainer(
-    overrides: [
-      sharedPreferencesProvider.overrideWithValue(prefs),
-    ],
-  );
+    // FIX: Instantiate plugin LOCALLY to avoid global config crashes
+    final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+        FlutterLocalNotificationsPlugin();
+
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const InitializationSettings initializationSettings =
+        InitializationSettings(android: initializationSettingsAndroid);
+
+    // Ensure plugin has valid Android context before channel/permission calls.
+    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+        'high_importance_channel',
+        'High Importance Notifications',
+        description: 'This channel is used for important notifications.',
+        importance: Importance.max,
+    );
+
+    // 1. Channel Creation
+    await flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
+
+    // 2. Foreground Message Listener
+    try {
+        FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+            RemoteNotification? notification = message.notification;
+            AndroidNotification? android = message.notification?.android;
+            if (notification != null && android != null) {
+                flutterLocalNotificationsPlugin.show(
+                    notification.hashCode,
+                    notification.title,
+                    notification.body,
+                    NotificationDetails(
+                        android: AndroidNotificationDetails(
+                            channel.id,
+                            channel.name,
+                            channelDescription: channel.description,
+                            icon: '@mipmap/ic_launcher',
+                        ),
+                    ),
+                );
+            }
+        });
+    } catch (e) {
+        debugPrint("Firebase Messaging error: $e");
+    }
 }

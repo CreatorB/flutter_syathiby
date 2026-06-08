@@ -20,6 +20,11 @@ class LoginScreen extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     ref.listen(loginControllerProvider, (previous, next) {
       next.showToastOnError(context);
+
+      // Router redirect will move user after session is saved.
+      if (previous?.isLoading == true && next.hasValue && context.mounted) {
+        // Navigation handled by router redirect
+      }
     });
     final state = ref.watch(loginControllerProvider);
     final formKey = useMemoized(GlobalKey<FormState>.new, const []);
@@ -28,6 +33,14 @@ class LoginScreen extends HookConsumerWidget {
     final passwordController = useTextEditingController();
 
     return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            context.go('/guest-user');
+          },
+        ),
+      ),
       body: Form(
         key: formKey,
         child: Center(
@@ -45,9 +58,9 @@ class LoginScreen extends HookConsumerWidget {
                     height: 175,
                   ),
                   const Gap(16),
-                  const Text(
+                  Text(
                     AppConstant.appName,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 28.0,
                       fontWeight: FontWeight.bold,
                     ),

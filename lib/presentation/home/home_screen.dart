@@ -1,12 +1,19 @@
 import 'package:adaptive_dialog/adaptive_dialog.dart';
+import 'dart:async';
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart' hide Store;
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:syathiby/di/providers.dart';
 import 'package:syathiby/models/hostel/hostel.dart';
+import 'package:syathiby/res/environment_config.dart';
+import 'package:syathiby/utils/update_checker.dart';
+import 'package:syathiby/models/slip/absent.dart';
 import 'package:syathiby/models/user/request_logout.dart';
 import 'package:syathiby/presentation/home/fetch_presence_controller.dart';
 import 'package:syathiby/presentation/report/bottomsheet_staff_month_picker.dart';
@@ -19,11 +26,18 @@ import 'package:syathiby/utils/extension/typography.dart';
 import 'package:syathiby/utils/extension/ui.dart';
 import 'package:responsive_grid/responsive_grid.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import 'package:syathiby/presentation/widgets/elegant_3d_icon.dart';
+import 'package:syathiby/presentation/widgets/elegant_3d_button.dart';
 
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import '../presence/presence_controller.dart';
-import '../setting/local_auth_controller.dart';
 import '../setting/presence_type.dart';
 import 'menu_home.dart';
+
+enum AttendanceMethod {
+  location,
+  wifi,
+}
 
 class HomeScreen extends HookConsumerWidget {
   HomeScreen({super.key});
@@ -32,6 +46,8 @@ class HomeScreen extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final activeMenuKey = useState<String?>(null);
+    final isAttendanceLoading = useState(false);
     final currentUser = ref.watch(getCurrentUserProvider);
     final key = '${currentUser?.key}';
     ref.listen(fetchProfileProvider(key: key), (previous, next) {
@@ -57,6 +73,16 @@ class HomeScreen extends HookConsumerWidget {
     final timeAttandFormat = ref.watch(
       formatTimeProvider('${fetchPresence.valueOrNull?.timeattand}'),
     );
+    final timeAttandOutFormat = ref.watch(
+      formatTimeProvider('${fetchPresence.valueOrNull?.timeattandOut}'),
+    );
+    final displayTimeAttand = timeAttandFormat ?? '--:--';
+    final rawWorkHour = fetchPresence.valueOrNull?.workhour?.trim();
+    final displayWorkHour = (rawWorkHour != null && rawWorkHour.isNotEmpty)
+        ? rawWorkHour
+        : (fetchUserProfile.valueOrNull?.absensi ?? '-');
+    final displayTimeOut = timeAttandOutFormat ?? '--:--';
+    final isWorking = displayTimeAttand != '--:--';
     final isClockIn = fetchPresence.valueOrNull?.absen == "1";
     final isHoliday = fetchPresence.valueOrNull?.holiday == "YES";
 
@@ -172,6 +198,24 @@ class HomeScreen extends HookConsumerWidget {
 
     buildJobAlertMessage();
 
+    // Cek update sekali saja saat home pertama kali tampil
+    useEffect(() {
+      Future.microtask(() async {
+        final info = await PackageInfo.fromPlatform();
+
+        // Web: cek changelog dari localStorage version tracking
+        // Native: cek update dari Play Store
+        final updateInfo = kIsWeb
+            ? await UpdateChecker.checkForWeb(info.version)
+            : await UpdateChecker.check(info.version);
+
+        if (updateInfo != null && context.mounted) {
+          _showUpdateDialog(context, info.version, updateInfo);
+        }
+      });
+      return null;
+    }, const []);
+
     Widget buildHeader() {
       return Container(
         padding: const EdgeInsets.all(16),
@@ -278,11 +322,11 @@ class HomeScreen extends HookConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Jam Kerja',
+                          'Jadwal Kerja',
                           style: context.bodyMediumBold,
                         ),
                         Text(
-                          '${fetchUserProfile.valueOrNull?.absensi}',
+                          displayWorkHour,
                           style: context.bodyMedium,
                         ),
                       ],
@@ -296,7 +340,21 @@ class HomeScreen extends HookConsumerWidget {
                           style: context.bodyMediumBold,
                         ),
                         Text(
-                          timeAttandFormat ?? '--:--',
+                          displayTimeAttand,
+                          style: context.bodyMedium,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Jam Pulang',
+                          style: context.bodyMediumBold,
+                        ),
+                        Text(
+                          displayTimeOut,
                           style: context.bodyMedium,
                         ),
                       ],
@@ -324,8 +382,7 @@ class HomeScreen extends HookConsumerWidget {
                       ),
                     ),
                     Visibility(
-                      visible: fetchPresence.valueOrNull?.timeattand !=
-                          ":00", // Not Attendance
+                      visible: isWorking,
                       child: Column(
                         children: [
                           const SizedBox(height: 8),
@@ -337,7 +394,7 @@ class HomeScreen extends HookConsumerWidget {
                                 style: context.bodyMediumBold,
                               ),
                               Text(
-                                fetchPresence.valueOrNull?.during ?? '-',
+                                fetchPresence.valueOrNull?.during ?? '--:--',
                                 style: context.bodyMedium,
                               ),
                             ],
@@ -346,33 +403,67 @@ class HomeScreen extends HookConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: Visibility(
-                        visible: !isHoliday,
-                        child: FilledButton(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: isClockIn
-                                ? context
-                                    .colorPrimary // Warna Hijau/Utama (Masuk)
-                                : context.colorError, // Warna Merah (Pulang)
-                          ),
-                          onPressed: () async {
+                    Visibility(
+                      visible: !isHoliday,
+                      child: Elegant3DButton(
+                        label: isClockIn ? 'Absen Masuk' : 'Absen Pulang',
+                        loadingLabel:
+                            isClockIn ? 'Absen masuk...' : 'Absen pulang...',
+                        backgroundColor: isClockIn
+                            ? context.colorPrimary // Hijau untuk masuk
+                            : context.colorError, // Merah untuk pulang
+                        icon:
+                            isClockIn ? Icons.check_circle : Icons.exit_to_app,
+                        isLoading: isAttendanceLoading.value,
+                        height: 44,
+                        depth: 0.62,
+                        onPressed: () async {
+                          if (isAttendanceLoading.value) return;
+
+                          const minAnimationDuration = Duration(
+                            milliseconds: 520,
+                          );
+                          final startedAt = DateTime.now();
+                          isAttendanceLoading.value = true;
+
+                          try {
                             if (isClockIn) {
-                              _showPresenceIn(context, ref, key);
-                              return;
+                              await _showPresenceIn(context, ref, key);
+                            } else {
+                              await _showPresenceOut(
+                                context,
+                                ref,
+                                key,
+                                '${currentUser?.device}',
+                              );
                             }
-                            _showPresenceOut(
-                              context,
-                              ref,
-                              key,
-                              '${currentUser?.device}',
+
+                            if (!context.mounted) return;
+
+                            // Pastikan transisi state tombol (Masuk/Pulang) terasa halus.
+                            await Future.wait([
+                              ref.refresh(
+                                  fetchPresenceProvider(key: key).future),
+                              ref.refresh(
+                                  fetchProfileProvider(key: key).future),
+                            ]).timeout(
+                              const Duration(seconds: 3),
+                              onTimeout: () => <Object?>[],
                             );
-                          },
-                          child: Text(
-                            isClockIn ? 'Absen Masuk' : 'Absen Pulang',
-                          ),
-                        ),
+                          } finally {
+                            final elapsed =
+                                DateTime.now().difference(startedAt);
+                            if (elapsed < minAnimationDuration) {
+                              await Future.delayed(
+                                minAnimationDuration - elapsed,
+                              );
+                            }
+
+                            if (context.mounted) {
+                              isAttendanceLoading.value = false;
+                            }
+                          }
+                        },
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -474,6 +565,46 @@ class HomeScreen extends HookConsumerWidget {
       String? title,
       bool enabled = false,
     }) {
+      Future<void> handleMenuTap(MenuGrid menu) async {
+        const minBounceDuration = Duration(milliseconds: 520);
+        const maxBackgroundWait = Duration(seconds: 2);
+        final menuKey = '${menu.goToRouteName}|${menu.title}';
+
+        if (activeMenuKey.value == menuKey) return;
+        activeMenuKey.value = menuKey;
+
+        try {
+          final preloadTask = menu.preload == null
+              ? Future<void>.value()
+              : Future<void>.sync(menu.preload!).timeout(
+                  maxBackgroundWait,
+                  onTimeout: () {},
+                );
+
+          await Future.wait([
+            Future.delayed(minBounceDuration),
+            preloadTask,
+          ]);
+
+          if (!context.mounted) return;
+
+          if (menu.onClicked != null) {
+            await Future<void>.sync(menu.onClicked!);
+            return;
+          }
+
+          context.goNamed(
+            menu.goToRouteName,
+            extra: menu.extra,
+            queryParameters: menu.queryParameters ?? {},
+          );
+        } finally {
+          if (context.mounted && activeMenuKey.value == menuKey) {
+            activeMenuKey.value = null;
+          }
+        }
+      }
+
       if (!enabled) return Container();
       final menuGrid = ResponsiveGridRow(
         children: menus
@@ -483,44 +614,38 @@ class HomeScreen extends HookConsumerWidget {
                 md: 3,
                 sm: 3,
                 xs: 4,
-                child: InkWell(
-                  onTap: menu.onClicked ??
-                      () {
-                        context.goNamed(
-                          menu.goToRouteName,
-                          extra: menu.extra,
-                          queryParameters: menu.queryParameters ?? {},
-                        );
-                      },
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        width: 60,
-                        height: 60,
-                        child: Card(
-                          elevation: 4,
-                          color: context.colorPrimaryContainer,
-                          shape: RoundedRectangleBorder(
-                            side: BorderSide(
-                              color: context.colorPrimary,
-                              width: 1,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
+                child: Column(
+                  children: [
+                    // 3D Elegant Sphere Icon Button with Bounce Effect
+                    Elegant3DIconButton(
+                      iconData: menu.iconData,
+                      primaryColor: context.colorPrimary,
+                      size: 58,
+                      iconSize: 24,
+                      depth: 0.72,
+                      isLoading: activeMenuKey.value ==
+                          '${menu.goToRouteName}|${menu.title}',
+                      onTap: () => handleMenuTap(menu),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      menu.title,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: context.colorOnSurface,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withOpacity(0.1),
+                            offset: const Offset(0, 1),
+                            blurRadius: 2,
                           ),
-                          child: Icon(
-                            menu.iconData,
-                            color: context.colorPrimary,
-                          ),
-                        ),
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        menu.title,
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 6),
+                  ],
                 ),
               ),
             )
@@ -557,7 +682,7 @@ class HomeScreen extends HookConsumerWidget {
               buildHeader(),
               const SizedBox(height: 8),
               buildPresenceAndJob(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               buildListMenu(
                 enabled: true,
                 menus: [
@@ -1073,35 +1198,93 @@ class HomeScreen extends HookConsumerWidget {
     String key,
   ) async {
     try {
+      final method = await showConfirmationDialog<AttendanceMethod>(
+        context: context,
+        title: 'Metode Absensi',
+        message: 'Silakan pilih metode absensi',
+        actions: const [
+          AlertDialogAction(
+            key: AttendanceMethod.location,
+            label: 'Lokasi / GPS',
+          ),
+          AlertDialogAction(
+            key: AttendanceMethod.wifi,
+            label: 'Jaringan (Wi-Fi / LAN)',
+          ),
+        ],
+      );
+      if (method == null || !context.mounted) return;
+
+      final isWifiMethod = method == AttendanceMethod.wifi;
+      if (isWifiMethod) {
+        final isWifiIpValid = await _validateWifiPublicIp(context);
+        if (!isWifiIpValid || !context.mounted) return;
+      }
+
       final locations = await ref.watch(
         fetchListHostelProvider(key: key).future,
       );
       if (!context.mounted) return;
-      final selected = await showConfirmationDialog<Asrama>(
-        context: context,
-        title: 'Lokasi Presensi',
-        actions: locations
-            .map(
-              (e) => AlertDialogAction(key: e, label: '${e.namaAsrama}'),
-            )
-            .toList(),
-      );
-      if (selected == null) {
+
+      final selected = isWifiMethod
+          ? locations.isNotEmpty
+              ? locations.first
+              : null
+          : await showConfirmationDialog<Asrama>(
+              context: context,
+              title: 'Lokasi Presensi',
+              actions: locations
+                  .map(
+                    (e) => AlertDialogAction(key: e, label: '${e.namaAsrama}'),
+                  )
+                  .toList(),
+            );
+
+      if (selected == null || !context.mounted) {
         return;
       }
 
-      final position = await ref.read(getCurrentLocationProvider.future);
-      final result =
-          await ref.read(accountControllerProvider.notifier).presence(
-                key: key,
-                presenceType: PresenceType.normal,
-                latitude: position.latitude,
-                longitude: position.longitude,
-                locationPresenceName: '${selected.idAsrama}',
-                mock: position.isMocked,
-              );
+      // Show loading dialog while fetching GPS and calling API
+      final dismissLoading = _startLoading(context);
+      Absent? result;
+      try {
+        late double latitude;
+        late double longitude;
+        late bool isMocked;
 
+        if (isWifiMethod) {
+          latitude = 0.0;
+          longitude = 0.0;
+          isMocked = false;
+        } else {
+          final position = await ref.read(getCurrentLocationProvider.future);
+          latitude = position.latitude;
+          longitude = position.longitude;
+          isMocked = position.isMocked;
+        }
+
+        result = await ref.read(accountControllerProvider.notifier).presence(
+              key: key,
+              presenceType: PresenceType.normal,
+              latitude: latitude,
+              longitude: longitude,
+              locationPresenceName: '${selected.idAsrama}',
+              mock: isMocked,
+            );
+      } finally {
+        dismissLoading();
+      }
       if (result == null || !context.mounted) return;
+
+      // Check if response is an error (has errCode that's not '01')
+      if (result.errCode != null && result.errCode != '01') {
+        // Error response from server
+        context.showErrorMessage(
+          result.msg ?? 'Terjadi kesalahan saat absen',
+        );
+        return;
+      }
+
       final status = result.status;
 
       if (result.status == 'late') {
@@ -1145,7 +1328,120 @@ class HomeScreen extends HookConsumerWidget {
         ref.invalidate(fetchProfileProvider(key: key));
       }
     } catch (error) {
-      context.showErrorMessage(error.toString());
+      final errorMessage = error.toString();
+      // Cek apakah error terkait lokasi/permission
+      final isLocationError = errorMessage.toLowerCase().contains('lokasi') ||
+          errorMessage.toLowerCase().contains('permission') ||
+          errorMessage.toLowerCase().contains('izin') ||
+          errorMessage.toLowerCase().contains('denied') ||
+          errorMessage.toLowerCase().contains('browser');
+
+      if (isLocationError) {
+        await showOkAlertDialog(
+          context: context,
+          title: 'Gagal Mendapatkan Lokasi',
+          message: errorMessage,
+          okLabel: kIsWeb ? 'Mengerti' : 'Buka Pengaturan',
+        ).then((value) async {
+          // Hanya buka settings jika bukan web
+          if (!kIsWeb) {
+            await Geolocator.openAppSettings();
+          }
+        });
+        return;
+      }
+      context.showErrorMessage(errorMessage);
+    }
+  }
+
+  /// Validasi IP publik device dengan allowed IP dari server config.
+  /// Server hanya menyimpan IP yang diizinkan di .env — tidak perlu rebuild app jika IP berubah.
+  Future<bool> _validateWifiPublicIp(BuildContext context) async {
+    try {
+      final dioClient = Dio();
+
+      // 1. Ambil allowed IP dari server config
+      String allowedIp;
+      try {
+        final configRes = await dioClient
+            .get(
+              '${EnvironmentConfig.baseUrl}settings/wificonfig.php',
+              options: Options(responseType: ResponseType.json),
+            )
+            .timeout(const Duration(seconds: 8));
+        final configData = configRes.data;
+        allowedIp = configData is Map<String, dynamic>
+            ? '${configData['wifi_allowed_ip'] ?? ''}'
+            : '';
+      } catch (_) {
+        if (!context.mounted) return false;
+        context.showErrorMessage(
+          'Tidak bisa mengambil konfigurasi jaringan. Coba lagi.',
+        );
+        return false;
+      }
+
+      if (allowedIp.isEmpty) {
+        if (!context.mounted) return false;
+        context
+            .showErrorMessage('Konfigurasi IP Wi\'Fi ma\'had tidak ditemukan.');
+        return false;
+      }
+
+      // 2. Deteksi IP publik device via external API
+      String? detectedIp;
+      try {
+        final res = await dioClient
+            .get(
+              'https://api.ipify.org?format=json',
+              options: Options(responseType: ResponseType.json),
+            )
+            .timeout(const Duration(seconds: 8));
+        final data = res.data;
+        detectedIp =
+            data is Map<String, dynamic> ? '${data['ip'] ?? ''}' : null;
+      } catch (_) {
+        try {
+          final res = await dioClient
+              .get(
+                'https://ipapi.co/json/',
+                options: Options(responseType: ResponseType.json),
+              )
+              .timeout(const Duration(seconds: 8));
+          final data = res.data;
+          detectedIp =
+              data is Map<String, dynamic> ? '${data['ip'] ?? ''}' : null;
+        } catch (_) {
+          try {
+            final res = await dioClient
+                .get(
+                  'https://api.ip.sb/ip',
+                  options: Options(responseType: ResponseType.plain),
+                )
+                .timeout(const Duration(seconds: 8));
+            detectedIp = res.data?.toString().trim();
+          } catch (_) {
+            if (!context.mounted) return false;
+            context.showErrorMessage(
+              'Tidak bisa verifikasi IP. Pastikan koneksi jaringan aktif.',
+            );
+            return false;
+          }
+        }
+      }
+
+      if (!context.mounted) return false;
+
+      if (detectedIp == allowedIp) return true;
+
+      context.showErrorMessage(
+        'Jaringan tidak diizinkan. Gunakan Wi-Fi / LAN ma\'had untuk absen.',
+      );
+      return false;
+    } catch (e) {
+      if (!context.mounted) return false;
+      context.showErrorMessage('Gagal verifikasi jaringan.');
+      return false;
     }
   }
 
@@ -1156,29 +1452,80 @@ class HomeScreen extends HookConsumerWidget {
     String device,
   ) async {
     try {
-      final presenceLocation =
-          await showChooseLocationDialog(context, ref, key);
+      final method = await showConfirmationDialog<AttendanceMethod>(
+        context: context,
+        title: 'Metode Absensi',
+        message: 'Silakan pilih metode absensi',
+        actions: const [
+          AlertDialogAction(
+            key: AttendanceMethod.location,
+            label: 'Lokasi / GPS',
+          ),
+          AlertDialogAction(
+            key: AttendanceMethod.wifi,
+            label: 'Jaringan (Wi-Fi / LAN)',
+          ),
+        ],
+      );
+      if (method == null || !context.mounted) return;
+
+      final isWifiMethod = method == AttendanceMethod.wifi;
+      if (isWifiMethod) {
+        final isWifiIpValid = await _validateWifiPublicIp(context);
+        if (!isWifiIpValid || !context.mounted) return;
+      }
+
+      final locations = await ref.watch(
+        fetchListHostelProvider(key: key).future,
+      );
+      if (!context.mounted) return;
+
+      final presenceLocation = isWifiMethod
+          ? locations.isNotEmpty
+              ? locations.first
+              : null
+          : await showChooseLocationDialog(context, ref, key);
+
       if (presenceLocation == null) return;
 
-      final position = await ref.read(getCurrentLocationProvider.future);
+      // Show loading dialog while fetching GPS and calling API
+      final dismissLoading = _startLoading(context);
+      Absent? result;
+      try {
+        late double latitude;
+        late double longitude;
+        late bool isMocked;
 
-      final token = ref
-          .watch(sharedPreferencesHelperProvider)
-          .getString(AppConstant.keyDeviceToken);
+        if (isWifiMethod) {
+          latitude = 0.0;
+          longitude = 0.0;
+          isMocked = false;
+        } else {
+          final position = await ref.read(getCurrentLocationProvider.future);
+          latitude = position.latitude;
+          longitude = position.longitude;
+          isMocked = position.isMocked;
+        }
 
-      final requestLogout = RequestLogout(
-        mock: position.isMocked,
-        longitude: position.longitude,
-        latitude: position.latitude,
-        key: key,
-        lokasi: '${presenceLocation.idAsrama}',
-        token: token,
-        device: device,
-      );
-      final result = await ref
-          .read(accountControllerProvider.notifier)
-          .presenceOut(requestLogout);
+        final token = ref
+            .watch(sharedPreferencesHelperProvider)
+            .getString(AppConstant.keyDeviceToken);
 
+        final requestLogout = RequestLogout(
+          mock: isMocked,
+          longitude: longitude,
+          latitude: latitude,
+          key: key,
+          lokasi: '${presenceLocation.idAsrama}',
+          token: token,
+          device: device,
+        );
+        result = await ref
+            .read(accountControllerProvider.notifier)
+            .presenceOut(requestLogout);
+      } finally {
+        dismissLoading();
+      }
       if (!context.mounted) return;
       final status = result?.status;
       String title, message;
@@ -1206,7 +1553,29 @@ class HomeScreen extends HookConsumerWidget {
       ref.invalidate(fetchProfileProvider(key: key));
       refreshKey.currentState?.show();
     } catch (error) {
-      context.showErrorMessage(error.toString());
+      final errorMessage = error.toString();
+      // Cek apakah error terkait lokasi/permission
+      final isLocationError = errorMessage.toLowerCase().contains('lokasi') ||
+          errorMessage.toLowerCase().contains('permission') ||
+          errorMessage.toLowerCase().contains('izin') ||
+          errorMessage.toLowerCase().contains('denied') ||
+          errorMessage.toLowerCase().contains('browser');
+
+      if (isLocationError) {
+        await showOkAlertDialog(
+          context: context,
+          title: 'Gagal Mendapatkan Lokasi',
+          message: errorMessage,
+          okLabel: kIsWeb ? 'Mengerti' : 'Buka Pengaturan',
+        ).then((value) async {
+          // Hanya buka settings jika bukan web
+          if (!kIsWeb) {
+            await Geolocator.openAppSettings();
+          }
+        });
+        return;
+      }
+      context.showErrorMessage(errorMessage);
     }
   }
 
@@ -1268,5 +1637,223 @@ class HomeScreen extends HookConsumerWidget {
     context.showSuccessMessage(
       'Terimakasih, semoga besok lebih baik lagi',
     );
+  }
+
+  void _showUpdateDialog(
+    BuildContext context,
+    String currentVersion,
+    UpdateInfo updateInfo,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.92,
+        builder: (_, scrollController) => Column(
+          children: [
+            // Handle bar
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Icon(
+                    kIsWeb ? Icons.new_releases : Icons.system_update,
+                    size: 28,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          kIsWeb ? 'Apa yang Baru' : 'Update Tersedia',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          kIsWeb
+                              ? 'Versi ${updateInfo.latestVersion}${updateInfo.releaseDate.isNotEmpty ? '  •  ${updateInfo.releaseDate}' : ''}'
+                              : 'v$currentVersion → v${updateInfo.latestVersion}${updateInfo.releaseDate.isNotEmpty ? '  •  ${updateInfo.releaseDate}' : ''}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 20),
+            // Changelog content
+            Expanded(
+              child: ListView(
+                controller: scrollController,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                children: _buildChangelogWidgets(
+                  ctx,
+                  updateInfo.changelogContent,
+                ),
+              ),
+            ),
+            // Buttons
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                8,
+                20,
+                MediaQuery.of(ctx).padding.bottom + 16,
+              ),
+              child: Column(
+                children: [
+                  // Web: show "Mengerti" button only
+                  // Native: show "Update Sekarang" button with Play Store link
+                  if (kIsWeb)
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        icon: const Icon(Icons.check_circle, size: 18),
+                        label: const Text('Mengerti'),
+                        onPressed: () async {
+                          await UpdateChecker.markChangelogAsSeen(
+                            currentVersion,
+                          );
+                          if (ctx.mounted) Navigator.of(ctx).pop();
+                        },
+                      ),
+                    )
+                  else
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        icon: const Icon(Icons.open_in_new, size: 18),
+                        label: const Text('Update Sekarang'),
+                        onPressed: () async {
+                          Navigator.of(ctx).pop();
+                          await InAppBrowser.openWithSystemBrowser(
+                            url: WebUri(UpdateChecker.playStoreUrl),
+                          );
+                        },
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  // Native only: show "Nanti Saja" button
+                  if (!kIsWeb)
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: const Text('Nanti Saja'),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Parse baris-baris markdown changelog menjadi widget sederhana.
+  List<Widget> _buildChangelogWidgets(BuildContext context, String markdown) {
+    final widgets = <Widget>[];
+    for (final line in markdown.split('\n')) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) {
+        widgets.add(const SizedBox(height: 4));
+      } else if (trimmed.startsWith('### ')) {
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(top: 12, bottom: 4),
+          child: Text(
+            trimmed.substring(4),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          ),
+        ));
+      } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+        final content = trimmed.substring(2);
+        // Bold **text**
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(left: 8, bottom: 2),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('• ', style: TextStyle(fontSize: 13)),
+              Expanded(
+                child: Text(
+                  content.replaceAll(RegExp(r'\*\*(.*?)\*\*'), r'\1'),
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+        ));
+      } else if (!trimmed.startsWith('#')) {
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(bottom: 2),
+          child: Text(trimmed, style: const TextStyle(fontSize: 13)),
+        ));
+      }
+    }
+    return widgets;
+  }
+
+  /// Shows a dismissible loading dialog.
+  /// Returns a [VoidCallback] that closes the dialog (safe to call even if
+  /// the user already dismissed it by tapping outside).
+  VoidCallback _startLoading(BuildContext context) {
+    bool active = true;
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      useRootNavigator: false,
+      builder: (_) => Center(
+        child: Card(
+          margin: const EdgeInsets.symmetric(horizontal: 48),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(strokeWidth: 3),
+                SizedBox(width: 20),
+                Text('Mohon tunggu...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ).whenComplete(() => active = false);
+
+    return () {
+      if (active && context.mounted) {
+        active = false;
+        Navigator.of(context).pop();
+      }
+    };
   }
 }

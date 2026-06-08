@@ -1,4 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
+typedef MenuTapCallback = FutureOr<void> Function();
 
 class MenuGrid {
   final String title;
@@ -6,7 +10,8 @@ class MenuGrid {
   final String goToRouteName;
   final Object? extra;
   final Map<String, dynamic>? queryParameters;
-  final VoidCallback? onClicked;
+  final MenuTapCallback? onClicked;
+  final MenuTapCallback? preload;
 
   MenuGrid({
     required this.title,
@@ -14,6 +19,7 @@ class MenuGrid {
     required this.goToRouteName,
     this.extra,
     this.onClicked,
+    this.preload,
     this.queryParameters,
   });
 }
