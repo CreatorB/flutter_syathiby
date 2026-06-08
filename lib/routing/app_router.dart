@@ -68,6 +68,8 @@ import 'package:syathiby/presentation/news/news_screen.dart';
 import 'package:syathiby/presentation/pelanggaran/add_violation_screen.dart';
 import 'package:syathiby/presentation/pelanggaran/detail_violation_screen.dart';
 import 'package:syathiby/presentation/pelanggaran/violation_list_screen.dart';
+import 'package:syathiby/presentation/pelanggaran/mukholif_search_screen.dart';
+import 'package:syathiby/presentation/pelanggaran/mukholif_detail_screen.dart';
 import 'package:syathiby/presentation/penilaian/score_type_screen.dart';
 import 'package:syathiby/presentation/penilaian/student_score_screen.dart';
 import 'package:syathiby/presentation/penilaian/subjects_screen.dart';
@@ -272,6 +274,8 @@ enum AppRoute {
   attendanceRecap,
   addViolation,
   detailViolation,
+  mukholifSearch,
+  mukholifDetail,
   detailStudentHealth,
   addStudentHealth,
   tahfidzPresenceList,
@@ -708,6 +712,24 @@ GoRouter goRouter(GoRouterRef ref) {
                         builder: (context, state) => DetailViolationScreen(
                           violationId: state.extra as String,
                         ),
+                      ),
+                      GoRoute(
+                        path: 'search',
+                        name: AppRoute.mukholifSearch.name,
+                        builder: (context, state) => const MukholifSearchScreen(),
+                      ),
+                      GoRoute(
+                        path: 'detail-mukholif',
+                        name: AppRoute.mukholifDetail.name,
+                        builder: (context, state) {
+                          final extra = state.extra as Map<String, dynamic>;
+                          return MukholifDetailScreen(
+                            santrialId: extra['santri_id'] as int,
+                            studentName: extra['nama'] as String,
+                            kelas: extra['kelas'] as String?,
+                            kamar: extra['kamar'] as String?,
+                          );
+                        },
                       ),
                     ],
                   ),

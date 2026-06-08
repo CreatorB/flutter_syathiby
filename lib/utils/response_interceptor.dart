@@ -7,6 +7,14 @@ import 'package:syathiby/utils/rest_exception.dart';
 class ResponseInterceptor extends Interceptor {
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
+    // SPECIAL CASE: search_mukholif.php and detail_mukholif.php return MukholifSearchResponse/MukholifDetailResponse structures
+    // We need to keep the FULL response object (not extract just data)
+    final path = response.requestOptions.path;
+    if (path.contains('search_mukholif') || path.contains('detail_mukholif')) {
+      handler.next(response);
+      return;
+    }
+
     // 1. Smart Decode (String to Map)
     dynamic body = response.data;
     if (body is String && body.isNotEmpty) {

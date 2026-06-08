@@ -156,6 +156,20 @@ class ViolationListScreen extends HookConsumerWidget {
             ),
           ),
           Positioned(
+            bottom: 80,
+            right: 16,
+            child: FloatingActionButton.extended(
+              heroTag: 'mukholif',
+              onPressed: () async {
+                context.goNamed(
+                  AppRoute.mukholifSearch.name,
+                );
+              },
+              label: const Text('Catatan Lain'),
+              icon: const Icon(Icons.history_edu),
+            ),
+          ),
+          Positioned(
             bottom: 24,
             right: 16,
             child: FloatingActionButton.extended(

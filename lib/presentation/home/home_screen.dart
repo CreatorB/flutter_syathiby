@@ -50,18 +50,7 @@ class HomeScreen extends HookConsumerWidget {
     final isAttendanceLoading = useState(false);
     final currentUser = ref.watch(getCurrentUserProvider);
     final key = '${currentUser?.key}';
-    ref.listen(fetchProfileProvider(key: key), (previous, next) {
-      next.showToastOnError(context);
-    });
-    final token = ref
-        .watch(sharedPreferencesHelperProvider)
-        .getString(AppConstant.keyDeviceToken);
-    final saveTokenToServer = useMemoized(
-      () => ref.watch(
-        saveTokenToServerProvider(key: key, token: '$token').future,
-      ),
-    );
-    useFuture(saveTokenToServer);
+    // Token save is now handled lazily on login success, not on every home build
     final fetchUserProfile = ref.watch(fetchProfileProvider(key: key));
     final fetchPresence = ref.watch(fetchPresenceProvider(key: key));
     final currentDateFormat = ref.watch(
@@ -109,119 +98,7 @@ class HomeScreen extends HookConsumerWidget {
     final isPermohonan = presenceData?.permohonan == 1;
     final safeLevel = presenceData?.level ?? '';
 
-    void buildJobAlertMessage() {
-      final presence = fetchPresence.valueOrNull;
-      final notif = presence?.notif ?? 0;
-      final violation = presence?.notifpelanggaran ?? 0;
-      final permit = presence?.notifizin ?? 0;
-      final studentPermit = presence?.notifizinsantri ?? 0;
-      final finance = presence?.notifkeuangan ?? 0;
-      final logistic = presence?.notiflogistik ?? 0;
-      final manager = presence?.notifmanager ?? 0;
-      final director = presence?.notifmudir ?? 0;
-      final requestMedicine = presence?.notifpermintaanobatmanager ?? 0;
-      final ukp = presence?.notifukp ?? 0;
-
-      WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-        if (notif > 0) {
-          context.showSnackBar(
-            'Anda memiliki $notif Tugas kerja!',
-            actionLabel: 'Lihat',
-            onAction: () {
-              context.goNamed(AppRoute.jobs.name);
-            },
-          );
-        }
-        if (violation > 0) {
-          context.showSnackBar(
-            'Anda memiliki $violation Laporan Pelanggaran!',
-            actionLabel: 'Lihat',
-            onAction: () {
-              context.goNamed(
-                AppRoute.jobs.name,
-                queryParameters: {"type": "umum"},
-              );
-            },
-          );
-        }
-        if (permit > 0) {
-          context.showSnackBar(
-            'Anda memiliki $permit Permintaan Izin Staff!',
-            actionLabel: 'Lihat',
-            onAction: () {
-              context.goNamed(AppRoute.permit.name);
-            },
-          );
-        }
-        if (studentPermit > 0) {
-          context.showSnackBar(
-            'Anda memiliki $studentPermit Permintaan Izin Santri!',
-            actionLabel: 'Lihat',
-            onAction: () {
-              context.goNamed(AppRoute.studentPermit.name);
-            },
-          );
-        }
-        if (manager > 0) {
-          context.showSnackBar(
-            'Anda memiliki $manager Permohonan untuk di proses!',
-            actionLabel: 'Lihat',
-            onAction: () {
-              context.goNamed(AppRoute.historyTransaction.name);
-            },
-          );
-        }
-        if (requestMedicine > 0) {
-          context.showSnackBar(
-            'Anda memiliki $requestMedicine Permintaan Obat untuk di proses!',
-            actionLabel: 'Lihat',
-            onAction: () {
-              context.goNamed(AppRoute.medicineRequest.name);
-            },
-          );
-        }
-        if (finance > 0) {
-          context.showSnackBar(
-            'Anda memiliki $finance Permohonan untuk di proses!',
-            actionLabel: 'Lihat',
-            onAction: () {
-              context.goNamed(AppRoute.historyTransaction.name);
-            },
-          );
-        }
-        if (logistic > 0) {
-          context.showSnackBar(
-            'Anda memiliki $logistic Permohonan untuk di proses!',
-            actionLabel: 'Lihat',
-            onAction: () {
-              context.goNamed(AppRoute.historyTransaction.name);
-            },
-          );
-        }
-        if (ukp > 0) {
-          context.showSnackBar(
-            'Anda memiliki $ukp Permintaan Obat untuk di proses!',
-            actionLabel: 'Lihat',
-            onAction: () {
-              context.goNamed(AppRoute.medicineRequest.name);
-            },
-          );
-        }
-        if (director > 0) {
-          context.showSnackBar(
-            'Anda memiliki $director Permohonan untuk di proses!',
-            actionLabel: 'Lihat',
-            onAction: () {
-              context.goNamed(AppRoute.historyTransaction.name);
-            },
-          );
-        }
-      });
-    }
-
-    buildJobAlertMessage();
-
-    // Cek update sekali saja saat home pertama kali tampil
+// Cek update sekali saja saat home pertama kali tampil
     useEffect(() {
       Future.microtask(() async {
         final info = await PackageInfo.fromPlatform();
@@ -441,11 +318,6 @@ class HomeScreen extends HookConsumerWidget {
                         depth: 0.62,
                         onPressed: () async {
                           if (isAttendanceLoading.value) return;
-
-                          const minAnimationDuration = Duration(
-                            milliseconds: 520,
-                          );
-                          final startedAt = DateTime.now();
                           isAttendanceLoading.value = true;
 
                           try {
@@ -462,7 +334,6 @@ class HomeScreen extends HookConsumerWidget {
 
                             if (!context.mounted) return;
 
-                            // Pastikan transisi state tombol (Masuk/Pulang) terasa halus.
                             await Future.wait([
                               ref.refresh(
                                   fetchPresenceProvider(key: key).future),
@@ -473,14 +344,6 @@ class HomeScreen extends HookConsumerWidget {
                               onTimeout: () => <Object?>[],
                             );
                           } finally {
-                            final elapsed =
-                                DateTime.now().difference(startedAt);
-                            if (elapsed < minAnimationDuration) {
-                              await Future.delayed(
-                                minAnimationDuration - elapsed,
-                              );
-                            }
-
                             if (context.mounted) {
                               isAttendanceLoading.value = false;
                             }
