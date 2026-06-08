@@ -10,6 +10,19 @@ android {
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
+    flavorDimensions += "env"
+    productFlavors {
+        create("prod") {
+            dimension = "env"
+            manifestPlaceholders["appLabel"] = "Syathiby"
+        }
+        create("local") {
+            dimension = "env"
+            applicationIdSuffix = ".local"
+            manifestPlaceholders["appLabel"] = "Syathiby LOCAL"
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11

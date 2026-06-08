@@ -6,6 +6,7 @@ import 'package:syathiby/res/strings.dart';
 import 'package:syathiby/routing/app_router.dart';
 import 'package:syathiby/utils/extension/color.dart';
 import 'package:responsive_grid/responsive_grid.dart';
+import 'package:syathiby/presentation/widgets/elegant_3d_icon.dart';
 
 import '../home/menu_home.dart';
 import '../webview/chrome_safari_browser.dart';
@@ -23,7 +24,9 @@ class PrayerScreen extends HookConsumerWidget {
           'Ibadah',
         ),
       ),
-      body: ResponsiveGridRow(
+      body: Padding(
+        padding: const EdgeInsets.only(top: 16.0),
+        child: ResponsiveGridRow(
         children: menus
             .map(
               (menu) => ResponsiveGridCol(
@@ -31,47 +34,46 @@ class PrayerScreen extends HookConsumerWidget {
                 md: 3,
                 sm: 3,
                 xs: 4,
-                child: InkWell(
-                  onTap: menu.onClicked ??
-                      () {
-                        context.goNamed(
-                          menu.goToRouteName,
-                          extra: menu.extra,
-                        );
-                      },
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        width: 60,
-                        height: 60,
-                        child: Card(
-                          elevation: 4,
-                          color: context.colorPrimaryContainer,
-                          shape: RoundedRectangleBorder(
-                            side: BorderSide(
-                              color: context.colorPrimary,
-                              width: 1,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
+                child: Column(
+                  children: [
+                    // 3D Elegant Sphere Icon Button with Bounce Effect
+                    Elegant3DIconButton(
+                      iconData: menu.iconData,
+                      primaryColor: context.colorPrimary,
+                      size: 68,
+                      iconSize: 30,
+                      onTap: menu.onClicked ??
+                          () {
+                            context.goNamed(
+                              menu.goToRouteName,
+                              extra: menu.extra,
+                            );
+                          },
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      menu.title,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: context.colorOnSurface,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withOpacity(0.1),
+                            offset: const Offset(0, 1),
+                            blurRadius: 2,
                           ),
-                          child: Icon(
-                            menu.iconData,
-                            color: context.colorPrimary,
-                          ),
-                        ),
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        menu.title,
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                 ),
               ),
             )
             .toList(),
+        ),
       ),
     );
   }

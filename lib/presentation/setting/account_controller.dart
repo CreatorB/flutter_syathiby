@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:syathiby/models/hostel/hostel.dart';
 import 'package:syathiby/models/message.dart';
 import 'package:syathiby/models/service_injection.dart';
@@ -7,6 +8,7 @@ import 'package:syathiby/models/slip/absent.dart';
 import 'package:syathiby/models/user/request_logout.dart';
 import 'package:syathiby/models/user/user.dart';
 import 'package:syathiby/presentation/setting/presence_type.dart';
+import 'package:syathiby/utils/rest_exception.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'account_controller.g.dart';
@@ -91,13 +93,23 @@ class AccountController extends _$AccountController {
     AsyncValue<Absent> result;
     if (presenceType == PresenceType.normal) {
       result = await AsyncValue.guard(
-        () => ref.watch(userServiceProvider).presenceNormal(
-              key,
-              latitude,
-              longitude,
-              mock,
-              locationPresenceName,
-            ),
+        () async {
+          try {
+            return await ref.watch(userServiceProvider).presenceNormal(
+                  key,
+                  latitude,
+                  longitude,
+                  mock,
+                  locationPresenceName,
+                );
+          } on DioException catch (e) {
+            if (e.error is RestException) {
+              final re = e.error as RestException;
+              return Absent(errCode: re.errorCode, msg: re.message);
+            }
+            rethrow;
+          }
+        },
       );
     } else if (token != null && presenceType == PresenceType.biometric) {
       result = await AsyncValue.guard(
@@ -122,6 +134,20 @@ class AccountController extends _$AccountController {
             ),
       );
     }
+    
+    // Debug logging
+    print('[ATTENDANCE DEBUG] Lat: $latitude, Long: $longitude, Mock: $mock');
+    if (result.hasError) {
+      print('[ATTENDANCE ERROR] ${result.error}');
+      print('[ATTENDANCE ERROR STACK] ${result.stackTrace}');
+    } else {
+      final absent = result.valueOrNull;
+      print('[ATTENDANCE RESPONSE] Status: ${absent?.status}');
+      print('[ATTENDANCE RESPONSE] ErrCode: ${absent?.errCode ?? "MISSING"}');
+      print('[ATTENDANCE RESPONSE] Msg: ${absent?.msg ?? "MISSING"}');
+      print('[ATTENDANCE RESPONSE] Full Object: $absent');
+    }
+    
     state = result;
     return result.valueOrNull;
   }

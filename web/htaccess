@@ -1,0 +1,41 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Aset statis yang ada (seperti .js, .map, .wasm, /assets) jangan di-rewrite.
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+
+  # Arahkan semua request non-file/folder ke index.html (SPA routing)
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# MIME Type Fix untuk CanvasKit dan Source Maps
+<IfModule mod_mime.c>
+  AddType application/wasm .wasm
+  AddType application/json .map
+</IfModule>
+
+# ================================================================
+# CACHE CONTROL — Penting untuk memastikan update Flutter web
+# langsung terlihat tanpa harus clear cache manual
+# ================================================================
+<IfModule mod_headers.c>
+
+  # 1. Static assets: cache jangka panjang (service worker yang handle invalidasi)
+  <FilesMatch "\.(js|wasm|png|jpg|gif|ico|svg|ttf|otf|eot|woff|woff2)$">
+    Header set Cache-Control "public, max-age=31536000"
+  </FilesMatch>
+
+  # 2. File kritis: JANGAN pernah di-cache
+  #    - index.html   : entry point, harus selalu fresh
+  #    - flutter_service_worker.js : jika stale, SW lama terus dipakai → ikon lama
+  #    - flutter_bootstrap.js      : loader utama Flutter
+  #    - version.json              : untuk verifikasi versi setelah deploy
+  #    - manifest.json             : metadata PWA
+  <FilesMatch "^(index\.html|flutter_service_worker\.js|flutter_bootstrap\.js|version\.json|manifest\.json|build-info\.json)$">
+    Header set Cache-Control "no-store, no-cache, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+
+</IfModule>

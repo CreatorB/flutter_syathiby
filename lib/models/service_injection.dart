@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:syathiby/di/providers.dart';
+import 'package:syathiby/res/environment_config.dart';
 import 'package:syathiby/models/cart/cart_service.dart';
 import 'package:syathiby/models/change_schedule/change_schedule_service.dart';
 import 'package:syathiby/models/days/days_service.dart';
@@ -35,6 +37,7 @@ import 'package:syathiby/models/transaction/transaction_service.dart';
 import 'package:syathiby/models/unit/unit_service.dart';
 import 'package:syathiby/models/user/user_service.dart';
 import 'package:syathiby/models/violation/violation_service.dart';
+import 'package:syathiby/models/wordpress/wp_api_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'allocation/allocation_service.dart';
@@ -56,6 +59,39 @@ AsramaRestInterface hostelService(HostelServiceRef ref) {
 @Riverpod(keepAlive: true)
 NewsRestInterface newsService(NewsServiceRef ref) {
   return NewsRestInterface(ref.watch(dioProvider));
+}
+
+@Riverpod(keepAlive: true)
+WpApiService wpApiService(WpApiServiceRef ref) {
+  String baseUrl;
+  
+  if (kIsWeb) {
+    // Detect if running on localhost (dev) or production
+    final hostname = Uri.base.host;
+    final isLocalDev = hostname == 'localhost' || 
+              hostname == '127.0.0.1' ||
+              hostname == '192.168.50.100';
+    
+    if (isLocalDev) {
+      // Local development - use localhost proxy
+      // (even if accessing via 192.168.50.100, proxy is still on localhost)
+      baseUrl = 'http://localhost/aplikasi/geten/wordpress_proxy.php';
+      print('🔧 Local dev mode detected ($hostname) - using localhost proxy');
+    } else {
+      // Production web - use production proxy (aplikasi/ is root of aplikasi.syathiby.id)
+      baseUrl = 'https://aplikasi.syathiby.id/geten/wordpress_proxy.php';
+      print('🌐 Production web mode detected ($hostname) - using aplikasi.syathiby.id proxy');
+    }
+  } else {
+    // Native mobile app - use direct WordPress API
+    baseUrl = 'https://syathiby.id/wp-json/wp/v2';
+    print('📱 Native platform detected - using production endpoint');
+  }
+  
+  return WpApiService(
+    ref.watch(wordpressDioProvider),
+    baseUrl: baseUrl,
+  );
 }
 
 @Riverpod(keepAlive: true)
