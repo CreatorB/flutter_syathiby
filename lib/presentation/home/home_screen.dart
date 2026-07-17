@@ -551,7 +551,7 @@ class HomeScreen extends HookConsumerWidget {
       );
     }
 
-    return Scaffold(
+return Scaffold(
       body: RefreshIndicator(
         key: refreshKey,
         onRefresh: () async {
@@ -562,7 +562,7 @@ class HomeScreen extends HookConsumerWidget {
                 ref.refresh(fetchProfileProvider(key: key).future)
               ],
             );
-            } catch (e) {
+          } catch (e) {
             if (context.mounted) {
               context.showErrorMessage(e);
             }

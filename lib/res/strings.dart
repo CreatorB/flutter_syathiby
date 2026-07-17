@@ -9,6 +9,9 @@ abstract class AppConstant {
   static const String keyLoginSession = 'login_session';
   static const String keyUserSession = 'user_session';
   static const String keyDeviceToken = 'device_token';
+  static const String keyRememberMe = 'remember_me';
+  static const String keySavedPhone = 'saved_phone';
+  static const String keySavedPassword = 'saved_password';
   static const String keyMurottalSurahSelected = 'murottal_surah_selected';
   static const String keyMurottalAyahSelected = 'murottal_ayah_selected';
   static const String keyLastReadAyah = 'last_read_ayah';

@@ -20,6 +20,7 @@ class LoginController extends _$LoginController {
   Future<void> login({
     required String phoneNumber,
     required String password,
+    bool rememberMe = false,
   }) async {
     state = const AsyncLoading();
 
@@ -30,6 +31,7 @@ class LoginController extends _$LoginController {
       final loginData = loginResult.firstOrNull;
       if (loginData != null) {
         await _saveSession(loginData);
+        await _saveCredentials(phoneNumber, password, rememberMe);
 
         state = const AsyncData(null);
 
@@ -42,11 +44,10 @@ class LoginController extends _$LoginController {
         print("========================================");
         print("🔴 LOGIC ERROR DARI SERVER:");
         print(
-            "MSG: ${e.message}"); // atau ${e.message} tergantung isi class RestException
+            "MSG: ${e.message}");
         print("CODE: ${e.errorCode}");
         print("========================================");
       }
-      // 2. Cek apakah error dari Jaringan (Dio)
       else if (e is DioException) {
         print("🔴 DIO ERROR: ${e.message}");
         if (e.error is RestException) {
@@ -66,6 +67,19 @@ class LoginController extends _$LoginController {
       await pref.setString(AppConstant.keyDeviceToken, token ?? '');
     } catch (e) {
       debugPrint('Gagal mendapatkan Firebase token: $e');
+    }
+  }
+
+  Future<void> _saveCredentials(String phone, String password, bool rememberMe) async {
+    final pref = ref.read(sharedPreferencesHelperProvider);
+    if (rememberMe) {
+      await pref.setString(AppConstant.keyRememberMe, 'true');
+      await pref.setString(AppConstant.keySavedPhone, phone);
+      await pref.setString(AppConstant.keySavedPassword, password);
+    } else {
+      await pref.remove(AppConstant.keyRememberMe);
+      await pref.remove(AppConstant.keySavedPhone);
+      await pref.remove(AppConstant.keySavedPassword);
     }
   }
 }

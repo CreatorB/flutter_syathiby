@@ -10,7 +10,7 @@ class ResponseInterceptor extends Interceptor {
     // SPECIAL CASE: search_mukholif.php and detail_mukholif.php return MukholifSearchResponse/MukholifDetailResponse structures
     // We need to keep the FULL response object (not extract just data)
     final path = response.requestOptions.path;
-    if (path.contains('search_mukholif') || path.contains('detail_mukholif')) {
+    if (path.contains('search_mukholif') || path.contains('detail_mukholif') || path.contains('insert_izin_tap')) {
       handler.next(response);
       return;
     }
@@ -68,6 +68,11 @@ class ResponseInterceptor extends Interceptor {
           // Jika ada field `data` berupa list → endpoint list → kembalikan []
           if (responseData.data is List) {
             response.data = responseData.data;
+            handler.next(response);
+          } else if (responseData.data == null) {
+            // List endpoint convention: errCode='02' "no data" tanpa field `data`
+            // Kembalikan list kosong agar PagedListView tidak crash
+            response.data = <dynamic>[];
             handler.next(response);
           } else if (responseData.data is Map<String, dynamic>) {
             // Single object response - pass it through
