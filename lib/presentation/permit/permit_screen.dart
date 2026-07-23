@@ -28,11 +28,15 @@ class PermitScreen extends HookConsumerWidget {
 
     Future<void> fetchData(int pageKey) async {
       try {
-        final result = await ref.watch(
+        final result = await ref.read(
           fetchPermitListProvider(key: key, page: pageKey).future,
         );
         final nextPageKey = pageKey + 1;
-        pagingController.appendPage(result, nextPageKey);
+        if (result.isEmpty) {
+          pagingController.appendLastPage(result);
+        } else {
+          pagingController.appendPage(result, nextPageKey);
+        }
       } catch (error) {
         pagingController.error = error;
       }
@@ -127,6 +131,33 @@ class PermitScreen extends HookConsumerWidget {
                     },
                   );
                 },
+                noItemsFoundIndicatorBuilder: (context) => const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Text(
+                      'Belum ada izin',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ),
+                firstPageErrorIndicatorBuilder: (context) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.error_outline, size: 48),
+                        const SizedBox(height: 8),
+                        const Text('Gagal memuat izin'),
+                        const SizedBox(height: 8),
+                        FilledButton(
+                          onPressed: pagingController.refresh,
+                          child: const Text('Coba lagi'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
           ),

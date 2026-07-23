@@ -68,6 +68,7 @@ class AddViolationScreen extends HookConsumerWidget {
           );
       if (result == null || !context.mounted) return;
       context.pop();
+      ref.invalidate(fetchListViolationProvider(key: key, page: 1, type: '$type'));
       context.showSuccessMessage(
         '${result.msg}! swipe refresh untuk mendapatkan data terbaru',
       );

@@ -97,21 +97,13 @@ class TeachingScheduleScreen extends HookConsumerWidget {
                         ),
                       ],
                     ),
-                    onTap: isNotAbsence || isAlreadyAbsence
-                        ? () {
-                            if (schedule == null) return;
-                            context.goNamed(
-                              AppRoute.classroom.name,
-                              extra: schedule,
-                            ); // TODO
-                          }
-                        : () async {
-                            await showOkAlertDialog(
-                              context: context,
-                              title: 'Info',
-                              message: 'Pelajaran belum bisa dimulai',
-                            );
-                          },
+                    onTap: () {
+                      if (schedule == null) return;
+                      context.goNamed(
+                        AppRoute.classroom.name,
+                        extra: schedule,
+                      );
+                    },
                   ),
                 ),
               );

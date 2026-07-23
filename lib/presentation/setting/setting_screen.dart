@@ -179,10 +179,14 @@ class SettingScreen extends HookConsumerWidget {
                 width: double.infinity,
                 child: TextButton.icon(
                   onPressed: () async {
-                    await ref
-                        .watch(sharedPreferencesHelperProvider)
-                        .remove(AppConstant.keyLoginSession);
-                    context.goNamed(AppRoute.login.name);
+                    final pref = ref.read(sharedPreferencesHelperProvider);
+                    await pref.remove(AppConstant.keyLoginSession);
+                    await pref.remove(AppConstant.keyRememberMe);
+                    await pref.remove(AppConstant.keySavedPhone);
+                    await pref.remove(AppConstant.keySavedPassword);
+                    if (context.mounted) {
+                      context.goNamed(AppRoute.login.name);
+                    }
                   },
                   icon: Icon(
                     Icons.exit_to_app,

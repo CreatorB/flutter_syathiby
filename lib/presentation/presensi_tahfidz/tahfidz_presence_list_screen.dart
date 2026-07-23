@@ -31,19 +31,31 @@ class TahfidzPresenceListScreen extends HookConsumerWidget {
         ref.watch(tahfidzPresenceControllerProvider);
     final currentUser = ref.watch(getCurrentUserProvider);
     final key = '${currentUser?.key}';
-    ref.listen(
-      fetchScheduleTahfidzProvider(key: key, date: '$date', time: '$time'),
-      (previous, next) {
-        next.showToastOnError(context);
-      },
-    );
-    final fetchTahfidzSchedule = ref.watch(
-      fetchScheduleTahfidzProvider(key: key, date: '$date', time: '$time'),
-    );
+
+    final hasParams =
+        (date ?? '').isNotEmpty && (time ?? '').isNotEmpty;
+
+    if (hasParams) {
+      ref.listen(
+        fetchScheduleTahfidzProvider(key: key, date: '$date', time: '$time'),
+        (previous, next) {
+          next.showToastOnError(context);
+        },
+      );
+    }
+
+    final fetchTahfidzSchedule = hasParams
+        ? ref.watch(
+            fetchScheduleTahfidzProvider(key: key, date: '$date', time: '$time'),
+          )
+        : const AsyncValue<List<Siswa>>.data(<Siswa>[]);
     final tahfidzSchedule = fetchTahfidzSchedule.valueOrNull?.firstOrNull;
-    final itemCount = fetchTahfidzSchedule.isLoading
-        ? 10
-        : fetchTahfidzSchedule.valueOrNull?.length ?? 0;
+    final students = fetchTahfidzSchedule.valueOrNull ?? const <Siswa>[];
+    final itemCount = fetchTahfidzSchedule.isLoading ? 10 : students.length;
+    final isEmpty = hasParams &&
+        !fetchTahfidzSchedule.isLoading &&
+        !fetchTahfidzSchedule.hasError &&
+        students.isEmpty;
     final formatDate = ref.watch(formatDateProvider('${tahfidzSchedule?.date}',
         format: 'EEEE, dd MMMM yyyy'));
 
@@ -67,13 +79,16 @@ class TahfidzPresenceListScreen extends HookConsumerWidget {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () => ref.refresh(
-          fetchScheduleTahfidzProvider(
-            key: key,
-            date: '$date',
-            time: '$time',
-          ).future,
-        ),
+        onRefresh: () async {
+          if (!hasParams) return;
+          return ref.refresh(
+            fetchScheduleTahfidzProvider(
+              key: key,
+              date: '$date',
+              time: '$time',
+            ).future,
+          );
+        },
         child: ListView(
           children: [
             Card(
@@ -84,7 +99,11 @@ class TahfidzPresenceListScreen extends HookConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      tahfidzSchedule?.staff ?? '',
+                      (tahfidzSchedule?.staff?.isNotEmpty ?? false)
+                          ? tahfidzSchedule!.staff!
+                          : (currentUser?.user?.isNotEmpty == true
+                              ? currentUser!.user!
+                              : 'Pengampu'),
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 18.0,
@@ -109,15 +128,16 @@ class TahfidzPresenceListScreen extends HookConsumerWidget {
                     ),
                     const SizedBox(height: 10.0),
                     OutlinedButton(
-                      onPressed: tahfidzPresenceController.isLoading
+                      onPressed: (tahfidzPresenceController.isLoading ||
+                              !hasParams)
                           ? null
                           : () async {
                               _addTeacherPresence(
                                 context,
                                 ref,
                                 key,
-                                '${tahfidzSchedule?.date}',
-                                '${tahfidzSchedule?.type}',
+                                tahfidzSchedule?.date ?? date ?? '',
+                                tahfidzSchedule?.type ?? time ?? '',
                               );
                             },
                       child: tahfidzPresenceController.isLoading
@@ -139,88 +159,91 @@ class TahfidzPresenceListScreen extends HookConsumerWidget {
             ),
             Skeletonizer(
               enabled: fetchTahfidzSchedule.isLoading,
-              child: ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: itemCount, // Replace with your item count
-                itemBuilder: (context, index) {
-                  final student =
-                      fetchTahfidzSchedule.valueOrNull?.elementAtOrNull(index);
+              child: isEmpty
+                  ? _EmptyHalaqahHint(
+                      onAdd: () => _focusAddStudent(context, ref),
+                    )
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: itemCount, // Replace with your item count
+                      itemBuilder: (context, index) {
+                        final student = students.elementAtOrNull(index);
 
-                  return ListTile(
-                    onTap: () async {
-                      showRemoveDialog(context, ref, key, student);
-                    },
-                    leading: CustomAvatar(
-                      name: '${student?.namaLengkap}',
-                      imageUrl: '${student?.img}',
-                      size: 40,
-                    ),
-                    title: Text(
-                      '${index + 1}. ${student?.namaLengkap}',
-                      style: context.bodyMediumBold,
-                    ),
-                    subtitle: Text('NIS: ${student?.nis}'),
-                    trailing: Transform.translate(
-                      offset: const Offset(12, 0),
-                      child: IntrinsicWidth(
-                        child: DropdownButtonFormField<String>(
-                          value: student?.statusAbsen != "Belum Absen"
-                              ? student?.statusAbsen
-                              : null,
-                          items: [
-                            DropdownMenuItem(
-                              value: "hadir",
-                              child: Text(
-                                'Hadir',
-                                style: context.bodyMedium,
-                              ),
-                            ),
-                            DropdownMenuItem(
-                              value: "sakit",
-                              child: Text(
-                                'Sakit',
-                                style: context.bodyMedium,
-                              ),
-                            ),
-                            DropdownMenuItem(
-                              value: "izin",
-                              child: Text(
-                                'Izin',
-                                style: context.bodyMedium,
-                              ),
-                            ),
-                            DropdownMenuItem(
-                              value: "alfa",
-                              child: Text(
-                                'Alfa',
-                                style: context.bodyMedium,
-                              ),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            _addStudentPresence(
-                              context,
-                              ref,
-                              key,
-                              student,
-                              '$value',
-                            );
+                        return ListTile(
+                          onTap: () async {
+                            showRemoveDialog(context, ref, key, student);
                           },
-                          isDense: true,
-                          decoration: InputDecoration(
-                            isDense: true,
-                            filled: true,
-                            border: UnderlineInputBorder(
-                              borderRadius: BorderRadius.circular(32.0),
+                          leading: CustomAvatar(
+                            name: '${student?.namaLengkap}',
+                            imageUrl: '${student?.img}',
+                            size: 40,
+                          ),
+                          title: Text(
+                            '${index + 1}. ${student?.namaLengkap}',
+                            style: context.bodyMediumBold,
+                          ),
+                          subtitle: Text('NIS: ${student?.nis}'),
+                          trailing: Transform.translate(
+                            offset: const Offset(12, 0),
+                            child: IntrinsicWidth(
+                              child: DropdownButtonFormField<String>(
+                                value: student?.statusAbsen != "Belum Absen"
+                                    ? student?.statusAbsen
+                                    : null,
+                                items: [
+                                  DropdownMenuItem(
+                                    value: "hadir",
+                                    child: Text(
+                                      'Hadir',
+                                      style: context.bodyMedium,
+                                    ),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: "sakit",
+                                    child: Text(
+                                      'Sakit',
+                                      style: context.bodyMedium,
+                                    ),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: "izin",
+                                    child: Text(
+                                      'Izin',
+                                      style: context.bodyMedium,
+                                    ),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: "alfa",
+                                    child: Text(
+                                      'Alfa',
+                                      style: context.bodyMedium,
+                                    ),
+                                  ),
+                                ],
+                                onChanged: (value) {
+                                  _addStudentPresence(
+                                    context,
+                                    ref,
+                                    key,
+                                    student,
+                                    '$value',
+                                  );
+                                },
+                                isDense: true,
+                                decoration: InputDecoration(
+                                  isDense: true,
+                                  filled: true,
+                                  border: UnderlineInputBorder(
+                                    borderRadius: BorderRadius.circular(32.0),
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
           ],
         ),
@@ -236,6 +259,12 @@ class TahfidzPresenceListScreen extends HookConsumerWidget {
     String date,
     String time,
   ) async {
+    if (date.isEmpty || time.isEmpty) {
+      context.showErrorMessage(
+        'Tanggal atau waktu halaqah belum dipilih. Silakan kembali ke halaman Pilih Jadwal.',
+      );
+      return;
+    }
     final dialogResult = await showOkCancelAlertDialog(
         context: context,
         title: 'Info',
@@ -248,9 +277,15 @@ class TahfidzPresenceListScreen extends HookConsumerWidget {
         .read(tahfidzPresenceControllerProvider.notifier)
         .teacherPresence(key: key, date: date, time: time);
 
-    if (result == null || !context.mounted) {
+    if (!context.mounted) return;
+    if (result == null) {
+      // Error sudah ditampilkan oleh listener `ref.listen(...showToastOnError)`
+      // di controller `tahfidzPresenceControllerProvider`.
       return;
     }
+    context.showSuccessMessage(result.msg.isNotEmpty
+        ? result.msg
+        : 'Mulai Tahfidz berhasil dicatat.');
     ref.invalidate(
       fetchScheduleTahfidzProvider(key: key, date: date, time: time),
     );
@@ -263,19 +298,44 @@ class TahfidzPresenceListScreen extends HookConsumerWidget {
     Siswa? student,
     String status,
   ) async {
+    if (student == null || '${student.nis}'.isEmpty) {
+      context.showErrorMessage('Data siswa tidak valid.');
+      return;
+    }
     final result = await ref
         .read(tahfidzPresenceControllerProvider.notifier)
         .addStudentPresence(
           key: key,
-          studentId: '${student?.nis}',
-          classId: '${student?.idKelas}',
-          date: '${student?.date}',
-          time: '${student?.type}',
+          studentId: '${student.nis}',
+          classId: '${student.idKelas}',
+          date: '${student.date}',
+          time: '${student.type}',
           status: status,
         );
-    if (result == null || !context.mounted) {
+    if (!context.mounted) return;
+    if (result == null) {
+      // Error sudah ditampilkan oleh listener `ref.listen(...showToastOnError)`
       return;
     }
+    context.showSuccessMessage(
+      result.msg.isNotEmpty ? result.msg : 'Absensi ${student.namaLengkap} tersimpan.',
+    );
+    ref.invalidate(
+      fetchScheduleTahfidzProvider(key: key, date: '$date', time: '$time'),
+    );
+  }
+
+  void _focusAddStudent(BuildContext context, WidgetRef ref) {
+    // Gulir ke bawah supaya field "Tambah Murid" terlihat & bisa langsung diketuk.
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Belum ada murid. Ketuk field "Tambah Murid" di bawah untuk menambahkan.',
+        ),
+        duration: Duration(seconds: 4),
+      ),
+    );
   }
 
   Widget _buildAddStudentToClass(
@@ -335,8 +395,16 @@ class TahfidzPresenceListScreen extends HookConsumerWidget {
                 studentId: '${student.nis}',
                 classId: '${student.idKelas}',
               );
-          if (result == null || !context.mounted) return;
-          context.showSuccessMessage(result.msg);
+          if (!context.mounted) return;
+          if (result == null) {
+            // Error sudah ditampilkan oleh listener `ref.listen(...showToastOnError)`
+            return;
+          }
+          context.showSuccessMessage(
+            result.msg.isNotEmpty
+                ? result.msg
+                : '${student.namaLengkap} berhasil ditambahkan ke halaqah.',
+          );
           ref.invalidate(
             fetchScheduleTahfidzProvider(
               key: key,
@@ -370,15 +438,61 @@ class TahfidzPresenceListScreen extends HookConsumerWidget {
           studentId: '${student?.nis}',
           classId: '${student?.idKelas}',
         );
-    if (result == null || !context.mounted) {
+    if (!context.mounted) return;
+    if (result == null) {
+      // Error sudah ditampilkan oleh listener `ref.listen(...showToastOnError)`
       return;
     }
-    context.showSuccessMessage(result.msg);
+    context.showSuccessMessage(
+      result.msg.isNotEmpty
+          ? result.msg
+          : '${student?.namaLengkap ?? "Santri"} dihapus dari halaqah.',
+    );
     ref.invalidate(
       fetchScheduleTahfidzProvider(
         key: key,
         date: '$date',
         time: '$time',
+      ),
+    );
+  }
+}
+
+class _EmptyHalaqahHint extends StatelessWidget {
+  final VoidCallback onAdd;
+  const _EmptyHalaqahHint({required this.onAdd});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      child: Column(
+        children: [
+          Icon(
+            Icons.group_add_outlined,
+            size: 56,
+            color: Theme.of(context).colorScheme.outline,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Belum ada murid di halaqah ini',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Tambahkan murid melalui kolom "Tambah Murid" di bawah halaman ini, '
+            'lalu klik Mulai Tahfidz untuk memulai sesi.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 12),
+          TextButton.icon(
+            onPressed: onAdd,
+            icon: const Icon(Icons.add),
+            label: const Text('Tambah Murid'),
+          ),
+        ],
       ),
     );
   }

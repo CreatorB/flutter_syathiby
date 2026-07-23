@@ -50,6 +50,20 @@ class StudentPermitController extends _$StudentPermitController {
     state = result;
     return result.valueOrNull;
   }
+
+  Future<Message?> deletePermit({
+    required String key,
+    required String permitId,
+  }) async {
+    state = const AsyncLoading();
+    final result = await AsyncValue.guard(
+      () => ref
+          .watch(permitServiceProvider)
+          .deleteSantri(key, permitId),
+    );
+    state = result;
+    return result.valueOrNull;
+  }
 }
 
 @riverpod

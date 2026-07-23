@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:syathiby/models/hostel/hostel.dart';
 import 'package:syathiby/models/message.dart';
 import 'package:syathiby/models/service_injection.dart';
@@ -12,6 +13,12 @@ import 'package:syathiby/utils/rest_exception.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'account_controller.g.dart';
+
+void _log(String message) {
+  if (kDebugMode) {
+    print('[AccountController] $message');
+  }
+}
 
 @riverpod
 class AccountController extends _$AccountController {
@@ -95,18 +102,24 @@ class AccountController extends _$AccountController {
       result = await AsyncValue.guard(
         () async {
           try {
-            return await ref.watch(userServiceProvider).presenceNormal(
+            _log('Calling presenceNormal API...');
+            final response = await ref.watch(userServiceProvider).presenceNormal(
                   key,
                   latitude,
                   longitude,
                   mock,
                   locationPresenceName,
                 );
+            _log('presenceNormal response: $response');
+            return response;
           } on DioException catch (e) {
+            _log('DioException in presenceNormal: ${e.error}');
             if (e.error is RestException) {
               final re = e.error as RestException;
+              _log('RestException: code=${re.errorCode}, message=${re.message}');
               return Absent(errCode: re.errorCode, msg: re.message);
             }
+            _log('Re-throwing DioException');
             rethrow;
           }
         },
@@ -134,20 +147,8 @@ class AccountController extends _$AccountController {
             ),
       );
     }
-    
-    // Debug logging
-    print('[ATTENDANCE DEBUG] Lat: $latitude, Long: $longitude, Mock: $mock');
-    if (result.hasError) {
-      print('[ATTENDANCE ERROR] ${result.error}');
-      print('[ATTENDANCE ERROR STACK] ${result.stackTrace}');
-    } else {
-      final absent = result.valueOrNull;
-      print('[ATTENDANCE RESPONSE] Status: ${absent?.status}');
-      print('[ATTENDANCE RESPONSE] ErrCode: ${absent?.errCode ?? "MISSING"}');
-      print('[ATTENDANCE RESPONSE] Msg: ${absent?.msg ?? "MISSING"}');
-      print('[ATTENDANCE RESPONSE] Full Object: $absent');
-    }
-    
+
+    _log('Final result for presence: hasError=${result.hasError}, valueOrNull=${result.valueOrNull}');
     state = result;
     return result.valueOrNull;
   }
@@ -187,8 +188,19 @@ Future<User> fetchProfile(
   FetchProfileRef ref, {
   required String key,
 }) async {
-  final result = await ref.watch(userServiceProvider).getProfile(key);
-  return result.first;
+  try {
+    _log('fetchProfile API call with key: $key');
+    final result = await ref.watch(userServiceProvider).getProfile(key);
+    _log('fetchProfile result count: ${result.length}');
+    if (result.isEmpty) {
+      _log('fetchProfile returned empty list');
+      throw Exception('Data profil tidak ditemukan');
+    }
+    return result.first;
+  } catch (e) {
+    _log('fetchProfile error: $e');
+    rethrow;
+  }
 }
 
 @riverpod

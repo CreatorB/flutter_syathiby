@@ -13,6 +13,7 @@ import 'package:syathiby/res/colors.dart';
 import 'package:syathiby/res/environment_config.dart';
 import 'package:syathiby/res/strings.dart';
 import 'package:syathiby/routing/app_router.dart';
+// WebSplashUtility import removed
 
 class MyApp extends HookConsumerWidget {
   final AdaptiveThemeMode? adaptiveThemeMode;

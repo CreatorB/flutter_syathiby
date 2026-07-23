@@ -41,10 +41,34 @@ class AddEatingAttendanceScreen extends HookConsumerWidget {
     final fetchStudentEating = ref.watch(
       fetchAllStudentEatingProvider(key: key, date: '$date', time: '$time'),
     );
-    final studentEating = fetchStudentEating.valueOrNull?.firstOrNull;
+    final students = fetchStudentEating.valueOrNull ?? [];
+final uniqueKelas = students.map((s) => s.kelas).whereType<String>().toSet().toList()..sort();
+final selectedKelas = useState<String?>(null);
+
+final classStats = <String, Map<String, int>>{};
+for (final kelas in uniqueKelas) {
+  final kelasStudents = students.where((s) => s.kelas == kelas).toList();
+  final total = kelasStudents.length;
+  final present = kelasStudents.where((s) => s.statusAbsen != 'Belum Absen').length;
+  final belum = total - present;
+  classStats[kelas] = {'total': total, 'present': present, 'belum': belum};
+}
+
+final sortedStudents = List.of(students)
+  ..sort((a, b) {
+    final aAbsent = a.statusAbsen == 'Belum Absen' ? 0 : 1;
+    final bAbsent = b.statusAbsen == 'Belum Absen' ? 0 : 1;
+    return aAbsent.compareTo(bAbsent);
+  });
+
+final filteredStudents = selectedKelas.value == null
+    ? sortedStudents
+    : sortedStudents.where((s) => s.kelas == selectedKelas.value).toList();
+
     final itemCount = fetchStudentEating.isLoading
         ? 10
-        : fetchStudentEating.valueOrNull?.length ?? 0;
+        : filteredStudents.length;
+    final studentEating = fetchStudentEating.valueOrNull?.firstOrNull;
     final formatDate = ref.watch(
       formatDateProvider('${studentEating?.date}',
           format: 'EEEE, dd MMMM yyyy'),
@@ -167,41 +191,93 @@ class AddEatingAttendanceScreen extends HookConsumerWidget {
                 ),
               ),
             ),
+            if (uniqueKelas.isNotEmpty)
+              SizedBox(
+                height: 50,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: FilterChip(
+                        label: const Text('Semua'),
+                        selected: selectedKelas.value == null,
+                        onSelected: (selected) {
+                          if (selected) selectedKelas.value = null;
+                        },
+                      ),
+                    ),
+                    ...uniqueKelas.map((kelas) {
+                      final stats = classStats[kelas]!;
+                      final hasAbsent = stats['belum']! > 0;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: FilterChip(
+                          label: Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(text: '$kelas '),
+                                TextSpan(
+                                  text: '(${stats['present']}/${stats['total']})',
+                                  style: TextStyle(
+                                    color: hasAbsent ? Colors.red : Colors.green,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          selected: selectedKelas.value == kelas,
+                          onSelected: (selected) {
+                            selectedKelas.value = selected ? kelas : null;
+                          },
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
             Skeletonizer(
               enabled: fetchStudentEating.isLoading,
               child: ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                itemCount: itemCount, // Replace with your item count
+                itemCount: itemCount,
                 itemBuilder: (context, index) {
-                  final student =
-                      fetchStudentEating.valueOrNull?.elementAtOrNull(index);
+                  final student = filteredStudents.elementAtOrNull(index);
+                  final isAbsent = student?.statusAbsen == 'Belum Absen';
 
-                  return ListTile(
-                    leading: CustomAvatar(
-                      name: '${student?.namaLengkap}',
-                      imageUrl: '${student?.img}',
-                      size: 40,
+                  return Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isAbsent ? Colors.red.shade50 : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                      border: isAbsent ? Border.all(color: Colors.red, width: 2) : null,
                     ),
-                    title: Text(
-                      '${index + 1}. ${student?.namaLengkap}',
-                      style: context.bodyMediumBold,
-                    ),
-                    subtitle: Text('Kelas: ${student?.kelas}'),
-                    trailing: Transform.translate(
-                      offset: const Offset(12, 0),
-                      child: IntrinsicWidth(
-                        child: TextFormField(
-                          initialValue: student?.statusAbsen != "Belum Absen"
-                              ? student?.statusAbsen
-                              : null,
-                          readOnly: true,
-                          decoration: InputDecoration(
-                            isDense: true,
-                            filled: true,
-                            border: UnderlineInputBorder(
-                              borderRadius: BorderRadius.circular(32.0),
-                            ),
+                    child: ListTile(
+                      leading: CustomAvatar(
+                        name: '${student?.namaLengkap}',
+                        imageUrl: '${student?.img}',
+                        size: 40,
+                      ),
+                      title: Text(
+                        '${index + 1}. ${student?.namaLengkap}',
+                        style: context.bodyMediumBold,
+                      ),
+                      subtitle: Text('Kelas: ${student?.kelas}'),
+                      trailing: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isAbsent ? Colors.red : Colors.green,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Text(
+                          student?.statusAbsen ?? '',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),

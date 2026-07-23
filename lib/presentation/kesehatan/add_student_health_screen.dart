@@ -2,23 +2,17 @@ import 'dart:io';
 
 import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_advanced_avatar/flutter_advanced_avatar.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:syathiby/di/providers.dart';
 import 'package:syathiby/l10n/string_hardcoded.dart';
 import 'package:syathiby/models/student/siswa.dart';
-import 'package:syathiby/presentation/kesehatan/paging_student_health_controller.dart';
 import 'package:syathiby/presentation/kesehatan/student_health_controller.dart';
 import 'package:syathiby/presentation/pelanggaran/violation_controller.dart';
-import 'package:syathiby/utils/extension/color.dart';
 import 'package:syathiby/utils/extension/ui.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -38,8 +32,8 @@ class AddStudentHealthScreen extends HookConsumerWidget {
     final fetchHealthType = ref.watch(
       fetchHealthTypeProvider(key: key),
     );
-    final imageSelected = useState<File?>((null));
-    final studentSelected = useState<Siswa?>((null));
+    final imageSelected = useState<File?>(null);
+    final studentSelected = useState<Siswa?>(null);
     final healthTypeSelected = useState<Diagnosa?>((null));
     final complaint = useTextEditingController();
     final date = useTextEditingController();
@@ -76,7 +70,6 @@ class AddStudentHealthScreen extends HookConsumerWidget {
       if (result == null || !context.mounted) return;
       context.pop();
       context.showSuccessMessage(result.msg);
-      ref.invalidate(pagingStudentHealthControllerProvider(key: key));
     }
 
     return Scaffold(
@@ -101,40 +94,7 @@ class AddStudentHealthScreen extends HookConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      InkWell(
-                        onTap: () async {
-                          final file = await _openImagePicker(context);
-                          imageSelected.value = file;
-                        },
-                        child: AdvancedAvatar(
-                          size: 120,
-                          decoration: BoxDecoration(
-                            color: context.colorSurface,
-                            shape: BoxShape.rectangle,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: context.colorOutline,
-                            ),
-                          ),
-                          image: imageSelected.value != null
-                              ? FileImage(
-                                  imageSelected.value!,
-                                ) as ImageProvider
-                              : null,
-                          child: const Icon(
-                            Icons.camera_alt,
-                            size: 50,
-                          ),
-                        ),
-                      ),
                       const SizedBox(height: 8.0),
-                      const Center(
-                        child: Text(
-                          'Foto Pendukung (Opsional)',
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      const SizedBox(height: 24.0),
                       DropdownSearch<Siswa>(
                         selectedItem: studentSelected.value,
                         asyncItems: (String filter) {
@@ -360,21 +320,5 @@ class AddStudentHealthScreen extends HookConsumerWidget {
         ),
       ),
     );
-  }
-
-  Future<File?> _openImagePicker(
-    BuildContext context,
-  ) async {
-    final ImagePicker picker = ImagePicker();
-    XFile? image = await picker.pickImage(source: ImageSource.camera);
-    if (image == null) return null;
-    final imageCompressed = await FlutterImageCompress.compressWithList(
-      await image.readAsBytes(),
-      quality: 10,
-    );
-    final tempDir = await getTemporaryDirectory();
-    File file = await File('${tempDir.path}/${DateTime.timestamp()}').create();
-    file.writeAsBytesSync(imageCompressed);
-    return file;
   }
 }
