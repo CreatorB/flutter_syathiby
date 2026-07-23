@@ -5,6 +5,39 @@ import 'package:syathiby/models/response_entity.dart';
 import 'package:syathiby/utils/rest_exception.dart';
 
 class ResponseInterceptor extends Interceptor {
+  /// Path endpoints yang mengembalikan `Future<Message>` (single-object, bukan list).
+  /// Untuk endpoint ini, `errCode='02'` tanpa field `data` harus dilempar sebagai
+  /// `RestException` supaya pesan backend asli tampil di UI via `showToastOnError`,
+  /// alih-alih dipaksa jadi `[]` yang bikin retrofit gagal parse.
+  static const _messageEndpoints = <String>[
+    'absenpengampu',
+    'absenpengamputahfidz',
+    'absentahfidz',
+    'getsantritahfidz',
+    'siswa/absen',
+    'siswa/absenguru',
+    'siswa/absenpengampu',
+    'deletehalaqah',
+    'siswa/insertmakan',
+    'siswa/insertkegiatan',
+    'siswa/inserttransaksi',
+    'siswa/insertkegiatansearch',
+    'siswa/insertmakansearch',
+    // Permit (staff + student izin) write endpoints
+    'permit/insert',
+    'permit/insertsantri',
+    'permit/confirm',
+    'permit/confirmsantri',
+    'permit/deletesantri',
+    'permit/waliinsertsantri',
+    'permit/walidecancelsantri',
+  ];
+
+  bool _isMessageEndpoint(String path) {
+    final lower = path.toLowerCase();
+    return _messageEndpoints.any(lower.contains);
+  }
+
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
     // SPECIAL CASE: search_mukholif.php and detail_mukholif.php return MukholifSearchResponse/MukholifDetailResponse structures
@@ -31,22 +64,23 @@ class ResponseInterceptor extends Interceptor {
     // 2. Logic Utama
     if (body is Map<String, dynamic>) {
       ResponseEntity responseData;
-      
+
       try {
         responseData = ResponseEntity.fromJson(body);
       } catch (e) {
         if (kDebugMode) {
-          print('[ResponseInterceptor] Failed to parse ResponseEntity: $e');
-          print('[ResponseInterceptor] Body keys: ${body.keys.toList()}');
+          print('[ResponseInterceptor] [$path] Failed to parse ResponseEntity: $e');
+          print('[ResponseInterceptor] [$path] Body keys: ${body.keys.toList()}');
+          print('[ResponseInterceptor] [$path] Body: ${body.toString().substring(0, body.toString().length > 500 ? 500 : body.toString().length)}');
         }
         // If parsing fails, check if it's an error response that needs special handling
         final errCode = body['errCode'] ?? body['error_code'] ?? body['kode'];
         final msg = body['msg'] ?? body['message'] ?? body['error'] ?? 'Unknown error';
-        
+
         if (errCode != null) {
           throw RestException(msg.toString(), errCode.toString());
         }
-        
+
         // Let it through - maybe the endpoint returns data directly
         handler.next(response);
         return;
@@ -65,13 +99,21 @@ class ResponseInterceptor extends Interceptor {
           break;
 
         case RestException.RESPONSE_ERROR: // '02'
-          // Jika ada field `data` berupa list → endpoint list → kembalikan []
+          // Untuk endpoint Message (write/single-object), `errCode='02'` tanpa `data`
+          // adalah error valid yang pesannya harus sampai ke user. Lempar exception
+          // supaya `showToastOnError` menampilkan `msg` asli dari backend.
           if (responseData.data is List) {
             response.data = responseData.data;
             handler.next(response);
           } else if (responseData.data == null) {
+            if (_isMessageEndpoint(path)) {
+              if (kDebugMode) {
+                print('[ResponseInterceptor] [$path] errCode=02 + data=null → throw RestException(${responseData.msg})');
+              }
+              throw RestException(responseData.msg, responseData.errCode);
+            }
             // List endpoint convention: errCode='02' "no data" tanpa field `data`
-            // Kembalikan list kosong agar PagedListView tidak crash
+            // Kembalikan list kosong agar PagedListView / DropdownSearch tidak crash
             response.data = <dynamic>[];
             handler.next(response);
           } else if (responseData.data is Map<String, dynamic>) {
