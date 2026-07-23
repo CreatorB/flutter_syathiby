@@ -29,7 +29,7 @@ class TabShiftScreen extends HookConsumerWidget {
 
     Future<void> fetchData(int pageKey) async {
       try {
-        final result = await ref.watch(
+        final result = await ref.read(
           fetchAllChangeShiftProvider(
             key: key,
             page: pageKey,
@@ -37,7 +37,11 @@ class TabShiftScreen extends HookConsumerWidget {
           ).future,
         );
         final nextPageKey = pageKey + 1;
-        pagingController.appendPage(result, nextPageKey);
+        if (result.isEmpty) {
+          pagingController.appendLastPage(result);
+        } else {
+          pagingController.appendPage(result, nextPageKey);
+        }
       } catch (error) {
         pagingController.error = error;
       }

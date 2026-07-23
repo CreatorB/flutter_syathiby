@@ -33,6 +33,7 @@ import 'package:syathiby/models/staff/staff_service.dart';
 import 'package:syathiby/models/store/store_service.dart';
 import 'package:syathiby/models/student/student_service.dart';
 import 'package:syathiby/models/tahfidz/tahfidz_service.dart';
+import 'package:syathiby/models/tap/tap_service.dart';
 import 'package:syathiby/models/transaction/transaction_service.dart';
 import 'package:syathiby/models/unit/unit_service.dart';
 import 'package:syathiby/models/user/user_service.dart';
@@ -84,8 +85,8 @@ WpApiService wpApiService(WpApiServiceRef ref) {
     }
   } else {
     // Native mobile app - use direct WordPress API
-    baseUrl = 'https://syathiby.id/wp-json/wp/v2';
-    print('📱 Native platform detected - using production endpoint');
+    baseUrl = 'https://aplikasi.syathiby.id/geten/wordpress_proxy.php';
+    print('📱 Native platform detected - using proxy endpoint');
   }
   
   return WpApiService(
@@ -106,7 +107,12 @@ StoreRestInterface storeService(StoreServiceRef ref) {
 
 @Riverpod(keepAlive: true)
 PermitRestInterface permitService(PermitServiceRef ref) {
-  return PermitRestInterface(ref.watch(dioProvider));
+  return PermitRestInterface(ref.watch(dioProvider), baseUrl: 'permit/');
+}
+
+@Riverpod(keepAlive: true)
+TapRestInterface tapService(TapServiceRef ref) {
+  return TapRestInterface(ref.watch(dioProvider), baseUrl: 'tap/');
 }
 
 @Riverpod(keepAlive: true)

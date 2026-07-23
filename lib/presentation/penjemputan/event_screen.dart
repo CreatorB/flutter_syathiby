@@ -33,11 +33,15 @@ class EventScreen extends HookConsumerWidget {
 
     Future<void> fetchData(int pageKey) async {
       try {
-        final result = await ref.watch(
+        final result = await ref.read(
           fetchAllEventProvider(key: key, page: pageKey).future,
         );
         final nextPageKey = pageKey + 1;
-        pagingController.appendPage(result, nextPageKey);
+        if (result.isEmpty) {
+          pagingController.appendLastPage(result);
+        } else {
+          pagingController.appendPage(result, nextPageKey);
+        }
       } catch (error) {
         pagingController.error = error;
       }

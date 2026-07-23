@@ -269,7 +269,10 @@ class DetailSpendingScreen extends HookConsumerWidget {
     context.showSuccessMessage(
       result.msg,
     );
-    ref.invalidate(fetchDetailSpendingProvider);
     context.pop();
+    ref.invalidate(fetchDetailSpendingProvider(
+      key: key,
+      invoiceId: '$invoiceId',
+    ));
   }
 }

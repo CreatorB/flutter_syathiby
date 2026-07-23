@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:syathiby/models/message.dart';
 import 'package:syathiby/models/violation/violation.dart';
+import 'package:syathiby/models/violation/mukholif_santri.dart';
 import 'package:retrofit/retrofit.dart';
 
 part 'violation_service.g.dart';
@@ -81,5 +82,23 @@ abstract class PelanggaranRestInterface {
     @Part(name: 'nama_siswa') String namaSiswa,
     @Part(name: 'detail') String detail, {
     @Part(name: 'img') File? img,
+  });
+
+  @GET('search_mukholif.php')
+  Future<MukholifSearchResponse> searchMukholifSantri(
+    @Query('key') String key,
+    @Query('nama') String nama, {
+    @Query('kelas') int? kelas,
+    @Query('kamar') int? kamar,
+  });
+
+  @GET('detail_mukholif.php')
+  Future<MukholifDetailResponse> getMukholifDetail(
+    @Query('key') String key,
+    @Query('santri_id') int santrialId,
+    @Query('start_date') String startDate,
+    @Query('end_date') String endDate, {
+    @Query('bagian') String? bagian,
+    @Query('kategori') String? kategori,
   });
 }

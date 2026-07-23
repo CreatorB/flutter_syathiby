@@ -43,21 +43,41 @@ Enhanced and customized version of Syathiby Vendor App — [https://github.com/c
 ## 🚀 Quick Start
 
 ```bash
-# 1. Clone repository
-git clone https://github.com/creatorb/flutter_syathiby.git
-cd flutter_syathiby
-
-# 2. Install dependencies
+# 1. Install dependencies
 fvm flutter pub get
 
-# 3. Generate code
+# 2. Generate code
 fvm flutter pub run build_runner build --delete-conflicting-outputs
 
-# 4. Run app (PROD flavor — automatically uses production URL)
-fvm flutter run --flavor prod --dart-define=FLAVOR=prod
+# 3. Check device id
+fvm flutter devices
 
-# 5. Run app (LOCAL flavor — automatically uses local URL)
-fvm flutter run --flavor local --dart-define=FLAVOR=local
+# 4. Run app (LOCAL flavor)
+fvm flutter run --flavor local -d emulator-5554 --dart-define=FLAVOR=local
+
+# 5. Run app (PROD flavor)
+fvm flutter run --flavor prod -d <device-id> --dart-define=FLAVOR=prod
+```
+
+> `--flavor` memilih varian Android. `--dart-define=FLAVOR=...` memilih konfigurasi Dart/API.
+
+### Command Harian
+
+```bash
+# Debug local
+fvm flutter run --flavor local -d emulator-5554 --dart-define=FLAVOR=local
+
+# Debug prod
+fvm flutter run --flavor prod -d <device-id> --dart-define=FLAVOR=prod
+
+# Build APK debug local
+fvm flutter build apk --debug --flavor local --dart-define=FLAVOR=local
+
+# Build APK release local
+fvm flutter build apk --release --flavor local --dart-define=FLAVOR=local
+
+# Build APK release prod
+fvm flutter build apk --release --flavor prod --dart-define=FLAVOR=prod
 ```
 
 ---
@@ -130,13 +150,13 @@ The app uses **automatic flavor-based URL configuration**. The backend URL is se
 
 **Production:**
 ```bash
-fvm flutter run --flavor prod --dart-define=FLAVOR=prod
+fvm flutter run --flavor prod -d <device-id> --dart-define=FLAVOR=prod
 ```
 ✅ Automatically uses: `https://aplikasi.syathiby.id`
 
 **Local Development:**
 ```bash
-fvm flutter run --flavor local --dart-define=FLAVOR=local
+fvm flutter run --flavor local -d <device-id> --dart-define=FLAVOR=local
 ```
 ✅ Automatically uses: `http://192.168.50.100/aplikasi`
 
@@ -552,22 +572,47 @@ fvm flutter pub run build_runner build --delete-conflicting-outputs
 fvm flutter build web --release --base-href /web/ --tree-shake-icons
 ```
 
-> **⚠️ IMPORTANT:** Flag `--base-href /web/` is **REQUIRED** because Flutter web is deployed as a subfolder `/web/` at `aplikasi.syathiby.id`.
+> **⚠️ IMPORTANT:** Flag `--base-href` is **REQUIRED** because Flutter web is deployed as a subfolder.
 
 **OR use automated deployment script (recommended):**
 
-```powershell
-# Full build + auto-copy to ../aplikasi/web/ + rename htaccess -> .htaccess
-.\deploy-web.ps1
+```bash
+# PROD (default): base-href /web/ — untuk aplikasi.test & server production
+bash ./deploy_web.sh
 
-# Skip clean step (faster for minor changes)
-.\deploy-web.ps1 -SkipClean
+# DEV: base-href /aplikasi/web/ — untuk akses via IP (HP/device lain)
+bash ./deploy_web.sh --dev
+
+# Build + sync + auto commit & push
+bash ./deploy_web.sh --commit ":rocket: update flutter web"
+
+# Sync saja tanpa build ulang
+bash ./deploy_web.sh --skip-build
 ```
 
-The script will:
+```powershell
+# PowerShell (full pipeline: clean, pub get, build_runner, build, verify, copy):
+.\deploy-web.ps1                # PROD mode
+.\deploy-web.ps1 -Dev           # DEV mode (akses via IP)
+.\deploy-web.ps1 -SkipClean     # Skip clean step (faster)
+.\deploy-web.ps1 -Dev -SkipClean
+```
+
+| Mode | Base-href | Akses |
+|------|-----------|-------|
+| **PROD** | `/web/` | `aplikasi.test/web/` dan `aplikasi.syathiby.id/web/` |
+| **DEV** | `/aplikasi/web/` | `192.168.50.100/aplikasi/web/` (HP/device lain via IP) |
+
+**`deploy_web.sh`** (bash) will:
+1. Auto-detect FVM path (Git Bash compatible)
+2. Build web with base-href sesuai mode (PROD/DEV)
+3. Sync `build/web/` → `../aplikasi/web/` (hapus file lama, copy baru)
+4. (Optional) Git commit & push ke repo `aplikasi`
+
+**`deploy-web.ps1`** (PowerShell) will:
 1. Clean, get dependencies, generate code
-2. Build web with `--base-href /web/`
-3. Verify critical files (`htaccess`, `flutter_bootstrap.js`, `main.dart.js`, `version.json`)
+2. Build web with base-href sesuai mode (PROD/DEV)
+3. Verify critical files (`flutter_bootstrap.js`, `main.dart.js`, `version.json`)
 4. **Prompt to auto-copy** build output to `../aplikasi/web/` (with auto-rename `htaccess` → `.htaccess`)
 
 Output: `build/web/`
@@ -615,12 +660,18 @@ This rewrites `localhost/web/*` → `localhost/aplikasi/web/*` so Flutter can fi
 **Local testing workflow:**
 
 ```
-1. .\deploy-web.ps1           → build + auto-copy to aplikasi/web/
-2. Open http://aplikasi.test/web/  → test (should match native app)
-3. Confirmed OK → upload aplikasi/web/ to server
+# Via Laragon virtual host (PROD mode):
+1. .\deploy-web.ps1           → build PROD + auto-copy to aplikasi/web/
+2. Open http://aplikasi.test/web/  → test
+3. Confirmed OK → git push aplikasi/web/ ke server
+
+# Via IP dari HP/device lain (DEV mode):
+1. .\deploy-web.ps1 -Dev      → build DEV + auto-copy
+2. Open http://192.168.50.100/aplikasi/web/  → test dari HP
+3. Setelah OK, rebuild PROD untuk deploy: .\deploy-web.ps1
 ```
 
-> **Note**: Web version includes **Guest Mode** with News, Prayer Schedule, and Quran features accessible without login. The app automatically starts in guest mode at `/guest-news` when no session exists.
+> **Note**: Web version includes **Guest Mode** with full access to all **Ibadah** features (Al-Quran, Hadith, Prayer Schedule, Dhikr, etc.) accessible without login. The app automatically starts in guest mode at `/guest-news` when no session exists.
 
 **Web Architecture (Same-Origin, No CORS):**
 
@@ -1222,9 +1273,19 @@ dart run flutter_launcher_icons
 
 ### Change Splash Screen
 
+Splash screen dikonfigurasi di `pubspec.yaml` pada bagian `flutter_native_splash:`.
+
+**Konfigurasi saat ini:**
+- Background: hitam (`#000000`) untuk light & dark mode
+- Gambar: `assets/images/syathiby_splash_1152.png` (logo hijau di atas background putih rounded corners)
+- Web splash: aktif (`web: true`)
+
 ```bash
-dart run flutter_native_splash:create
+# Regenerate splash setelah mengubah konfigurasi atau gambar
+fvm dart run flutter_native_splash:create
 ```
+
+> **Catatan:** Setelah regenerate splash, jangan lupa rebuild web jika ingin perubahan terlihat di Flutter web.
 
 ---
 
@@ -1270,7 +1331,8 @@ flutter_syathiby/
 ├── ATTENDANCE_WIFI_TEST_CHECKLIST.md  # Wi-Fi attendance test guide
 ├── WEB_DEPLOYMENT_GUIDE.md         # Web deployment checklist & troubleshooting
 ├── install-both-apks.ps1           # Dual APK installer script
-├── deploy-web.ps1                  # Web build + auto-copy + verification script
+├── deploy_web.sh                   # Web deploy: bash (dev/prod mode, auto-detect FVM)
+├── deploy-web.ps1                  # Web deploy: PowerShell (dev/prod, full pipeline)
 ├── pubspec.yaml                    # Flutter dependencies
 └── README.md                       # This file
 ```
