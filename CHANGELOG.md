@@ -5,6 +5,27 @@ Semua perubahan penting pada Aplikasi Syathiby akan didokumentasikan dalam file 
 Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.9] - 2026-08-19
+
+### Diperbaiki
+- **Presensi Tahfidz - Layar Halaqah Menampilkan Daftar Pegawai Alih-alih Siswa**
+  - **Gejala**: Memilih "Absensi Tahfidz" lalu membuka halaqah pertama kali menampilkan daftar siswa dengan benar, namun setelah navigasi kembali dan membuka halaqah lain, daftar yang muncul adalah daftar pegawai/staff pengampu (bukan daftar siswa/murid)
+  - **Gejala Turunan**: Dropdown status absen (`Hadir`/`Sakit`/`Izin`/`Alfa`) di layar presensi tahfidz guru dan layar presensi tahfidz siswa bisa meledak (assertion error) bila backend mengembalikan nilai `statusAbsen` yang tidak termasuk dalam item dropdown (misalnya string kosong, `null`, atau nilai tak terduga lain)
+  - **Penyebab 1 — Default Routing Terlalu Ketat**: Logika `tahfidz_presence_screen.dart:134` lama `final isPresenceStudent = type == 'student';` akan mengarahkan ke **Teacher screen** untuk semua nilai `type` yang BUKAN persis `'student'`, termasuk `null`. Jika parameter `type` dari query hilang atau tidak valid, navigasi langsung jatuh ke layar guru
+  - **Penyebab 2 — Validasi Nilai Dropdown Kurang Ketat**: Cek `teacher?.statusAbsen != "Belum Absen"` hanya menyaring string literal `"Belum Absen"`, tetapi tidak menangani `null`, string kosong, atau nilai aneh lain yang lolos ke `DropdownButtonFormField.value`. Saat value tidak ada di `items`, Flutter memunculkan `assert` di debug mode (layar error) atau perilaku tak terduga di release
+  - **Solusi**:
+    - `tahfidz_presence_screen.dart:134` diubah dari `type == 'student'` menjadi `type != 'teacher'`. Hanya route ke Teacher screen jika type **eksplisit** `'teacher'`. Default aman adalah Student screen ketika `type` null/tidak valid
+    - Kedua layar presensi tahfidz (guru dan siswa) menggunakan whitelist `const ['hadir', 'sakit', 'izin', 'alfa'].contains(teacher?.statusAbsen)` untuk memvalidasi nilai dropdown, sehingga value hanya di-set jika ada di daftar item — fallback ke `null` (placeholder) untuk nilai lain
+  - **File yang Dimodifikasi**:
+    - `lib/presentation/presensi_tahfidz/tahfidz_presence_screen.dart` (routing default)
+    - `lib/presentation/presensi_tahfidz/tahfidz_teacher_presence_screen.dart` (dropdown guard)
+    - `lib/presentation/presensi_tahfidz/tahfidz_presence_list_screen.dart` (dropdown guard)
+
+### Catatan Deployment
+- v1.0.9 hanya bump versi untuk aplikasi staff (`syathiby`). Aplikasi walsan tetap di `1.0.0+1` sesuai kebijakan owner
+- Perubahan minor (bug fix) — tidak ada perubahan schema database, tidak ada breaking change pada API backend
+- Disarankan deploy web sebelum backend (BE) untuk meminimalisir window backend lama men-serve UI yang minta field baru
+
 ## [1.0.8] - 2026-07-23 (rebuild tanpa version bump)
 
 > Catatan: rebuild untuk Play Store dengan `versionName` tetap `1.0.8` dan `versionCode` tetap `+8`. Perubahan di bawah ini ditulis ulang ke CHANGELOG untuk dokumentasi what-changed dalam build ini, bukan rilis SemVer baru.

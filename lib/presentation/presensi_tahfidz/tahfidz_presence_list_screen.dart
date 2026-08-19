@@ -172,6 +172,17 @@ class TahfidzPresenceListScreen extends HookConsumerWidget {
 
                         return ListTile(
                           onTap: () async {
+                            if ((student?.statusAbsen == 'sakit' ||
+                                    student?.keteranganSakit != null) &&
+                                student?.idKesehatan != null) {
+                              _showSakitDetail(context, student!);
+                              return;
+                            }
+                            if (student?.izinId != null &&
+                                '${student?.izinId}'.isNotEmpty) {
+                              _showIzinDetail(context, student!);
+                              return;
+                            }
                             showRemoveDialog(context, ref, key, student);
                           },
                           leading: CustomAvatar(
@@ -179,18 +190,44 @@ class TahfidzPresenceListScreen extends HookConsumerWidget {
                             imageUrl: '${student?.img}',
                             size: 40,
                           ),
-                          title: Text(
-                            '${index + 1}. ${student?.namaLengkap}',
-                            style: context.bodyMediumBold,
+                          title: Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  '${index + 1}. ${student?.namaLengkap}',
+                                  style: context.bodyMediumBold,
+                                ),
+                              ),
+                              if ((student?.statusAbsen == 'sakit' ||
+                                      student?.keteranganSakit != null) &&
+                                  student?.idKesehatan != null) ...[
+                                const SizedBox(width: 6),
+                                const Icon(
+                                  Icons.info_outline,
+                                  size: 18,
+                                  color: Colors.redAccent,
+                                ),
+                              ] else if (student?.izinId != null &&
+                                  '${student?.izinId}'.isNotEmpty) ...[
+                                const SizedBox(width: 6),
+                                const Icon(
+                                  Icons.info_outline,
+                                  size: 18,
+                                  color: Colors.blueAccent,
+                                ),
+                              ],
+                            ],
                           ),
                           subtitle: Text('NIS: ${student?.nis}'),
                           trailing: Transform.translate(
                             offset: const Offset(12, 0),
                             child: IntrinsicWidth(
                               child: DropdownButtonFormField<String>(
-                                value: student?.statusAbsen != "Belum Absen"
-                                    ? student?.statusAbsen
-                                    : null,
+                                value:
+                                    const ['hadir', 'sakit', 'izin', 'alfa']
+                                            .contains(student?.statusAbsen)
+                                        ? student?.statusAbsen
+                                        : null,
                                 items: [
                                   DropdownMenuItem(
                                     value: "hadir",
@@ -291,6 +328,133 @@ class TahfidzPresenceListScreen extends HookConsumerWidget {
     );
   }
 
+  // ignore: body_might_complete_normally
+  Future<void> _showSakitDetail(BuildContext context, Siswa student) {
+    final istirahatHari = student.kesehatanIstirahat != null &&
+            '${student.kesehatanIstirahat}'.isNotEmpty
+        ? '${student.kesehatanIstirahat} hari'
+        : '-';
+    return showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.medical_services_outlined,
+                        color: Colors.redAccent),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Info Kesehatan Santri',
+                      style: context.titleLarge,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _SakitInfoRow(
+                  icon: Icons.person,
+                  label: 'Nama Siswa',
+                  value: student.namaLengkap ?? '-',
+                ),
+                _SakitInfoRow(
+                  icon: Icons.warning_amber_rounded,
+                  label: 'Jenis Penyakit',
+                  value: student.kesehatanDiagnosa ?? '-',
+                ),
+                _SakitInfoRow(
+                  icon: Icons.question_answer_outlined,
+                  label: 'Keluhan Siswa',
+                  value: student.kesehatanKeluhan ?? '-',
+                ),
+                _SakitInfoRow(
+                  icon: Icons.calendar_today_outlined,
+                  label: 'Tanggal Pemeriksaan',
+                  value: student.kesehatanTanggal ?? '-',
+                ),
+                _SakitInfoRow(
+                  icon: Icons.access_time,
+                  label: 'Jam Pemeriksaan',
+                  value: student.kesehatanJam ?? '-',
+                ),
+                _SakitInfoRow(
+                  icon: Icons.numbers,
+                  label: 'Jumlah Waktu Istirahat',
+                  value: istirahatHari,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+
+    // ignore: body_might_complete_normally
+  Future<void> _showIzinDetail(BuildContext context, Siswa student) {
+    return showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.info_outline, color: Colors.blueAccent),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Info Izin Santri',
+                      style: context.titleLarge,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _SakitInfoRow(
+                  icon: Icons.person,
+                  label: 'Nama Siswa',
+                  value: student.namaLengkap ?? '-',
+                ),
+                _SakitInfoRow(
+                  icon: Icons.assignment_outlined,
+                  label: 'Jenis Izin',
+                  value: student.izinJenis ?? '-',
+                ),
+                _SakitInfoRow(
+                  icon: Icons.notes_outlined,
+                  label: 'Alasan',
+                  value: student.izinAlasan ?? '-',
+                ),
+                _SakitInfoRow(
+                  icon: Icons.event_outlined,
+                  label: 'Tanggal Awal',
+                  value: student.izinTanggalAwal ?? '-',
+                ),
+                _SakitInfoRow(
+                  icon: Icons.event_available_outlined,
+                  label: 'Tanggal Akhir',
+                  value: student.izinTanggalAkhir ?? '-',
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _addStudentPresence(
     BuildContext context,
     WidgetRef ref,
@@ -300,6 +464,7 @@ class TahfidzPresenceListScreen extends HookConsumerWidget {
   ) async {
     if (student == null || '${student.nis}'.isEmpty) {
       context.showErrorMessage('Data siswa tidak valid.');
+
       return;
     }
     final result = await ref
@@ -491,6 +656,50 @@ class _EmptyHalaqahHint extends StatelessWidget {
             onPressed: onAdd,
             icon: const Icon(Icons.add),
             label: const Text('Tambah Murid'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SakitInfoRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _SakitInfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: Colors.grey.shade700),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: context.bodySmall?.copyWith(
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: context.bodyMediumBold,
+                ),
+              ],
+            ),
           ),
         ],
       ),

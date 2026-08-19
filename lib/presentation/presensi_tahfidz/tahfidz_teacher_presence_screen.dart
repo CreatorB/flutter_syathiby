@@ -150,9 +150,11 @@ class TahfidzTeacherPresenceScreen extends HookConsumerWidget {
                             offset: const Offset(12, 0),
                             child: IntrinsicWidth(
                               child: DropdownButtonFormField<String>(
-                                value: teacher?.statusAbsen != "Belum Absen"
-                                    ? teacher?.statusAbsen
-                                    : null,
+                                value:
+                                    const ['hadir', 'sakit', 'izin', 'alfa']
+                                            .contains(teacher?.statusAbsen)
+                                        ? teacher?.statusAbsen
+                                        : null,
                                 items: [
                                   DropdownMenuItem(
                                     value: "hadir",

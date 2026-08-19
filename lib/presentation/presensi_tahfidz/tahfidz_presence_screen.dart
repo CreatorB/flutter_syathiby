@@ -131,7 +131,7 @@ class TahfidzPresenceScreen extends HookConsumerWidget {
                       if (!formKey.currentState!.validate()) {
                         return;
                       }
-                      final isPresenceStudent = type == 'student';
+                      final isPresenceStudent = type != 'teacher';
                       final routeName = isPresenceStudent
                           ? AppRoute.tahfidzPresenceList.name
                           : AppRoute.tahfidzTeacherPresence.name;
