@@ -67,7 +67,27 @@ class HomeScreen extends HookConsumerWidget {
     );
     final displayTimeAttand = timeAttandFormat ?? '--:--';
     final rawWorkHour = fetchPresence.valueOrNull?.workhour?.trim();
-    final displayTimeOut = timeAttandOutFormat ?? '--:--';
+    final jamMasukDate = fetchPresence.valueOrNull?.timeattandDate;
+    final jamPulangDate = fetchPresence.valueOrNull?.timeattandOutDate;
+    final userToday = '${fetchUserProfile.valueOrNull?.date}';
+    final hariMasukSource = (jamMasukDate != null && jamMasukDate.isNotEmpty)
+        ? jamMasukDate
+        : userToday;
+    final hariPulangSource = (jamPulangDate != null && jamPulangDate.isNotEmpty)
+        ? jamPulangDate
+        : userToday;
+    final hariMasuk = ref.watch(
+      formatDateProvider(hariMasukSource, format: 'EEEE'),
+    );
+    final hariPulang = ref.watch(
+      formatDateProvider(hariPulangSource, format: 'EEEE'),
+    );
+    final jamMasukWithHari = (timeAttandFormat != null && hariMasuk != null)
+        ? '$hariMasuk ${timeAttandFormat}'
+        : '--:--';
+    final jamPulangWithHari = (timeAttandOutFormat != null && hariPulang != null)
+        ? '$hariPulang ${timeAttandOutFormat}'
+        : '--:--';
     final isWorking = displayTimeAttand != '--:--';
     final isClockIn = fetchPresence.valueOrNull?.absen == "1";
     final isHoliday = fetchPresence.valueOrNull?.holiday == "YES";
@@ -115,6 +135,18 @@ class HomeScreen extends HookConsumerWidget {
       });
       return null;
     }, const []);
+
+    // Auto-sync: refresh mengajar + tahfidz schedule when app resumes
+    // (UKS officer may have updated student status)
+    useEffect(() {
+      void onResume() {
+        ref.invalidate(fetchPresenceProvider(key: key));
+      }
+      final observer = AppLifecycleListener(onResume: onResume);
+      return () {
+        observer.dispose();
+      };
+    }, [key]);
 
     Widget buildHeader() {
       return Container(
@@ -240,7 +272,7 @@ class HomeScreen extends HookConsumerWidget {
                           style: context.bodyMediumBold,
                         ),
                         Text(
-                          displayTimeAttand,
+                          jamMasukWithHari,
                           style: context.bodyMedium,
                         ),
                       ],
@@ -254,7 +286,7 @@ class HomeScreen extends HookConsumerWidget {
                           style: context.bodyMediumBold,
                         ),
                         Text(
-                          displayTimeOut,
+                          jamPulangWithHari,
                           style: context.bodyMedium,
                         ),
                       ],

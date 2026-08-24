@@ -261,7 +261,9 @@ class ClassroomScreen extends HookConsumerWidget {
     if (result == null || !context.mounted) {
       return;
     }
-    if (result.errCode != '01') {
+    // errCode '01' = success (records created), '02' = already done (records exist)
+    // In both cases, refresh student list to reflect actual attendance state
+    if (result.errCode != '01' && result.errCode != '02') {
       if (!context.mounted) return;
       context.showErrorMessage(result.msg);
       return;

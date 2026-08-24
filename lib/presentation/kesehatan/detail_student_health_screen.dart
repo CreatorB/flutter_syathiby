@@ -3,8 +3,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
 import 'package:syathiby/presentation/kesehatan/student_health_controller.dart';
 import 'package:syathiby/presentation/pelanggaran/violation_controller.dart';
+import 'package:syathiby/routing/app_router.dart';
 import 'package:syathiby/utils/extension/ui.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -34,6 +36,18 @@ class DetailStudentHealthScreen extends HookConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Detail Penanganan'),
+        actions: [
+          IconButton(
+            tooltip: 'Edit',
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: () {
+              context.pushNamed(
+                AppRoute.editStudentHealth.name,
+                extra: studentHealthId,
+              );
+            },
+          ),
+        ],
       ),
       body: Skeletonizer(
         enabled: fetchDetailStudentHealth.isLoading,
@@ -78,27 +92,41 @@ class DetailStudentHealthScreen extends HookConsumerWidget {
                     '${studentHealth?.penanganan}',
                   ),
                   _buildDetailItem(
-                    'Jumlah Waktu Istirahat',
-                    '${studentHealth?.istirahat}',
+                    'Waktu Istirahat',
+                    '${studentHealth?.istirahatRange ?? studentHealth?.istirahat ?? '-'}',
                   ),
                   _buildDetailItem(
                     'Perlu Dijemput Orang Tua',
                     '${studentHealth?.dijemput}',
                   ),
-                  _buildDetailItem('Informasi Untuk Orang Tua',
-                      '${studentHealth?.info_ortu}'),
                   _buildDetailItem(
                     'Yang Menangani',
                     '${studentHealth?.staff}',
                   ),
                   const SizedBox(height: 4.0),
-                  CachedNetworkImage(
-                    imageUrl: '${studentHealth?.img}',
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorWidget: (context, url, error) =>
-                        const Text('Tidak ada foto'),
-                  ),
+                  Builder(builder: (context) {
+                    final img = studentHealth?.img;
+                    final hasImg = img != null && img.isNotEmpty && img != 'null';
+                    if (!hasImg) {
+                      return Container(
+                        width: double.infinity,
+                        height: 200,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text('Tidak ada foto'),
+                      );
+                    }
+                    return CachedNetworkImage(
+                      imageUrl: img,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorWidget: (context, url, error) =>
+                          const Text('Tidak ada foto'),
+                    );
+                  }),
                   // Provide your image path here
                   const SizedBox(height: 16.0),
                 ],

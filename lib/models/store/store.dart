@@ -32,6 +32,8 @@ class Store with _$Store {
     String? workhour,
     String? timeattand,
     @JsonKey(name: 'timeattand_out') String? timeattandOut,
+    @JsonKey(name: 'timeattand_date') String? timeattandDate,
+    @JsonKey(name: 'timeattand_out_date') String? timeattandOutDate,
     String? during,
     String? late,
     int? notif,

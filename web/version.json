@@ -1,11 +1,12 @@
 {
-  "version": "1.0.7",
-  "buildNumber": "7",
-  "buildDate": "2026-03-09",
+  "version": "1.0.8",
+  "buildNumber": "8",
+  "buildDate": "2026-07-27",
   "features": [
-    "Guest Mode for Web",
-    "Changelog Notification for Web",
-    "WordPress Detail Rendering Fix",
-    "Attendance Button Improvements"
+    "Presensi Tahfidz Guru: refaktor fetch-conditional berdasarkan date+time, empty-state eksplisit",
+    "Daftar Presensi Tahfidz: pola fetch-conditional + empty-state konsistensi layar guru/admin",
+    "Perbaiki error message hilang di endpoint write/single-object (20 endpoint Message)",
+    "ResponseInterceptor: list endpoint tetap fallback [] agar PagedListView/DropdownSearch tidak crash",
+    "Log debug interceptor: tambah prefix path + truncate body 500 chars agar mudah ditrace di logcat"
   ]
 }

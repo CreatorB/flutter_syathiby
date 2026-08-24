@@ -278,6 +278,7 @@ enum AppRoute {
   mukholifDetail,
   detailStudentHealth,
   addStudentHealth,
+  editStudentHealth,
   tahfidzPresenceList,
   upsertTahfidz,
   detailTahfidz,
@@ -750,6 +751,13 @@ GoRouter goRouter(GoRouterRef ref) {
                         name: AppRoute.detailStudentHealth.name,
                         builder: (context, state) => DetailStudentHealthScreen(
                           studentHealthId: state.extra as String,
+                        ),
+                      ),
+                      GoRoute(
+                        path: 'edit',
+                        name: AppRoute.editStudentHealth.name,
+                        builder: (context, state) => AddStudentHealthScreen(
+                          studentHealthId: state.extra as String?,
                         ),
                       ),
                     ],
