@@ -26,7 +26,9 @@ class StudentHealthController extends _$StudentHealthController {
     required String classId,
     required String pickedUp,
     required String tellParent,
-    required String rest,
+    String? istirahatMulai,
+    String? istirahatSelesai,
+    String? statusAbsen,
     File? image,
   }) async {
     state = const AsyncLoading();
@@ -42,7 +44,50 @@ class StudentHealthController extends _$StudentHealthController {
             classId,
             pickedUp,
             tellParent,
-            rest,
+            istirahatMulai,
+            istirahatSelesai,
+            statusAbsen: statusAbsen,
+            img: image,
+          ),
+    );
+    state = result;
+    return result.valueOrNull;
+  }
+
+  Future<Message?> updateStudentHealth({
+    required String key,
+    required String studentHealthId,
+    required String diagnose,
+    required String complaint,
+    required String date,
+    required String hour,
+    required String handling,
+    required String studentName,
+    required String classId,
+    required String pickedUp,
+    required String tellParent,
+    String? istirahatMulai,
+    String? istirahatSelesai,
+    String? statusAbsen,
+    File? image,
+  }) async {
+    state = const AsyncLoading();
+    final result = await AsyncValue.guard(
+      () => ref.read(healthServiceProvider).update(
+            key,
+            studentHealthId,
+            diagnose,
+            complaint,
+            date,
+            hour,
+            handling,
+            studentName,
+            classId,
+            pickedUp,
+            tellParent,
+            istirahatMulai,
+            istirahatSelesai,
+            statusAbsen: statusAbsen,
             img: image,
           ),
     );

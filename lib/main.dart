@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:syathiby/app.dart';
 
@@ -49,6 +50,9 @@ Future<void> main() async {
     runZonedGuarded(() async {
         // 1. Ensure Flutter binding is ready.
         WidgetsFlutterBinding.ensureInitialized();
+
+        // Initialize intl locale data for Indonesian day/month names
+        await initializeDateFormatting('id_ID', null);
 
         // 2. Initialize Firebase (skip on web for Safari compatibility)
         if (!kIsWeb) {
