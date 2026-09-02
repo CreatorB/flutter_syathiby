@@ -23,7 +23,10 @@
   RewriteEngine On
 
   # Redirect HTTP ke HTTPS
-  RewriteCond %{HTTPS} off
+  # FIX 2026-09-01: cek X-Forwarded-Proto (header dari nginx proxy), BUKAN %{HTTPS}
+  # Karena di belakang nginx proxy %{HTTPS} selalu "off" → redirect loop
+  RewriteCond %{HTTP:X-Forwarded-Proto} !https
+  RewriteCond %{HTTPS} !=on
   RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
   # Flutter web SPA routing - arahkan semua ke index.html
@@ -70,4 +73,3 @@
   Header set Cache-Control "no-cache, no-store, must-revalidate"
   Header set Access-Control-Allow-Origin "*"
 </Files>
-</IfModule>
