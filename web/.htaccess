@@ -73,3 +73,22 @@
   Header set Cache-Control "no-cache, no-store, must-revalidate"
   Header set Access-Control-Allow-Origin "*"
 </Files>
+
+# ==========================================================
+# JANGAN CACHE entry point Flutter web
+# ==========================================================
+# main.dart.js, flutter_service_worker.js, flutter_bootstrap.js, dan flutter.js
+# TIDAK punya hash di nama file (beda dengan aset di assets/ dan canvaskit/),
+# jadi aturan "1 year" di atas membuat browser menyimpannya sampai 10 tahun dan
+# pengguna terkunci di build LAMA selamanya.
+#
+# Yang paling fatal flutter_service_worker.js: kalau dia basi, dia terus
+# menyajikan main.dart.js lama dari cache walau server sudah punya yang baru.
+# Ini yang membuat Flutter web tetap menampilkan v1.0.8 setelah deploy v1.0.9.
+<IfModule mod_headers.c>
+  <FilesMatch "^(main\.dart\.js|flutter_service_worker\.js|flutter_bootstrap\.js|flutter\.js)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+</IfModule>
