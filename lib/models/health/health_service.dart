@@ -47,7 +47,29 @@ abstract class KesehatanRestInterface {
     @Part(name: 'id_kelas') String idKelas,
     @Part(name: 'dijemput') String dijemput,
     @Part(name: 'info_ortu') String infoOrtu,
-    @Part(name: 'istirahat') String istirahat, {
+    @Part(name: 'istirahat_mulai') String? istirahatMulai,
+    @Part(name: 'istirahat_selesai') String? istirahatSelesai, {
+    @Part(name: 'status_absen') String? statusAbsen,
+    @Part(name: 'img') File? img,
+  });
+
+  @POST('update.php')
+  @MultiPart()
+  Future<Message> update(
+    @Part(name: 'key') String key,
+    @Part(name: 'id_kesehatan') String idKesehatan,
+    @Part(name: 'diagnosa') String diagnosa,
+    @Part(name: 'keluhan') String keluhan,
+    @Part(name: 'date') String date,
+    @Part(name: 'hour') String hour,
+    @Part(name: 'penanganan') String penanganan,
+    @Part(name: 'nama_siswa') String namaSiswa,
+    @Part(name: 'id_kelas') String idKelas,
+    @Part(name: 'dijemput') String dijemput,
+    @Part(name: 'info_ortu') String infoOrtu,
+    @Part(name: 'istirahat_mulai') String? istirahatMulai,
+    @Part(name: 'istirahat_selesai') String? istirahatSelesai, {
+    @Part(name: 'status_absen') String? statusAbsen,
     @Part(name: 'img') File? img,
   });
 }

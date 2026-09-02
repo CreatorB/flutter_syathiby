@@ -90,7 +90,7 @@ class ItemPerformanceWidget extends StatelessWidget {
     if (date == null || date.isEmpty) return null;
     final parseDate = DateFormat(fromFormat).tryParse(date);
     if (parseDate == null) return null;
-    final formattedDate = DateFormat(toFormat).format(parseDate);
+    final formattedDate = DateFormat(toFormat, 'id_ID').format(parseDate);
     return formattedDate;
   }
 }

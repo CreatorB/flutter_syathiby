@@ -4,10 +4,12 @@ import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:syathiby/di/providers.dart';
 import 'package:syathiby/generated/assets.dart';
 import 'package:syathiby/l10n/string_hardcoded.dart';
+import 'package:syathiby/res/env.dart';
+import 'package:syathiby/res/flavor_config.dart';
 import 'package:syathiby/res/strings.dart';
-import 'package:syathiby/routing/app_router.dart';
 import 'package:syathiby/utils/extension/color.dart';
 import 'package:syathiby/utils/extension/ui.dart';
 
@@ -31,6 +33,38 @@ class LoginScreen extends HookConsumerWidget {
     final passwordVisible = useState(false);
     final phoneNumberController = useTextEditingController();
     final passwordController = useTextEditingController();
+
+    final savedPhone = useMemoized(() {
+      final pref = ref.read(sharedPreferencesHelperProvider);
+      return pref.getString(AppConstant.keySavedPhone);
+    }, []);
+
+    final savedPassword = useMemoized(() {
+      final pref = ref.read(sharedPreferencesHelperProvider);
+      return pref.getString(AppConstant.keySavedPassword);
+    }, []);
+
+    final savedRememberMe = useMemoized(() {
+      final pref = ref.read(sharedPreferencesHelperProvider);
+      return pref.getString(AppConstant.keyRememberMe) == 'true';
+    }, []);
+
+    final rememberMe = useState(savedRememberMe);
+
+    useEffect(() {
+      if (savedRememberMe == true) {
+        if (savedPhone != null) phoneNumberController.text = savedPhone;
+        if (savedPassword != null) passwordController.text = savedPassword;
+      } else if (FlavorConfig.isLocal) {
+        if (LocalEnv.testPhone.isNotEmpty) {
+          phoneNumberController.text = LocalEnv.testPhone;
+        }
+        if (LocalEnv.testPassword.isNotEmpty) {
+          passwordController.text = LocalEnv.testPassword;
+        }
+      }
+      return null;
+    }, []);
 
     return Scaffold(
       appBar: AppBar(
@@ -108,7 +142,19 @@ class LoginScreen extends HookConsumerWidget {
                       ],
                     ),
                   ),
-                  const Gap(20),
+                  const Gap(12),
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: rememberMe.value,
+                        onChanged: (value) {
+                          rememberMe.value = value ?? false;
+                        },
+                      ),
+                      const Text('Ingat Saya'),
+                    ],
+                  ),
+                  const Gap(8),
                   FilledButton(
                     onPressed: () async {
                       if (!formKey.currentState!.validate()) {
@@ -125,6 +171,7 @@ class LoginScreen extends HookConsumerWidget {
                       ref.read(loginControllerProvider.notifier).login(
                             phoneNumber: phoneNumberController.text,
                             password: passwordController.text,
+                            rememberMe: rememberMe.value,
                           );
                     },
                     style: ElevatedButton.styleFrom(

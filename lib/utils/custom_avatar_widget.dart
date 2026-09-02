@@ -19,6 +19,23 @@ class CustomAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Robust null/empty check — handle Dart null (via toString 'null') and literal 'null'/'undefined'
+    if (imageUrl.isEmpty ||
+        imageUrl.trim().isEmpty ||
+        imageUrl == 'null' ||
+        imageUrl.trim() == 'null') {
+      return ClipOval(
+        child: AdvancedAvatar(
+          name: name,
+          size: size,
+          autoTextSize: true,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: color ?? context.colorPrimary,
+          ),
+        ),
+      );
+    }
     return ClipOval(
       child: CachedNetworkImage(
         imageUrl: imageUrl,

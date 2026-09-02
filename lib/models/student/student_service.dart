@@ -284,4 +284,9 @@ abstract class SiswaRestInterface {
     @Field('old_password') String lama,
     @Field('new_password') String baru,
   );
+
+  @GET('tap/get_all_siswa.php')
+  Future<List<Siswa>> getAllSiswa(
+    @Query('key') String key,
+  );
 }

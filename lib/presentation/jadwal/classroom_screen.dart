@@ -10,6 +10,7 @@ import 'package:syathiby/utils/extension/ui.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../models/schedule/schedule.dart';
+import '../../models/student/siswa.dart';
 import '../../routing/app_router.dart';
 
 class ClassroomScreen extends HookConsumerWidget {
@@ -138,11 +139,28 @@ class ClassroomScreen extends HookConsumerWidget {
                       imageUrl: '${student?.img}',
                       size: 40,
                     ),
-                    title: Text(
-                      '${index + 1}. ${student?.namaLengkap}',
-                      style: context.bodyLargeBold,
+                    title: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            '${index + 1}. ${student?.namaLengkap}',
+                            style: context.bodyLargeBold,
+                          ),
+                        ),
+                        if (student?.statusAbsen == 'sakit') ...[
+                          const SizedBox(width: 6),
+                          const Icon(
+                            Icons.info_outline,
+                            size: 18,
+                            color: Colors.redAccent,
+                          ),
+                        ],
+                      ],
                     ),
                     subtitle: Text('NIS: ${student?.nis}'),
+                    onTap: student?.statusAbsen == 'sakit'
+                        ? () => _showSakitDetail(context, student!)
+                        : null,
                     trailing: Transform.translate(
                       offset: const Offset(12, 0),
                       child: IntrinsicWidth(
@@ -243,6 +261,15 @@ class ClassroomScreen extends HookConsumerWidget {
     if (result == null || !context.mounted) {
       return;
     }
+    // errCode '01' = success (records created), '02' = already done (records exist)
+    // In both cases, refresh student list to reflect actual attendance state
+    if (result.errCode != '01' && result.errCode != '02') {
+      if (!context.mounted) return;
+      context.showErrorMessage(result.msg);
+      return;
+    }
+    if (!context.mounted) return;
+    context.showSuccessMessage(result.msg);
     ref.invalidate(
       fetchStudentClassroomProvider(
         key: key,
@@ -271,5 +298,150 @@ class ClassroomScreen extends HookConsumerWidget {
     if (result == null || !context.mounted) {
       return;
     }
+  }
+
+  void _showSakitDetail(BuildContext context, Siswa student) {
+    final istirahatHari = student.kesehatanIstirahat != null &&
+            '${student.kesehatanIstirahat}'.isNotEmpty
+        ? '${student.kesehatanIstirahat} hari'
+        : '-';
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.medical_services_outlined,
+                        color: Colors.redAccent),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Keterangan Sakit - ${student.namaLengkap ?? '-'}',
+                        style: context.titleMediumBold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text('NIS: ${student.nis ?? '-'}',
+                    style: context.bodyMedium),
+                const SizedBox(height: 16),
+                _SakitDetailRow(
+                  icon: Icons.person,
+                  label: 'Nama Siswa',
+                  value: student.namaLengkap ?? '-',
+                ),
+                _SakitDetailRow(
+                  icon: Icons.warning_amber_rounded,
+                  label: 'Jenis Penyakit',
+                  value: student.kesehatanDiagnosa ?? '-',
+                ),
+                _SakitDetailRow(
+                  icon: Icons.question_answer_outlined,
+                  label: 'Keluhan Siswa',
+                  value: student.kesehatanKeluhan ?? '-',
+                ),
+                _SakitDetailRow(
+                  icon: Icons.calendar_today_outlined,
+                  label: 'Tanggal Pemeriksaan',
+                  value: student.kesehatanTanggal ?? '-',
+                ),
+                _SakitDetailRow(
+                  icon: Icons.access_time,
+                  label: 'Jam Pemeriksaan',
+                  value: student.kesehatanJam ?? '-',
+                ),
+                _SakitDetailRow(
+                  icon: Icons.numbers,
+                  label: 'Jumlah Waktu Istirahat',
+                  value: istirahatHari,
+                ),
+                _SakitDetailRow(
+                  icon: Icons.emoji_transportation_outlined,
+                  label: 'Perlu dijemput?',
+                  value: student.kesehatanDijemput ?? '-',
+                ),
+                _SakitDetailRow(
+                  icon: Icons.info_outline,
+                  label: 'Informasi untuk orang tua',
+                  value: student.kesehatanPenanganan ?? '-',
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.tonal(
+                    onPressed: () => Navigator.of(sheetContext).pop(),
+                    child: const Text('Tutup'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SakitDetailRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _SakitDetailRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isEmpty = value.trim().isEmpty || value == '-';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 16, color: Colors.grey.shade700),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: context.titleSmallBold,
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isEmpty
+                  ? Colors.grey.shade100
+                  : Colors.red.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isEmpty
+                    ? Colors.grey.shade300
+                    : Colors.red.withValues(alpha: 0.25),
+              ),
+            ),
+            child: Text(
+              isEmpty ? '-' : value,
+              style: context.bodyMedium,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

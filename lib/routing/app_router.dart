@@ -68,6 +68,8 @@ import 'package:syathiby/presentation/news/news_screen.dart';
 import 'package:syathiby/presentation/pelanggaran/add_violation_screen.dart';
 import 'package:syathiby/presentation/pelanggaran/detail_violation_screen.dart';
 import 'package:syathiby/presentation/pelanggaran/violation_list_screen.dart';
+import 'package:syathiby/presentation/pelanggaran/mukholif_search_screen.dart';
+import 'package:syathiby/presentation/pelanggaran/mukholif_detail_screen.dart';
 import 'package:syathiby/presentation/penilaian/score_type_screen.dart';
 import 'package:syathiby/presentation/penilaian/student_score_screen.dart';
 import 'package:syathiby/presentation/penilaian/subjects_screen.dart';
@@ -185,6 +187,10 @@ enum AppRoute {
   guestAyah,
   guestQibla,
   guestMurottal,
+  guestHadith,
+  guestBooks,
+  guestDhikr,
+  guestTv,
   guestUser,
   guestLogin,
   guestForgot,
@@ -268,8 +274,11 @@ enum AppRoute {
   attendanceRecap,
   addViolation,
   detailViolation,
+  mukholifSearch,
+  mukholifDetail,
   detailStudentHealth,
   addStudentHealth,
+  editStudentHealth,
   tahfidzPresenceList,
   upsertTahfidz,
   detailTahfidz,
@@ -516,6 +525,30 @@ GoRouter goRouter(GoRouterRef ref) {
                     name: AppRoute.guestMurottal.name,
                     builder: (context, state) => const MurottalScreen(),
                   ),
+                  GoRoute(
+                    path: 'books',
+                    name: AppRoute.guestBooks.name,
+                    builder: (context, state) => const BooksScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'hadith',
+                        name: AppRoute.guestHadith.name,
+                        builder: (context, state) => HadithScreen(book: state.extra as Book),
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'dhikr',
+                    name: AppRoute.guestDhikr.name,
+                    builder: (context, state) => DhikrScreen(
+                      type: state.extra as DhikrType,
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'tv',
+                    name: AppRoute.guestTv.name,
+                    builder: (context, state) => const TvScreen(),
+                  ),
                 ],
               ),
             ],
@@ -681,6 +714,24 @@ GoRouter goRouter(GoRouterRef ref) {
                           violationId: state.extra as String,
                         ),
                       ),
+                      GoRoute(
+                        path: 'search',
+                        name: AppRoute.mukholifSearch.name,
+                        builder: (context, state) => const MukholifSearchScreen(),
+                      ),
+                      GoRoute(
+                        path: 'detail-mukholif',
+                        name: AppRoute.mukholifDetail.name,
+                        builder: (context, state) {
+                          final extra = state.extra as Map<String, dynamic>;
+                          return MukholifDetailScreen(
+                            santrialId: extra['santri_id'] as int,
+                            studentName: extra['nama'] as String,
+                            kelas: extra['kelas'] as String?,
+                            kamar: extra['kamar'] as String?,
+                          );
+                        },
+                      ),
                     ],
                   ),
                   GoRoute(
@@ -700,6 +751,13 @@ GoRouter goRouter(GoRouterRef ref) {
                         name: AppRoute.detailStudentHealth.name,
                         builder: (context, state) => DetailStudentHealthScreen(
                           studentHealthId: state.extra as String,
+                        ),
+                      ),
+                      GoRoute(
+                        path: 'edit',
+                        name: AppRoute.editStudentHealth.name,
+                        builder: (context, state) => AddStudentHealthScreen(
+                          studentHealthId: state.extra as String?,
                         ),
                       ),
                     ],

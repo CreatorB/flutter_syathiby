@@ -6,6 +6,7 @@ import 'package:syathiby/models/student/siswa.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../models/violation/violation.dart';
+import '../../models/violation/mukholif_santri.dart';
 
 part 'violation_controller.g.dart';
 
@@ -118,5 +119,34 @@ Future<List<Pelanggaran>> fetchDetailViolation(
   final result = await ref
       .watch(violationServiceProvider)
       .getLaporanSantri(key, violationId);
+  return result;
+}
+
+@riverpod
+Future<MukholifSearchResponse> searchMukholifSantri(
+  SearchMukholifSantriRef ref, {
+  required String key,
+  required String nama,
+}) async {
+  final result = await ref
+      .watch(violationServiceProvider)
+      .searchMukholifSantri(key, nama);
+  return result;
+}
+
+@riverpod
+Future<MukholifDetailResponse> fetchMukholifDetail(
+  FetchMukholifDetailRef ref, {
+  required String key,
+  required int santrialId,
+  required String startDate,
+  required String endDate,
+  String? bagian,
+  String? kategori,
+}) async {
+  final result = await ref
+      .watch(violationServiceProvider)
+      .getMukholifDetail(key, santrialId, startDate, endDate,
+          bagian: bagian, kategori: kategori);
   return result;
 }

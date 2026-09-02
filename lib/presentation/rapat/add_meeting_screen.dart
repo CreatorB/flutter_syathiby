@@ -32,11 +32,11 @@ class AddMeetingScreen extends HookConsumerWidget {
 
     final formKey = useMemoized(GlobalKey<FormState>.new, const []);
 
-    Future<void> addStudentHealth() async {
+    Future<void> addMeeting() async {
       if (!formKey.currentState!.validate()) {
         return;
       }
-      ref
+      final result = await ref
           .read(
             meetingControllerProvider.notifier,
           )
@@ -50,17 +50,12 @@ class AddMeetingScreen extends HookConsumerWidget {
             meetingFor: meetingType.text,
             startTime: hour.text,
           );
-
-      ref.invalidate(
-        fetchAllMeetingProvider(key: key),
-      );
-
-      Future.delayed(
-        const Duration(seconds: 3),
-        () {
-          context.pop();
-        },
-      );
+      if (result == null || !context.mounted) return;
+      context.pop();
+      ref.invalidate(fetchAllMeetingProvider(key: key));
+      if (context.mounted) {
+        context.showSuccessMessage(result.msg);
+      }
     }
 
     return Scaffold(
@@ -218,7 +213,7 @@ class AddMeetingScreen extends HookConsumerWidget {
                   const Gap(24),
                   FilledButton(
                     onPressed:
-                        meetingController.isLoading ? null : addStudentHealth,
+                        meetingController.isLoading ? null : addMeeting,
                     child: meetingController.isLoading
                         ? const Center(
                             child: CircularProgressIndicator(),

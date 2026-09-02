@@ -10,7 +10,7 @@ class Dhikr with _$Dhikr {
     required String arabic,
     String? transliteration,
     required String translation,
-    required String count,
+    required int targetCount,
     String? faedah,
     String? reference,
   }) = _Dhikr;

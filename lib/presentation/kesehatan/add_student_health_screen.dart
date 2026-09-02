@@ -2,30 +2,25 @@ import 'dart:io';
 
 import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_advanced_avatar/flutter_advanced_avatar.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:syathiby/di/providers.dart';
 import 'package:syathiby/l10n/string_hardcoded.dart';
 import 'package:syathiby/models/student/siswa.dart';
-import 'package:syathiby/presentation/kesehatan/paging_student_health_controller.dart';
 import 'package:syathiby/presentation/kesehatan/student_health_controller.dart';
 import 'package:syathiby/presentation/pelanggaran/violation_controller.dart';
-import 'package:syathiby/utils/extension/color.dart';
 import 'package:syathiby/utils/extension/ui.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../models/health/diagnose.dart';
 
 class AddStudentHealthScreen extends HookConsumerWidget {
-  const AddStudentHealthScreen({super.key});
+  final String? studentHealthId;
+  const AddStudentHealthScreen({super.key, this.studentHealthId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -38,21 +33,87 @@ class AddStudentHealthScreen extends HookConsumerWidget {
     final fetchHealthType = ref.watch(
       fetchHealthTypeProvider(key: key),
     );
-    final imageSelected = useState<File?>((null));
-    final studentSelected = useState<Siswa?>((null));
+
+    // Load existing data when editing
+    final isEdit = studentHealthId != null && studentHealthId!.isNotEmpty;
+    final existingDetail = isEdit
+        ? ref.watch(fetchDetailStudentHealthProvider(
+            key: key,
+            studentHealthId: studentHealthId!,
+          ))
+        : null;
+    final existing = existingDetail?.valueOrNull?.firstOrNull;
+
+    final imageSelected = useState<File?>(null);
+    final studentSelected = useState<Siswa?>(null);
     final healthTypeSelected = useState<Diagnosa?>((null));
     final complaint = useTextEditingController();
     final date = useTextEditingController();
     final hour = useTextEditingController();
     final detail = useTextEditingController();
-    final howManyDays = useTextEditingController();
+    final istirahatMulai = useTextEditingController();
+    final istirahatSelesai = useTextEditingController();
     final pickedUp = useTextEditingController();
     final tellParent = useTextEditingController();
+    final statusAbsen = useState<String>('sakit');
+
+    // Populate controllers when editing existing record (only once)
+    useEffect(() {
+      if (existing == null) return null;
+      if (complaint.text.isEmpty) complaint.text = existing.keluhan ?? '';
+      if (date.text.isEmpty) {
+        final d = '${existing.date ?? ''}';
+        date.text = d.length >= 10 ? d.substring(0, 10) : d;
+      }
+      if (hour.text.isEmpty) hour.text = '${existing.hour ?? ''}';
+      if (detail.text.isEmpty) detail.text = '${existing.penanganan ?? ''}';
+      if (istirahatMulai.text.isEmpty) istirahatMulai.text = '${existing.istirahatMulai ?? ''}';
+      if (istirahatSelesai.text.isEmpty) istirahatSelesai.text = '${existing.istirahatSelesai ?? ''}';
+      if (pickedUp.text.isEmpty) pickedUp.text = '${existing.dijemput ?? ''}';
+      if (tellParent.text.isEmpty) tellParent.text = '${existing.info_ortu ?? ''}';
+      // Diagnosa match by name
+      final types = fetchHealthType.valueOrNull ?? [];
+      final match = types.where((t) => t.name_diagnosa == existing.diagnosa).firstOrNull;
+      if (match != null && healthTypeSelected.value == null) {
+        healthTypeSelected.value = match;
+      }
+      // Status absen - default 'sakit', preserve from existing when editing
+      final existingStatus = '${existing.statusAbsen ?? ''}';
+      if (existingStatus.isNotEmpty && statusAbsen.value == 'sakit') {
+        statusAbsen.value = existingStatus;
+      }
+      return null;
+    }, [existing]);
 
     final formKey = useMemoized(GlobalKey<FormState>.new, const []);
 
-    Future<void> addStudentHealth() async {
+    Future<void> submitHealth() async {
       if (!formKey.currentState!.validate()) {
+        return;
+      }
+      if (isEdit && studentHealthId != null) {
+        final result = await ref
+            .read(studentHealthControllerProvider.notifier)
+            .updateStudentHealth(
+              key: key,
+              studentHealthId: studentHealthId!,
+              diagnose: '${healthTypeSelected.value?.name_diagnosa}',
+              complaint: complaint.text,
+              date: date.text,
+              hour: hour.text,
+              handling: detail.text,
+              studentName: '${studentSelected.value?.nis ?? existing?.staff ?? ''}',
+              classId: '${studentSelected.value?.idKelas ?? existing?.kelas ?? ''}',
+              pickedUp: pickedUp.text,
+              tellParent: tellParent.text,
+              istirahatMulai: istirahatMulai.text,
+              istirahatSelesai: istirahatSelesai.text,
+              statusAbsen: statusAbsen.value,
+              image: imageSelected.value,
+            );
+        if (result == null || !context.mounted) return;
+        context.pop();
+        context.showSuccessMessage(result.msg.isNotEmpty ? result.msg : 'Data diperbarui');
         return;
       }
       final result = await ref
@@ -70,18 +131,19 @@ class AddStudentHealthScreen extends HookConsumerWidget {
             classId: '${studentSelected.value?.idKelas}',
             pickedUp: pickedUp.text,
             tellParent: tellParent.text,
-            rest: howManyDays.text,
+            istirahatMulai: istirahatMulai.text,
+            istirahatSelesai: istirahatSelesai.text,
+            statusAbsen: statusAbsen.value,
             image: imageSelected.value,
           );
       if (result == null || !context.mounted) return;
       context.pop();
       context.showSuccessMessage(result.msg);
-      ref.invalidate(pagingStudentHealthControllerProvider(key: key));
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Input Kesehatan'.hardcoded),
+        title: Text(isEdit ? 'Edit Kesehatan'.hardcoded : 'Input Kesehatan'.hardcoded),
       ),
       body: Skeletonizer(
         enabled: fetchHealthType.isLoading,
@@ -101,40 +163,7 @@ class AddStudentHealthScreen extends HookConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      InkWell(
-                        onTap: () async {
-                          final file = await _openImagePicker(context);
-                          imageSelected.value = file;
-                        },
-                        child: AdvancedAvatar(
-                          size: 120,
-                          decoration: BoxDecoration(
-                            color: context.colorSurface,
-                            shape: BoxShape.rectangle,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: context.colorOutline,
-                            ),
-                          ),
-                          image: imageSelected.value != null
-                              ? FileImage(
-                                  imageSelected.value!,
-                                ) as ImageProvider
-                              : null,
-                          child: const Icon(
-                            Icons.camera_alt,
-                            size: 50,
-                          ),
-                        ),
-                      ),
                       const SizedBox(height: 8.0),
-                      const Center(
-                        child: Text(
-                          'Foto Pendukung (Opsional)',
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      const SizedBox(height: 24.0),
                       DropdownSearch<Siswa>(
                         selectedItem: studentSelected.value,
                         asyncItems: (String filter) {
@@ -284,20 +313,87 @@ class AddStudentHealthScreen extends HookConsumerWidget {
                       ),
                       const Gap(16),
                       TextFormField(
-                        controller: howManyDays,
-                        keyboardType: TextInputType.number,
+                        controller: istirahatMulai,
+                        readOnly: true,
                         decoration: InputDecoration(
                           isDense: true,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8.0),
                           ),
-                          labelText: 'Jumlah Waktu Istirahat'.hardcoded,
-                          prefixIcon: const Icon(Icons.numbers),
+                          labelText: 'Istirahat Mulai'.hardcoded,
+                          prefixIcon: const Icon(Icons.play_circle_outline),
+                          suffixIcon: istirahatMulai.text.isEmpty
+                              ? null
+                              : IconButton(
+                                  icon: const Icon(Icons.clear, size: 18),
+                                  onPressed: () => istirahatMulai.clear(),
+                                ),
                         ),
-                        validator: FormBuilderValidators.compose([
-                          FormBuilderValidators.required(),
-                          FormBuilderValidators.numeric(),
-                        ]),
+                        onTap: () async {
+                          final selectedDate = await showDatePicker(
+                            context: context,
+                            firstDate: DateTime(DateTime.now().year - 1),
+                            initialDate: DateTime.now(),
+                            lastDate: DateTime(2100),
+                          );
+                          if (selectedDate == null) return;
+                          if (!context.mounted) return;
+                          final selectedTime = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay.now(),
+                          );
+                          if (selectedTime == null) return;
+                          final dt = DateTime(
+                            selectedDate.year,
+                            selectedDate.month,
+                            selectedDate.day,
+                            selectedTime.hour,
+                            selectedTime.minute,
+                          );
+                          istirahatMulai.text = DateFormat('yyyy-MM-dd HH:mm').format(dt);
+                        },
+                      ),
+                      const Gap(16),
+                      TextFormField(
+                        controller: istirahatSelesai,
+                        readOnly: true,
+                        decoration: InputDecoration(
+                          isDense: true,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          labelText: 'Istirahat Selesai'.hardcoded,
+                          prefixIcon: const Icon(Icons.stop_circle_outlined),
+                          suffixIcon: istirahatSelesai.text.isEmpty
+                              ? null
+                              : IconButton(
+                                  icon: const Icon(Icons.clear, size: 18),
+                                  onPressed: () => istirahatSelesai.clear(),
+                                ),
+                        ),
+                        onTap: () async {
+                          final selectedDate = await showDatePicker(
+                            context: context,
+                            firstDate: DateTime(DateTime.now().year - 1),
+                            initialDate: DateTime.now(),
+                            lastDate: DateTime(2100),
+                          );
+                          if (selectedDate == null) return;
+                          if (!context.mounted) return;
+                          final selectedTime = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay.now(),
+                          );
+                          if (selectedTime == null) return;
+                          final dt = DateTime(
+                            selectedDate.year,
+                            selectedDate.month,
+                            selectedDate.day,
+                            selectedTime.hour,
+                            selectedTime.minute,
+                          );
+                          istirahatSelesai.text = DateFormat('yyyy-MM-dd HH:mm').format(dt);
+                        },
                       ),
                       const Gap(16),
                       DropdownSearch<String>(
@@ -325,6 +421,57 @@ class AddStudentHealthScreen extends HookConsumerWidget {
                       const Gap(16),
                       TextFormField(
                         controller: detail,
+                        textInputAction: TextInputAction.newline,
+                        maxLines: 3,
+                        textAlignVertical: TextAlignVertical.center,
+                        decoration: InputDecoration(
+                          isDense: true,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          labelText: 'Detail Penanganan'.hardcoded,
+                          prefixIcon: const Icon(Icons.medical_services_outlined),
+                        ),
+                        validator: FormBuilderValidators.required(),
+                      ),
+                      const Gap(16),
+                      DropdownButtonFormField<String>(
+                        initialValue: statusAbsen.value,
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'sakit',
+                            child: Text('Sakit'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'hadir',
+                            child: Text('Hadir'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'izin',
+                            child: Text('Izin'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'alfa',
+                            child: Text('Alfa'),
+                          ),
+                        ],
+                        decoration: InputDecoration(
+                          isDense: true,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          labelText: 'Status Absen Santri'.hardcoded,
+                          prefixIcon: const Icon(Icons.assignment_turned_in_outlined),
+                        ),
+                        onChanged: (value) {
+                          if (value != null) {
+                            statusAbsen.value = value;
+                          }
+                        },
+                      ),
+                      const Gap(16),
+                      TextFormField(
+                        controller: tellParent,
                         textInputAction: TextInputAction.done,
                         maxLines: 3,
                         textAlignVertical: TextAlignVertical.center,
@@ -336,13 +483,12 @@ class AddStudentHealthScreen extends HookConsumerWidget {
                           labelText: 'Informasi untuk orang tua'.hardcoded,
                           prefixIcon: const Icon(Icons.info),
                         ),
-                        validator: FormBuilderValidators.required(),
                       ),
                       const Gap(24),
                       FilledButton(
                         onPressed: studentHealthController.isLoading
                             ? null
-                            : addStudentHealth,
+                            : submitHealth,
                         child: studentHealthController.isLoading
                             ? const Center(
                                 child: CircularProgressIndicator(),
@@ -360,21 +506,5 @@ class AddStudentHealthScreen extends HookConsumerWidget {
         ),
       ),
     );
-  }
-
-  Future<File?> _openImagePicker(
-    BuildContext context,
-  ) async {
-    final ImagePicker picker = ImagePicker();
-    XFile? image = await picker.pickImage(source: ImageSource.camera);
-    if (image == null) return null;
-    final imageCompressed = await FlutterImageCompress.compressWithList(
-      await image.readAsBytes(),
-      quality: 10,
-    );
-    final tempDir = await getTemporaryDirectory();
-    File file = await File('${tempDir.path}/${DateTime.timestamp()}').create();
-    file.writeAsBytesSync(imageCompressed);
-    return file;
   }
 }

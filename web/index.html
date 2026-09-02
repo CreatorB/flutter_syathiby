@@ -1,6 +1,4 @@
-<!DOCTYPE html>
-<html>
-<head>
+<!DOCTYPE html><html><head>
   <!--
     If you are serving your web app in a path other than the root, change the
     href value below to reflect the base path you are serving from.
@@ -26,8 +24,8 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
 
-  <!-- Force upgrade HTTP to HTTPS untuk menghindari mixed content -->
-  <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+  <!-- upgrade-insecure-requests dipindahkan ke .htaccess server production -->
+  <!-- agar tidak memblokir testing lokal via http -->
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -39,12 +37,216 @@
   <meta http-equiv="Permissions-Policy" content="geolocation=(*), camera=(*), microphone=(*)">
 
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="icon" type="image/png" href="favicon.png">
 
   <title>syathiby</title>
   <link rel="manifest" href="manifest.json">
+  <style id="splash-screen-style">
+    html {
+      height: 100%
+    }
+
+    body {
+      margin: 0;
+      min-height: 100%;
+      background-color: #000000;
+          background-size: 100% 100%;
+    }
+
+    .center {
+      margin: 0;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      -ms-transform: translate(-50%, -50%);
+      transform: translate(-50%, -50%);
+    }
+
+    .contain {
+      display:block;
+      width:100%; height:100%;
+      object-fit: contain;
+    }
+
+    .stretch {
+      display:block;
+      width:100%; height:100%;
+    }
+
+    .cover {
+      display:block;
+      width:100%; height:100%;
+      object-fit: cover;
+    }
+
+    .progress-bar-container {
+      position: absolute;
+      top: 80%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 280px;
+      height: 10px;
+      background-color: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      overflow: hidden;
+      z-index: 9999;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+    }
+
+    .progress-bar-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(
+        90deg, 
+        #26774e 0%, 
+        #3e9a6c 25%, 
+        #ffffff 50%, 
+        #3e9a6c 75%, 
+        #26774e 100%
+      );
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite linear, glow 2s infinite ease-in-out;
+      transition: width 0.3s ease;
+      box-shadow: 0 0 20px rgba(38, 119, 78, 0.8);
+      border-radius: 12px;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    @keyframes glow {
+      0%, 100% { box-shadow: 0 0 15px rgba(38, 119, 78, 0.6); }
+      50% { box-shadow: 0 0 25px rgba(62, 154, 108, 1); }
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background-color: #000000;
+      }
+      .progress-bar-container {
+        background-color: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.1);
+      }
+    }
+  </style>
+  <script id="splash-screen-script">
+    let progress = 0;
+    let progressInterval;
+    window.isSplashRemoved = false;
+
+    function startProgress() {
+      if (window.isSplashRemoved) return;
+      
+      const fill = document.getElementById("progress-fill");
+      if (!fill) {
+        // Try again in a bit if DOM not ready
+        setTimeout(startProgress, 100);
+        return;
+      }
+
+      console.log("Splash progress started");
+      
+      // Clear existing interval if any
+      if (progressInterval) clearInterval(progressInterval);
+
+      progressInterval = setInterval(() => {
+        if (progress < 90) {
+          // Accelerate progress slightly at first, then slow down
+          const step = (90 - progress) * 0.05 + (Math.random() * 2);
+          progress += step;
+          if (progress > 90) progress = 90;
+          fill.style.width = progress + "%";
+        }
+      }, 150);
+    }
+
+    function removeSplashFromWeb() {
+      if (window.isSplashRemoved) return;
+      window.isSplashRemoved = true;
+      if (progressInterval) clearInterval(progressInterval);
+
+      const splash = document.getElementById("splash");
+      const branding = document.getElementById("splash-branding");
+      const progressContainer = document.getElementById("progress-container");
+      const fill = document.getElementById("progress-fill");
+
+      console.log("Removing splash from web (event or call)");
+
+      if (fill) {
+        fill.style.transition = "width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)";
+        fill.style.width = "100%";
+      }
+
+      // Ensure elements are hidden/removed quickly
+      const cleanup = () => {
+        splash?.remove();
+        branding?.remove();
+        progressContainer?.remove();
+        document.body.style.background = "transparent";
+        // Double check by ID if references were null during capture
+        document.getElementById("splash")?.remove();
+        document.getElementById("progress-container")?.remove();
+        console.log("Splash cleanup complete");
+      };
+
+      setTimeout(cleanup, 500);
+    }
+
+    // Listen for the event from Flutter (more reliable than direct JS call sometimes)
+    window.addEventListener('remove-splash', removeSplashFromWeb);
+
+    // Listen for the event from Flutter
+    window.addEventListener('remove-splash', removeSplashFromWeb);
+
+    // DETECTION: Navigation change often means we've left the splash
+    window.addEventListener('hashchange', removeSplashFromWeb);
+    window.addEventListener('popstate', removeSplashFromWeb);
+
+    // AUTOMATIC DETECTION: Watch for Flutter UI but with a small delay to avoid 
+    // interrupting the initial splash display/animation.
+    setTimeout(() => {
+      const observer = new MutationObserver((mutations) => {
+        if (document.querySelector('flt-glass-pane') || 
+            document.querySelector('flutter-view') || 
+            document.querySelector('flt-scene-host')) {
+          console.log("Flutter UI detected via MutationObserver (delayed)");
+          removeSplashFromWeb();
+          observer.disconnect();
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+    }, 2000); // 2 second delay before we start aggressive detection
+
+    // Safety fallback: 15 seconds
+    setTimeout(() => {
+      if (!window.isSplashRemoved) {
+        console.warn("Safety fallback triggered");
+        removeSplashFromWeb();
+      }
+    }, 15000);
+
+    // Attempt to start on various events to ensure reliability
+    if (document.readyState === "complete" || document.readyState === "interactive") {
+      startProgress();
+    } else {
+      window.addEventListener("DOMContentLoaded", startProgress);
+      window.addEventListener("load", startProgress);
+    }
+  </script>
 </head>
 <body>
-  <script src="flutter_bootstrap.js" async></script>
-</body>
-</html>
+  <picture id="splash">
+      <source srcset="splash/img/light-1x.png 1x, splash/img/light-2x.png 2x, splash/img/light-3x.png 3x, splash/img/light-4x.png 4x" media="(prefers-color-scheme: light)">
+      <source srcset="splash/img/dark-1x.png 1x, splash/img/dark-2x.png 2x, splash/img/dark-3x.png 3x, splash/img/dark-4x.png 4x" media="(prefers-color-scheme: dark)">
+      <img class="center" aria-hidden="true" src="splash/img/light-1x.png" alt="">
+  </picture>
+  <div id="progress-container" class="progress-bar-container">
+    <div id="progress-fill" class="progress-bar-fill"></div>
+  </div>
+  <script src="flutter_bootstrap.js?v={{BUILD_VERSION}}" async=""></script>
+
+
+</body></html>

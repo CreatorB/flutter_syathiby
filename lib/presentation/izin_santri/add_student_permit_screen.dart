@@ -1,4 +1,3 @@
-import 'package:adaptive_dialog/adaptive_dialog.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -64,8 +63,7 @@ class AddStudentPermitScreen extends HookConsumerWidget {
       context.showSuccessMessage(
         result.msg,
       );
-      context.pop();
-      ref.invalidate(fetchStudentPermitListProvider);
+      context.pop(true);
     }
 
     return Scaffold(
@@ -145,13 +143,9 @@ class AddStudentPermitScreen extends HookConsumerWidget {
                   onTap: () async {
                     final items = fetchPermitType.valueOrNull;
                     if (items == null) return;
-                    final selected = await showModalActionSheet<Permit>(
-                      context: context,
-                      title: 'Jenis Izin',
-                      actions: items
-                          .map((e) =>
-                              SheetAction(key: e, label: '${e.namePermit}'))
-                          .toList(),
+                    final selected = await _showPermitTypePicker(
+                      context,
+                      items,
                     );
                     if (selected == null) return;
                     permitName.text = '${selected.namePermit}';
@@ -238,6 +232,57 @@ class AddStudentPermitScreen extends HookConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Future<Permit?> _showPermitTypePicker(
+    BuildContext context,
+    List<Permit> items,
+  ) {
+    return showModalBottomSheet<Permit>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      clipBehavior: Clip.antiAliasWithSaveLayer,
+      builder: (sheetContext) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          minChildSize: 0.3,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (_, scrollController) {
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Text(
+                    'Jenis Izin',
+                    style: Theme.of(sheetContext).textTheme.titleMedium,
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: ListView.separated(
+                    controller: scrollController,
+                    itemCount: items.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (_, index) {
+                      final item = items[index];
+                      return ListTile(
+                        title: Text('${item.namePermit}'),
+                        onTap: () => Navigator.of(sheetContext).pop(item),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }
