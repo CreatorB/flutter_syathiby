@@ -19,10 +19,18 @@ class UpdateInfo {
 }
 
 class UpdateChecker {
-  /// Get the appropriate branch based on current flavor
-  /// - local flavor: uses 'test' branch
-  /// - prod flavor: uses 'dev' branch
-  static String get _branch => FlavorConfig.isLocal ? 'test' : 'dev';
+  /// Branch CHANGELOG.md yang dibaca, mengikuti flavor:
+  /// - flavor prod  -> branch 'main'    (branch production)
+  /// - flavor local -> branch 'staging' (branch pra-produksi)
+  ///
+  /// PENTING: flavor prod HARUS baca 'main', bukan 'dev'. Sebelumnya membaca
+  /// 'dev', sehingga pop-up "versi baru tersedia" muncul di HP karyawan begitu
+  /// kode di-push ke dev — padahal aplikasi produksi belum di-update sama sekali.
+  /// Dengan 'main', pop-up baru muncul setelah rilis benar-benar naik ke prod.
+  ///
+  /// Konsekuensinya: CHANGELOG.md di branch 'main' hanya boleh ditambah entri
+  /// versi baru pada saat deploy prod (lihat AGENTS.md bagian alur rilis).
+  static String get _branch => FlavorConfig.isLocal ? 'staging' : 'main';
 
   /// URL raw CHANGELOG.md dari GitHub dengan branch dinamis
   static String get changelogUrl =>
