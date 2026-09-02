@@ -1,12 +1,9 @@
 {
-  "version": "1.0.8",
-  "buildNumber": "8",
-  "buildDate": "2026-07-27",
+  "version": "1.0.9",
+  "buildNumber": "9",
+  "buildDate": "2026-08-19",
   "features": [
-    "Presensi Tahfidz Guru: refaktor fetch-conditional berdasarkan date+time, empty-state eksplisit",
-    "Daftar Presensi Tahfidz: pola fetch-conditional + empty-state konsistensi layar guru/admin",
-    "Perbaiki error message hilang di endpoint write/single-object (20 endpoint Message)",
-    "ResponseInterceptor: list endpoint tetap fallback [] agar PagedListView/DropdownSearch tidak crash",
-    "Log debug interceptor: tambah prefix path + truncate body 500 chars agar mudah ditrace di logcat"
+    "Presensi Tahfidz Halaqah: routing default lebih aman (type != 'teacher') supaya tidak salah buka layar guru saat type null",
+    "Dropdown presensi tahfidz (guru & siswa): whitelist value 'hadir/sakit/izin/alfa' agar tidak assertion error saat statusAbsen kosong atau tidak valid"
   ]
 }
