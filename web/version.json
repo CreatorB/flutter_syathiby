@@ -1,11 +1,9 @@
 {
-  "version": "1.0.7",
-  "buildNumber": "7",
-  "buildDate": "2026-03-09",
+  "version": "1.0.9",
+  "buildNumber": "9",
+  "buildDate": "2026-08-19",
   "features": [
-    "Guest Mode for Web",
-    "Changelog Notification for Web",
-    "WordPress Detail Rendering Fix",
-    "Attendance Button Improvements"
+    "Presensi Tahfidz Halaqah: routing default lebih aman (type != 'teacher') supaya tidak salah buka layar guru saat type null",
+    "Dropdown presensi tahfidz (guru & siswa): whitelist value 'hadir/sakit/izin/alfa' agar tidak assertion error saat statusAbsen kosong atau tidak valid"
   ]
 }

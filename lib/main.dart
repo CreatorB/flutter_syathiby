@@ -9,11 +9,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:syathiby/app.dart';
 
 import 'di/providers.dart';
 import 'firebase_options.dart';
+import 'utils/web_splash_utility.dart';
 
 // FIX: Removed top-level FlutterLocalNotificationsPlugin instantiation to prevent Safari crash.
 // The plugin is now instantiated lazily inside _initServices().
@@ -49,6 +51,9 @@ Future<void> main() async {
         // 1. Ensure Flutter binding is ready.
         WidgetsFlutterBinding.ensureInitialized();
 
+        // Initialize intl locale data for Indonesian day/month names
+        await initializeDateFormatting('id_ID', null);
+
         // 2. Initialize Firebase (skip on web for Safari compatibility)
         if (!kIsWeb) {
             await _initFirebase();
@@ -68,19 +73,19 @@ Future<void> main() async {
     try {
         final results = await Future.wait<dynamic>([
             SharedPreferences.getInstance()
-                .timeout(const Duration(seconds: 3), onTimeout: () {
-                    print("SharedPreferences timeout, using default");
-                    return SharedPreferences.getInstance();
+                .timeout(Duration(seconds: kIsWeb ? 2 : 5), onTimeout: () {
+                    debugPrint("SharedPreferences timeout, continuing...");
+                    return SharedPreferences.getInstance(); // Still potentially problematic, but let's increase timeout first
                 }),
             AdaptiveTheme.getThemeMode()
-                .timeout(const Duration(seconds: 2), onTimeout: () {
-                    print("AdaptiveTheme timeout, using default");
+                .timeout(Duration(seconds: kIsWeb ? 1 : 3), onTimeout: () {
+                    debugPrint("AdaptiveTheme timeout, using light mode");
                     return AdaptiveThemeMode.light;
                 }),
         ]).timeout(
-            const Duration(seconds: 5),
+            Duration(seconds: kIsWeb ? 3 : 7),
             onTimeout: () {
-                print("Overall initialization timeout");
+                debugPrint("Overall initialization timeout");
                 return [null, AdaptiveThemeMode.light];
             },
         );
@@ -88,10 +93,11 @@ Future<void> main() async {
         globalPrefs = results[0] as SharedPreferences?;
         globalThemeMode = results[1] as AdaptiveThemeMode?;
     } catch (e) {
-        print("Error during initialization: $e");
+        debugPrint("Error during initialization: $e");
         globalPrefs = null;
         globalThemeMode = AdaptiveThemeMode.light;
     }
+    // Call removal earlier - as soon as we have enough state to build the app (REMOVED)
 
     try {
         globalContainer = ProviderContainer(
@@ -102,7 +108,7 @@ Future<void> main() async {
              ],
         );
     } catch (e) {
-        print("Error creating ProviderContainer: $e");
+        debugPrint("Error creating ProviderContainer: $e");
         globalContainer = ProviderContainer();
     }
     // --- AKHIR BLOK I/O ---
@@ -121,6 +127,7 @@ Future<void> main() async {
                 ),
             ),
         );
+        WebSplashUtility.remove(); 
         if (kDebugMode) print('App started successfully');
     }, (error, stack) {
         // Catch any uncaught errors

@@ -50,18 +50,7 @@ class HomeScreen extends HookConsumerWidget {
     final isAttendanceLoading = useState(false);
     final currentUser = ref.watch(getCurrentUserProvider);
     final key = '${currentUser?.key}';
-    ref.listen(fetchProfileProvider(key: key), (previous, next) {
-      next.showToastOnError(context);
-    });
-    final token = ref
-        .watch(sharedPreferencesHelperProvider)
-        .getString(AppConstant.keyDeviceToken);
-    final saveTokenToServer = useMemoized(
-      () => ref.watch(
-        saveTokenToServerProvider(key: key, token: '$token').future,
-      ),
-    );
-    useFuture(saveTokenToServer);
+    // Token save is now handled lazily on login success, not on every home build
     final fetchUserProfile = ref.watch(fetchProfileProvider(key: key));
     final fetchPresence = ref.watch(fetchPresenceProvider(key: key));
     final currentDateFormat = ref.watch(
@@ -78,127 +67,58 @@ class HomeScreen extends HookConsumerWidget {
     );
     final displayTimeAttand = timeAttandFormat ?? '--:--';
     final rawWorkHour = fetchPresence.valueOrNull?.workhour?.trim();
-    final displayWorkHour = (rawWorkHour != null && rawWorkHour.isNotEmpty)
-        ? rawWorkHour
-        : (fetchUserProfile.valueOrNull?.absensi ?? '-');
-    final displayTimeOut = timeAttandOutFormat ?? '--:--';
+    final jamMasukDate = fetchPresence.valueOrNull?.timeattandDate;
+    final jamPulangDate = fetchPresence.valueOrNull?.timeattandOutDate;
+    final userToday = '${fetchUserProfile.valueOrNull?.date}';
+    final hariMasukSource = (jamMasukDate != null && jamMasukDate.isNotEmpty)
+        ? jamMasukDate
+        : userToday;
+    final hariPulangSource = (jamPulangDate != null && jamPulangDate.isNotEmpty)
+        ? jamPulangDate
+        : userToday;
+    final hariMasuk = ref.watch(
+      formatDateProvider(hariMasukSource, format: 'EEEE'),
+    );
+    final hariPulang = ref.watch(
+      formatDateProvider(hariPulangSource, format: 'EEEE'),
+    );
+    final jamMasukWithHari = (timeAttandFormat != null && hariMasuk != null)
+        ? '$hariMasuk ${timeAttandFormat}'
+        : '--:--';
+    final jamPulangWithHari = (timeAttandOutFormat != null && hariPulang != null)
+        ? '$hariPulang ${timeAttandOutFormat}'
+        : '--:--';
     final isWorking = displayTimeAttand != '--:--';
     final isClockIn = fetchPresence.valueOrNull?.absen == "1";
     final isHoliday = fetchPresence.valueOrNull?.holiday == "YES";
+    final isAnyLoading = fetchUserProfile.isLoading || fetchPresence.isLoading;
 
-    void buildJobAlertMessage() {
-      final presence = fetchPresence.valueOrNull;
-      final notif = presence?.notif ?? 0;
-      final violation = presence?.notifpelanggaran ?? 0;
-      final permit = presence?.notifizin ?? 0;
-      final studentPermit = presence?.notifizinsantri ?? 0;
-      final finance = presence?.notifkeuangan ?? 0;
-      final logistic = presence?.notiflogistik ?? 0;
-      final manager = presence?.notifmanager ?? 0;
-      final director = presence?.notifmudir ?? 0;
-      final requestMedicine = presence?.notifpermintaanobatmanager ?? 0;
-      final ukp = presence?.notifukp ?? 0;
+    final profileData = fetchUserProfile.valueOrNull;
+    final presenceData = fetchPresence.valueOrNull;
 
-      WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-        if (notif > 0) {
-          context.showSnackBar(
-            'Anda memiliki $notif Tugas kerja!',
-            actionLabel: 'Lihat',
-            onAction: () {
-              context.goNamed(AppRoute.jobs.name);
-            },
-          );
-        }
-        if (violation > 0) {
-          context.showSnackBar(
-            'Anda memiliki $violation Laporan Pelanggaran!',
-            actionLabel: 'Lihat',
-            onAction: () {
-              context.goNamed(
-                AppRoute.jobs.name,
-                queryParameters: {"type": "umum"},
-              );
-            },
-          );
-        }
-        if (permit > 0) {
-          context.showSnackBar(
-            'Anda memiliki $permit Permintaan Izin Staff!',
-            actionLabel: 'Lihat',
-            onAction: () {
-              context.goNamed(AppRoute.permit.name);
-            },
-          );
-        }
-        if (studentPermit > 0) {
-          context.showSnackBar(
-            'Anda memiliki $studentPermit Permintaan Izin Santri!',
-            actionLabel: 'Lihat',
-            onAction: () {
-              context.goNamed(AppRoute.studentPermit.name);
-            },
-          );
-        }
-        if (manager > 0) {
-          context.showSnackBar(
-            'Anda memiliki $manager Permohonan untuk di proses!',
-            actionLabel: 'Lihat',
-            onAction: () {
-              context.goNamed(AppRoute.historyTransaction.name);
-            },
-          );
-        }
-        if (requestMedicine > 0) {
-          context.showSnackBar(
-            'Anda memiliki $requestMedicine Permintaan Obat untuk di proses!',
-            actionLabel: 'Lihat',
-            onAction: () {
-              context.goNamed(AppRoute.medicineRequest.name);
-            },
-          );
-        }
-        if (finance > 0) {
-          context.showSnackBar(
-            'Anda memiliki $finance Permohonan untuk di proses!',
-            actionLabel: 'Lihat',
-            onAction: () {
-              context.goNamed(AppRoute.historyTransaction.name);
-            },
-          );
-        }
-        if (logistic > 0) {
-          context.showSnackBar(
-            'Anda memiliki $logistic Permohonan untuk di proses!',
-            actionLabel: 'Lihat',
-            onAction: () {
-              context.goNamed(AppRoute.historyTransaction.name);
-            },
-          );
-        }
-        if (ukp > 0) {
-          context.showSnackBar(
-            'Anda memiliki $ukp Permintaan Obat untuk di proses!',
-            actionLabel: 'Lihat',
-            onAction: () {
-              context.goNamed(AppRoute.medicineRequest.name);
-            },
-          );
-        }
-        if (director > 0) {
-          context.showSnackBar(
-            'Anda memiliki $director Permohonan untuk di proses!',
-            actionLabel: 'Lihat',
-            onAction: () {
-              context.goNamed(AppRoute.historyTransaction.name);
-            },
-          );
-        }
-      });
-    }
+    final safeUserName = profileData?.fullName?.isNotEmpty == true ? profileData!.fullName! : 'User';
+    final safePosition = profileData?.position?.isNotEmpty == true ? profileData!.position! : '-';
+    final safeNameStore = profileData?.nameStore?.isNotEmpty == true ? profileData!.nameStore! : '-';
+    final safeUserImage = profileData?.img?.isNotEmpty == true ? profileData!.img! : '';
+    final safeWorkHour = (rawWorkHour != null && rawWorkHour.isNotEmpty)
+        ? rawWorkHour
+        : (profileData?.absensi?.isNotEmpty == true ? profileData!.absensi! : '-');
+    final safeAttendance = presenceData?.attandence?.toString() ?? '0';
+    final safeJob = presenceData?.job?.toString() ?? '0';
+    final safeLate = presenceData?.late ?? '-';
+    final safeDuring = presenceData?.during ?? '--:--';
 
-    buildJobAlertMessage();
+    final isKependidikan = presenceData?.kependidikan == 1 || presenceData?.guru == "YES";
+    final isKepengasuhan = presenceData?.kepengasuhan == 1;
+    final isKesehatan = presenceData?.kesehatan == 1;
+    final isKerumahtanggaan = presenceData?.kerumahtanggaan == 1;
+    final isTahfidz = presenceData?.tahfidz == 1;
+    final isKeuangan = presenceData?.keuangan == 1;
+    final isUnitUsaha = presenceData?.unitusaha == 1;
+    final isPermohonan = presenceData?.permohonan == 1;
+    final safeLevel = presenceData?.level ?? '';
 
-    // Cek update sekali saja saat home pertama kali tampil
+// Cek update sekali saja saat home pertama kali tampil
     useEffect(() {
       Future.microtask(() async {
         final info = await PackageInfo.fromPlatform();
@@ -215,6 +135,18 @@ class HomeScreen extends HookConsumerWidget {
       });
       return null;
     }, const []);
+
+    // Auto-sync: refresh mengajar + tahfidz schedule when app resumes
+    // (UKS officer may have updated student status)
+    useEffect(() {
+      void onResume() {
+        ref.invalidate(fetchPresenceProvider(key: key));
+      }
+      final observer = AppLifecycleListener(onResume: onResume);
+      return () {
+        observer.dispose();
+      };
+    }, [key]);
 
     Widget buildHeader() {
       return Container(
@@ -243,7 +175,7 @@ class HomeScreen extends HookConsumerWidget {
                         ),
                       ),
                       Text(
-                        '${fetchUserProfile.valueOrNull?.fullName}',
+                        safeUserName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -254,7 +186,7 @@ class HomeScreen extends HookConsumerWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${fetchUserProfile.valueOrNull?.position}',
+                        safePosition,
                         style: TextStyle(
                           fontSize: 12,
                           color: context.colorOnPrimary,
@@ -267,8 +199,8 @@ class HomeScreen extends HookConsumerWidget {
                   padding: const EdgeInsets.only(left: 16, right: 8.0),
                   child: CustomAvatar(
                     size: 50,
-                    imageUrl: '${fetchUserProfile.valueOrNull?.img}',
-                    name: '${fetchUserProfile.valueOrNull?.fullName}',
+                    imageUrl: safeUserImage,
+                    name: safeUserName,
                     color: context.colorInversePrimary,
                   ),
                 ),
@@ -294,7 +226,7 @@ class HomeScreen extends HookConsumerWidget {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            '${fetchUserProfile.valueOrNull?.nameStore}',
+                            safeNameStore,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: context.bodyMedium,
@@ -326,7 +258,7 @@ class HomeScreen extends HookConsumerWidget {
                           style: context.bodyMediumBold,
                         ),
                         Text(
-                          displayWorkHour,
+                          safeWorkHour,
                           style: context.bodyMedium,
                         ),
                       ],
@@ -340,7 +272,7 @@ class HomeScreen extends HookConsumerWidget {
                           style: context.bodyMediumBold,
                         ),
                         Text(
-                          displayTimeAttand,
+                          jamMasukWithHari,
                           style: context.bodyMedium,
                         ),
                       ],
@@ -354,14 +286,13 @@ class HomeScreen extends HookConsumerWidget {
                           style: context.bodyMediumBold,
                         ),
                         Text(
-                          displayTimeOut,
+                          jamPulangWithHari,
                           style: context.bodyMedium,
                         ),
                       ],
                     ),
                     Visibility(
-                      visible: fetchPresence.valueOrNull?.late !=
-                          "-", // Not Attendance
+                      visible: safeLate != "-", // Not Attendance
                       child: Column(
                         children: [
                           const SizedBox(height: 8),
@@ -373,7 +304,7 @@ class HomeScreen extends HookConsumerWidget {
                                 style: context.bodyMediumBold,
                               ),
                               Text(
-                                fetchPresence.valueOrNull?.late ?? '-',
+                                safeLate,
                                 style: context.bodyMedium,
                               ),
                             ],
@@ -394,7 +325,7 @@ class HomeScreen extends HookConsumerWidget {
                                 style: context.bodyMediumBold,
                               ),
                               Text(
-                                fetchPresence.valueOrNull?.during ?? '--:--',
+                                safeDuring,
                                 style: context.bodyMedium,
                               ),
                             ],
@@ -419,11 +350,6 @@ class HomeScreen extends HookConsumerWidget {
                         depth: 0.62,
                         onPressed: () async {
                           if (isAttendanceLoading.value) return;
-
-                          const minAnimationDuration = Duration(
-                            milliseconds: 520,
-                          );
-                          final startedAt = DateTime.now();
                           isAttendanceLoading.value = true;
 
                           try {
@@ -440,7 +366,6 @@ class HomeScreen extends HookConsumerWidget {
 
                             if (!context.mounted) return;
 
-                            // Pastikan transisi state tombol (Masuk/Pulang) terasa halus.
                             await Future.wait([
                               ref.refresh(
                                   fetchPresenceProvider(key: key).future),
@@ -451,14 +376,6 @@ class HomeScreen extends HookConsumerWidget {
                               onTimeout: () => <Object?>[],
                             );
                           } finally {
-                            final elapsed =
-                                DateTime.now().difference(startedAt);
-                            if (elapsed < minAnimationDuration) {
-                              await Future.delayed(
-                                minAnimationDuration - elapsed,
-                              );
-                            }
-
                             if (context.mounted) {
                               isAttendanceLoading.value = false;
                             }
@@ -528,7 +445,7 @@ class HomeScreen extends HookConsumerWidget {
                       textAlign: TextAlign.center,
                     ),
                     subtitle: Text(
-                      '${fetchPresence.valueOrNull?.attandence}',
+                      safeAttendance,
                       style: context.bodyMediumBold,
                       textAlign: TextAlign.center,
                     ),
@@ -547,7 +464,7 @@ class HomeScreen extends HookConsumerWidget {
                       textAlign: TextAlign.center,
                     ),
                     subtitle: Text(
-                      '${fetchPresence.valueOrNull?.job}',
+                      safeJob,
                       style: context.bodyMediumBold,
                       textAlign: TextAlign.center,
                     ),
@@ -666,18 +583,29 @@ class HomeScreen extends HookConsumerWidget {
       );
     }
 
-    return Scaffold(
+return Scaffold(
       body: RefreshIndicator(
         key: refreshKey,
-        onRefresh: () => Future.wait(
-          [
-            ref.refresh(fetchPresenceProvider(key: key).future),
-            ref.refresh(fetchProfileProvider(key: key).future)
-          ],
-        ),
-        child: Skeletonizer(
-          enabled: fetchUserProfile.isLoading,
-          child: ListView(
+        onRefresh: () async {
+          try {
+            await Future.wait(
+              [
+                ref.refresh(fetchPresenceProvider(key: key).future),
+                ref.refresh(fetchProfileProvider(key: key).future)
+              ],
+            );
+          } catch (e) {
+            if (context.mounted) {
+              context.showErrorMessage(e);
+            }
+            rethrow;
+          }
+        },
+        child: Stack(
+          children: [
+            Skeletonizer(
+              enabled: isAnyLoading,
+              child: ListView(
             children: [
               buildHeader(),
               const SizedBox(height: 8),
@@ -722,8 +650,7 @@ class HomeScreen extends HookConsumerWidget {
               const SizedBox(height: 8),
               buildListMenu(
                 title: 'Menu Pendidikan',
-                enabled: fetchPresence.valueOrNull?.kependidikan == 1 ||
-                    fetchPresence.valueOrNull?.guru == "YES",
+                enabled: isKependidikan,
                 menus: [
                   MenuGrid(
                     title: 'Penilaian',
@@ -763,7 +690,7 @@ class HomeScreen extends HookConsumerWidget {
               ),
               buildListMenu(
                 title: 'Menu Kesantrian/Kepengasuhan',
-                enabled: fetchPresence.valueOrNull?.kepengasuhan == 1,
+                enabled: isKepengasuhan,
                 menus: [
                   MenuGrid(
                     title: 'Tugas Harian',
@@ -813,7 +740,7 @@ class HomeScreen extends HookConsumerWidget {
               ),
               buildListMenu(
                 title: 'Menu Kesehatan',
-                enabled: fetchPresence.valueOrNull?.kesehatan == 1,
+                enabled: isKesehatan,
                 menus: [
                   MenuGrid(
                     title: 'Kesehatan Santri',
@@ -847,7 +774,7 @@ class HomeScreen extends HookConsumerWidget {
               ),
               buildListMenu(
                 title: 'Menu Sarpras dan Dapur',
-                enabled: fetchPresence.valueOrNull?.kerumahtanggaan == 1,
+                enabled: isKerumahtanggaan,
                 menus: [
                   MenuGrid(
                     title: 'Laporan Makan',
@@ -894,7 +821,7 @@ class HomeScreen extends HookConsumerWidget {
               ),
               buildListMenu(
                 title: 'Menu Tahfidz',
-                enabled: fetchPresence.valueOrNull?.tahfidz == 1,
+                enabled: isTahfidz,
                 menus: [
                   MenuGrid(
                     title: 'Absensi Tahfidz',
@@ -940,7 +867,7 @@ class HomeScreen extends HookConsumerWidget {
               ),
               buildListMenu(
                 title: 'Menu Keuangan',
-                enabled: fetchPresence.valueOrNull?.keuangan == 1,
+                enabled: isKeuangan,
                 menus: [
                   MenuGrid(
                     title: 'Laporan Kerja',
@@ -960,7 +887,7 @@ class HomeScreen extends HookConsumerWidget {
               ),
               buildListMenu(
                 title: 'Menu Unit Usaha',
-                enabled: fetchPresence.valueOrNull?.unitusaha == 1,
+                enabled: isUnitUsaha,
                 menus: [
                   MenuGrid(
                       title: 'Laporan Kerja',
@@ -998,7 +925,7 @@ class HomeScreen extends HookConsumerWidget {
                     iconData: Icons.swap_horizontal_circle,
                     goToRouteName: AppRoute.changeShift.name,
                     queryParameters: {
-                      'level': fetchPresence.valueOrNull?.level
+                      'level': safeLevel
                     },
                   ),
                   MenuGrid(
@@ -1015,26 +942,24 @@ class HomeScreen extends HookConsumerWidget {
               ),
               buildListMenu(
                 title: 'Permohonan Barang/Dana',
-                enabled: (fetchPresence.valueOrNull?.permohonan == 1 &&
-                        fetchPresence.valueOrNull?.level == 'admin') ||
-                    (fetchPresence.valueOrNull?.level != 'staff' &&
-                        fetchPresence.valueOrNull?.level != 'pengabdian'),
+                enabled: (isPermohonan && safeLevel == 'admin') ||
+                    (safeLevel != 'staff' && safeLevel != 'pengabdian'),
                 menus: [
                   MenuGrid(
                     title: 'Permohonan',
                     iconData: Icons.monetization_on,
                     goToRouteName: AppRoute.historyTransaction.name,
                     queryParameters: {
-                      'level': fetchPresence.valueOrNull?.level
+                      'level': safeLevel
                     },
                   ),
                 ],
               ),
               buildListMenu(
                 title: 'Menu Kepala Bagian',
-                enabled: fetchPresence.valueOrNull?.level == 'master' ||
-                    fetchPresence.valueOrNull?.level == 'admin' ||
-                    fetchPresence.valueOrNull?.level == 'manager',
+                enabled: safeLevel == 'master' ||
+                    safeLevel == 'admin' ||
+                    safeLevel == 'manager',
                 menus: [
                   MenuGrid(
                     title: 'Tambah Pekerjaan',
@@ -1095,6 +1020,49 @@ class HomeScreen extends HookConsumerWidget {
               ),
             ],
           ),
+        ),
+        if (!isAnyLoading && (fetchUserProfile.hasError || fetchPresence.hasError) && fetchUserProfile.valueOrNull == null)
+          Container(
+            color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.9),
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.cloud_off_rounded,
+                      size: 64,
+                      color: Colors.grey.shade400,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Gagal memuat data',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: Colors.grey.shade700,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Terjadi kesalahan saat mengambil data dari server',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
+                    const SizedBox(height: 24),
+                    FilledButton.icon(
+                      onPressed: () {
+                        ref.invalidate(fetchPresenceProvider(key: key));
+                        ref.invalidate(fetchProfileProvider(key: key));
+                      },
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Coba Lagi'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          ],
         ),
       ),
     );

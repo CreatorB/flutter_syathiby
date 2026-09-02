@@ -4,6 +4,21 @@ part 'permit.freezed.dart';
 part 'permit.g.dart';
 
 @freezed
+abstract class TapHistory with _$TapHistory {
+  const factory TapHistory({
+    String? id,
+    @JsonKey(name: 'tap_keluar') String? tapKeluar,
+    @JsonKey(name: 'tap_masuk') String? tapMasuk,
+    String? status,
+    @JsonKey(name: 'jam_izin_from') String? jamIzinFrom,
+    @JsonKey(name: 'jam_izin_until') String? jamIzinUntil,
+  }) = _TapHistory;
+
+  factory TapHistory.fromJson(Map<String, dynamic> json) =>
+      _$TapHistoryFromJson(json);
+}
+
+@freezed
 abstract class Permit with _$Permit {
   const factory Permit({
     @JsonKey(ignore: true) String? key,
@@ -23,6 +38,13 @@ abstract class Permit with _$Permit {
     String? kabag,
     String? alasan,
     String? aproval,
+    @JsonKey(name: 'jam_izin_from') String? jamIzinFrom,
+    @JsonKey(name: 'jam_izin_until') String? jamIzinUntil,
+    @JsonKey(name: 'tap_keluar') String? tapKeluar,
+    @JsonKey(name: 'tap_masuk') String? tapMasuk,
+    @JsonKey(name: 'tap_status') String? tapStatus,
+    @JsonKey(name: 'tap_history') List<TapHistory>? tapHistory,
+    @JsonKey(name: 'is_late') String? isLate,
   }) = _Permit;
 
   factory Permit.fromJson(Map<String, dynamic> json) => _$PermitFromJson(json);

@@ -184,7 +184,7 @@ String? formatTime(FormatTimeRef ref, String? timeString, {String? format}) {
   }
   try {
     final dateTime = DateFormat('HH:mm:ss').parse(timeString).toLocal();
-    return DateFormat(format ?? 'HH:mm').format(dateTime);
+    return DateFormat(format ?? 'HH:mm', 'id_ID').format(dateTime);
   } catch (e) {
     return null;
   }
@@ -206,7 +206,7 @@ String formatCurrency(FormatCurrencyRef ref, dynamic number) {
 String? formatDate(FormatDateRef ref, String dateString, {String? format}) {
   final date = ref.watch(parseDateTimeProvider(dateString));
   if (date == null) return null;
-  return DateFormat(format ?? 'dd MMM yyyy').format(date);
+  return DateFormat(format ?? 'dd MMM yyyy', 'id_ID').format(date);
 }
 
 @riverpod
@@ -218,7 +218,7 @@ String? formatTimeFromDate(FormatTimeFromDateRef ref, String? dateString) {
   if (dateTime == null) {
     return null;
   }
-  return DateFormat('HH:mm').format(dateTime);
+  return DateFormat('HH:mm', 'id_ID').format(dateTime);
 }
 
 @riverpod

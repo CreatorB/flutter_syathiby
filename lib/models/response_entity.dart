@@ -7,7 +7,7 @@ part 'response_entity.g.dart';
 class ResponseEntity with _$ResponseEntity {
   const factory ResponseEntity({
     required dynamic data,
-    required String status,
+    required dynamic status,
     required String msg,
     required String errCode,
   }) = _ResponseEntity;

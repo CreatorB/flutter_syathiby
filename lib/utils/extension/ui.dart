@@ -17,10 +17,10 @@ extension AsyncValueUI on AsyncValue {
           maxLines: 5,
           overflow: TextOverflow.ellipsis,
         ),
-        autoCloseDuration: const Duration(seconds: 3),
+        autoCloseDuration: const Duration(seconds: 4),
         type: ToastificationType.error,
         style: ToastificationStyle.flat,
-        backgroundColor: Colors.red.withOpacity(0.65),
+        backgroundColor: Colors.red.withValues(alpha: 0.65),
         foregroundColor: Colors.white,
       );
     }
@@ -29,9 +29,11 @@ extension AsyncValueUI on AsyncValue {
   String _errorMessage(Object? error) {
     if (error is DioException) {
       final dioError = error.error;
+
       if (dioError is RestException) {
         return dioError.message;
       }
+
       if (error.type == DioExceptionType.connectionTimeout) {
         return 'Waktu koneksi dengan server habis';
       }
@@ -41,15 +43,58 @@ extension AsyncValueUI on AsyncValue {
       if (error.type == DioExceptionType.receiveTimeout) {
         return 'Waktu terima habis saat terhubung dengan server';
       }
+
       if (error.type == DioExceptionType.badResponse) {
-        return 'Kesalahan respons tanpa detail respons';
+        final statusCode = error.response?.statusCode;
+        final responseData = error.response?.data;
+        String detail = '';
+
+        if (responseData is Map) {
+          detail = responseData['msg'] ?? responseData['message'] ?? responseData['error'] ?? '';
+          if (detail.isNotEmpty) detail = '\n$detail';
+        }
+
+        if (statusCode != null) {
+          return 'Server error ($statusCode)$detail';
+        }
+        return 'Kesalahan respons dari server$detail';
       }
+
+      if (error.type == DioExceptionType.cancel) {
+        return 'Permintaan dibatalkan';
+      }
+
+      if (error.type == DioExceptionType.connectionError) {
+        return 'Gagal terhubung ke server. Periksa koneksi internet Anda.';
+      }
+
       if (error.type == DioExceptionType.unknown) {
-        return 'Kesalahan lainnya terjadi';
+        final message = error.message ?? '';
+        if (message.contains('SocketException') || message.contains('Connection')) {
+          return 'Gagal terhubung ke server. Periksa koneksi internet Anda.';
+        }
+        if (message.contains('FormatException') || message.contains('JSON')) {
+          return 'Format data dari server tidak valid.';
+        }
+        return 'Terjadi kesalahan: $message';
       }
-      return 'Terjadi kesalahan saat request ke server, silahkan periksa koneksi internet Anda';
+
+      return 'Terjadi kesalahan saat request ke server, silaturahmi periksa koneksi internet Anda';
     }
-    return 'Kesalahan lainnya terjadi: $error';
+
+    if (error is RestException) {
+      return error.message;
+    }
+
+    final errorStr = error.toString();
+    if (errorStr.contains('SocketException') || errorStr.contains('Connection')) {
+      return 'Gagal terhubung ke server. Periksa koneksi internet Anda.';
+    }
+    if (errorStr.contains('TimeoutException')) {
+      return 'Waktu tunggu habis. Server sedang sibuk, coba lagi.';
+    }
+
+    return 'Kesalahan: ${error?.toString() ?? 'Unknown error'}';
   }
 }
 
@@ -131,7 +176,7 @@ extension UiX on BuildContext {
       autoCloseDuration: const Duration(seconds: 4),
       type: ToastificationType.error,
       style: ToastificationStyle.flat,
-      backgroundColor: Colors.red.withOpacity(0.65),
+      backgroundColor: Colors.red.withValues(alpha: 0.65),
       foregroundColor: Colors.white,
     );
   }
@@ -139,12 +184,71 @@ extension UiX on BuildContext {
   String _errorMessage(Object? error) {
     if (error is DioException) {
       final dioError = error.error;
+
       if (dioError is RestException) {
         return dioError.message;
       }
+
+      if (error.type == DioExceptionType.connectionTimeout) {
+        return 'Waktu koneksi dengan server habis';
+      }
+      if (error.type == DioExceptionType.sendTimeout) {
+        return 'Waktu kirim habis saat terhubung dengan server';
+      }
+      if (error.type == DioExceptionType.receiveTimeout) {
+        return 'Waktu terima habis saat terhubung dengan server';
+      }
+
+      if (error.type == DioExceptionType.badResponse) {
+        final statusCode = error.response?.statusCode;
+        final responseData = error.response?.data;
+        String detail = '';
+
+        if (responseData is Map) {
+          detail = responseData['msg'] ?? responseData['message'] ?? responseData['error'] ?? '';
+          if (detail.isNotEmpty) detail = '\n$detail';
+        }
+
+        if (statusCode != null) {
+          return 'Server error ($statusCode)$detail';
+        }
+        return 'Kesalahan respons dari server$detail';
+      }
+
+      if (error.type == DioExceptionType.cancel) {
+        return 'Permintaan dibatalkan';
+      }
+
+      if (error.type == DioExceptionType.connectionError) {
+        return 'Gagal terhubung ke server. Periksa koneksi internet Anda.';
+      }
+
+      if (error.type == DioExceptionType.unknown) {
+        final message = error.message ?? '';
+        if (message.contains('SocketException') || message.contains('Connection')) {
+          return 'Gagal terhubung ke server. Periksa koneksi internet Anda.';
+        }
+        if (message.contains('FormatException') || message.contains('JSON')) {
+          return 'Format data dari server tidak valid.';
+        }
+        return 'Terjadi kesalahan: $message';
+      }
+
       return dioError.toString();
-    } else {
-      return error.toString();
     }
+
+    if (error is RestException) {
+      return error.message;
+    }
+
+    final errorStr = error.toString();
+    if (errorStr.contains('SocketException') || errorStr.contains('Connection')) {
+      return 'Gagal terhubung ke server. Periksa koneksi internet Anda.';
+    }
+    if (errorStr.contains('TimeoutException')) {
+      return 'Waktu tunggu habis. Server sedang sibuk, coba lagi.';
+    }
+
+    return error.toString();
   }
 }

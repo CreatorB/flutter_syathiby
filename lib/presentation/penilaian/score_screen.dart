@@ -235,6 +235,14 @@ class ScoreScreen extends HookConsumerWidget {
           note: note,
         );
     if (result == null || !context.mounted) return;
+    context.pop();
+    ref.invalidate(fetchAllScoreProvider(
+      key: key,
+      subjectId: '$subjectId',
+      classId: '$classId',
+      typeId: '$scoreTypeId',
+      studentId: '$studentId',
+    ));
     context.showSuccessMessage(result.msg);
   }
 }

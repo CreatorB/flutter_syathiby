@@ -30,12 +30,16 @@ class ViolationListScreen extends HookConsumerWidget {
     );
     Future<void> fetchData(int pageKey) async {
       try {
-        final result = await ref.watch(
+        final result = await ref.read(
           fetchListViolationProvider(key: key, page: pageKey, type: '$type')
               .future,
         );
         final nextPageKey = pageKey + 1;
-        pagingController.appendPage(result, nextPageKey);
+        if (result.isEmpty) {
+          pagingController.appendLastPage(result);
+        } else {
+          pagingController.appendPage(result, nextPageKey);
+        }
       } catch (error) {
         pagingController.error = error;
       }
@@ -153,6 +157,20 @@ class ViolationListScreen extends HookConsumerWidget {
                   ],
                 ),
               ),
+            ),
+          ),
+          Positioned(
+            bottom: 80,
+            right: 16,
+            child: FloatingActionButton.extended(
+              heroTag: 'mukholif',
+              onPressed: () async {
+                context.goNamed(
+                  AppRoute.mukholifSearch.name,
+                );
+              },
+              label: const Text('Catatan Lain'),
+              icon: const Icon(Icons.history_edu),
             ),
           ),
           Positioned(
