@@ -116,6 +116,10 @@ abstract class SiswaRestInterface {
     @Field('id_kelas') String idKelas,
     @Field('id_mapel') String idMapel,
     @Field('status') String status,
+    // Jam pelajaran yang sedang ditandai. Satu kelas+mapel bisa punya lebih dari
+    // satu slot di hari yang sama; tanpa ini backend harus menebak periodenya dari
+    // jam sekarang, dan penandaan bisa mengenai baris periode yang salah.
+    @Field('id_timetable') String idTimetable,
   );
 
   @POST('siswa/absentahfidz.php')
