@@ -31,6 +31,9 @@ class ResponseInterceptor extends Interceptor {
     'permit/deletesantri',
     'permit/waliinsertsantri',
     'permit/walidecancelsantri',
+    // Absen pulang susulan: pesan validasi (format jam, jam melewati sekarang, dll)
+    // harus sampai ke user, bukan diganti list kosong.
+    'attendance/pulangsusulan',
   ];
 
   bool _isMessageEndpoint(String path) {

@@ -87,6 +87,14 @@ abstract class UserService {
   );
 
   @MultiPart()
+  @POST('attendance/pulangsusulan.php')
+  Future<Absent> pulangSusulan(
+    @Part(name: 'key') String key,
+    @Part(name: 'jam') String jam,
+    @Part(name: 'alasan') String alasan,
+  );
+
+  @MultiPart()
   @POST('settings/updateaccount.php')
   Future<Message> updateProfile(
     @Part(name: 'key') String key,
