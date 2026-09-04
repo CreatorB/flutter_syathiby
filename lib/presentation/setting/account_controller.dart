@@ -162,6 +162,19 @@ class AccountController extends _$AccountController {
     return result.valueOrNull;
   }
 
+  Future<Absent?> pulangSusulan({
+    required String key,
+    required String jam,
+    required String alasan,
+  }) async {
+    state = const AsyncLoading();
+    final result = await AsyncValue.guard(
+      () => ref.watch(userServiceProvider).pulangSusulan(key, jam, alasan),
+    );
+    state = result;
+    return result.valueOrNull;
+  }
+
   Future<Absent?> reasonLate({
     required String key,
     required String reason,
