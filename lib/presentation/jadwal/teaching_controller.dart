@@ -20,11 +20,12 @@ class TeachingController extends _$TeachingController {
     required String classroomId,
     required String subjectId,
     required String status,
+    required String timetableId,
   }) async {
     final result = await AsyncValue.guard(
       () => ref
           .watch(studentServiceProvider)
-          .getAbsen(key, studentId, classroomId, subjectId, status),
+          .getAbsen(key, studentId, classroomId, subjectId, status, timetableId),
     );
     state = result;
     return result.valueOrNull;

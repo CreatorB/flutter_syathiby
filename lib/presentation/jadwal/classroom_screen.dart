@@ -294,6 +294,7 @@ class ClassroomScreen extends HookConsumerWidget {
               classroomId: '${schedule.id_kelas}',
               subjectId: '${schedule.id_mapel}',
               status: status,
+              timetableId: '${schedule.id_timetable}',
             );
     if (result == null || !context.mounted) {
       return;

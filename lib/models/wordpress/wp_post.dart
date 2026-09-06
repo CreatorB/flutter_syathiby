@@ -138,10 +138,13 @@ extension WpPostExtension on WpPost {
     final isLocalHost = host == 'localhost' ||
         host == '127.0.0.1' ||
         host == '192.168.50.100';
+    final isStaging = host == 'aplikasidev.syathiby.id';
 
     final proxyBase = isLocalHost
         ? 'http://localhost/aplikasi/wordpress_images.php'
-        : 'https://aplikasi.syathiby.id/wordpress_images.php';
+        : isStaging
+            ? 'https://aplikasidev.syathiby.id/wordpress_images.php'
+            : 'https://aplikasi.syathiby.id/wordpress_images.php';
 
     return '$proxyBase?url=${Uri.encodeComponent(relativePath)}';
   }
