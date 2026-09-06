@@ -148,6 +148,29 @@ class HomeScreen extends HookConsumerWidget {
       };
     }, [key]);
 
+    // Absen masuk yang tidak pernah ditutup (staff lupa absen pulang) ditawarkan
+    // untuk dilengkapi. Tanpa ini absen pulang hari itu hilang permanen: backend
+    // membuang sesi basi setelah 18 jam dan tidak ada jalur pengisian susulan.
+    final tanggalTertinggal = presenceData?.pulangTertinggal == 1
+        ? presenceData?.pulangTertinggalDate
+        : null;
+    useEffect(() {
+      if (tanggalTertinggal == null) return null;
+      Future.microtask(() {
+        if (!context.mounted) return;
+        showPulangSusulan(
+          context,
+          ref,
+          key,
+          hari: presenceData?.pulangTertinggalDay ?? '',
+          tanggal: tanggalTertinggal,
+          jamMasuk: presenceData?.pulangTertinggalMasuk ?? '',
+          jamPulangJadwal: presenceData?.pulangTertinggalFinish ?? '',
+        );
+      });
+      return null;
+    }, [tanggalTertinggal]);
+
     Widget buildHeader() {
       return Container(
         padding: const EdgeInsets.all(16),
@@ -1567,6 +1590,71 @@ return Scaffold(
           .toList(),
     );
     return selected;
+  }
+
+  Future<void> showPulangSusulan(
+    BuildContext context,
+    WidgetRef ref,
+    String key, {
+    required String hari,
+    required String tanggal,
+    required String jamMasuk,
+    required String jamPulangJadwal,
+  }) async {
+    final isian = await showTextInputDialog(
+      context: context,
+      title: 'Absen Pulang Belum Terisi',
+      message:
+          'Anda absen masuk $hari, $tanggal jam $jamMasuk tapi belum absen pulang.\n\nIsi jam pulang Anda hari itu supaya tercatat di kinerja.',
+      okLabel: 'Simpan',
+      cancelLabel: 'Nanti',
+      textFields: [
+        DialogTextField(
+          initialText: jamPulangJadwal,
+          hintText: 'Jam pulang (contoh 16:30)',
+          keyboardType: TextInputType.datetime,
+          validator: (value) {
+            final jam = (value ?? '').trim();
+            if (jam.isEmpty) return 'Jam pulang wajib diisi';
+            if (!RegExp(r'^([01][0-9]|2[0-3]):[0-5][0-9]$').hasMatch(jam)) {
+              return 'Format jam HH:MM, contoh 16:30';
+            }
+            return null;
+          },
+        ),
+        DialogTextField(
+          hintText: 'Alasan tidak absen pulang',
+          keyboardType: TextInputType.text,
+          validator: (value) {
+            if ((value ?? '').trim().isEmpty) return 'Alasan wajib diisi';
+            return null;
+          },
+        ),
+      ],
+    );
+
+    if (isian == null || isian.length < 2 || !context.mounted) return;
+
+    final jam = isian[0].trim();
+    final result = await ref
+        .read(accountControllerProvider.notifier)
+        .pulangSusulan(key: key, jam: jam, alasan: isian[1].trim());
+    if (!context.mounted) return;
+
+    // Pesan gagal dari backend (mis. "Jam pulang tidak boleh melewati waktu
+    // sekarang") sampai ke sini lewat RestException di state controller.
+    if (result == null) {
+      ref.read(accountControllerProvider).showToastOnError(context);
+      return;
+    }
+
+    ref.invalidate(fetchPresenceProvider(key: key));
+    ref.invalidate(fetchProfileProvider(key: key));
+    refreshKey.currentState?.show();
+
+    context.showSuccessMessage(
+      'Absen pulang $hari, $tanggal jam $jam berhasil dicatat',
+    );
   }
 
   Future<void> showReasonLate(

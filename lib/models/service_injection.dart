@@ -67,17 +67,21 @@ WpApiService wpApiService(WpApiServiceRef ref) {
   String baseUrl;
   
   if (kIsWeb) {
-    // Detect if running on localhost (dev) or production
+    // Detect if running on localhost (dev), staging, or production
     final hostname = Uri.base.host;
-    final isLocalDev = hostname == 'localhost' || 
+    final isLocalDev = hostname == 'localhost' ||
               hostname == '127.0.0.1' ||
               hostname == '192.168.50.100';
-    
+    final isStaging = hostname == 'aplikasidev.syathiby.id';
+
     if (isLocalDev) {
       // Local development - use localhost proxy
       // (even if accessing via 192.168.50.100, proxy is still on localhost)
       baseUrl = 'http://localhost/aplikasi/geten/wordpress_proxy.php';
       print('🔧 Local dev mode detected ($hostname) - using localhost proxy');
+    } else if (isStaging) {
+      baseUrl = 'https://aplikasidev.syathiby.id/geten/wordpress_proxy.php';
+      print('🧪 Staging web mode detected ($hostname) - using aplikasidev.syathiby.id proxy');
     } else {
       // Production web - use production proxy (aplikasi/ is root of aplikasi.syathiby.id)
       baseUrl = 'https://aplikasi.syathiby.id/geten/wordpress_proxy.php';
