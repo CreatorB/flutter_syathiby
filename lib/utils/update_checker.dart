@@ -30,7 +30,12 @@ class UpdateChecker {
   ///
   /// Konsekuensinya: CHANGELOG.md di branch 'main' hanya boleh ditambah entri
   /// versi baru pada saat deploy prod (lihat AGENTS.md bagian alur rilis).
-  static String get _branch => FlavorConfig.isLocal ? 'staging' : 'main';
+  /// Flavor `staging` ikut membaca branch 'staging' (ditambahkan 5 Sep 2026
+  /// bersama flavor itu sendiri) -- kalau tidak, build staging akan mengecek
+  /// CHANGELOG milik produksi dan memunculkan pop-up update yang menyesatkan
+  /// saat sedang menguji.
+  static String get _branch =>
+      (FlavorConfig.isLocal || FlavorConfig.isStaging) ? 'staging' : 'main';
 
   /// URL raw CHANGELOG.md dari GitHub dengan branch dinamis
   static String get changelogUrl =>

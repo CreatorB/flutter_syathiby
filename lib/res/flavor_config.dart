@@ -14,6 +14,17 @@ class FlavorConfig {
       'API_URL': 'http://192.168.50.100/aplikasi/geten/',
       'LINK_BASE': 'http://192.168.50.100/aplikasi',
     },
+    // Ditambahkan 5 Sep 2026. Sebelumnya build web yang di-deploy ke
+    // aplikasidev.syathiby.id memakai flavor 'prod', sehingga aplikasinya
+    // menembak API PRODUKSI dari origin staging. Browser memblokirnya lewat CORS
+    // (prod hanya mengizinkan origin-nya sendiri) dan user melihat "Gagal
+    // terhubung ke server" -- staging jadi tidak bisa dipakai menguji apa pun.
+    // Blokir CORS itu sendiri BENAR: tanpanya, uji coba di staging akan menulis
+    // data ke produksi.
+    'staging': {
+      'API_URL': 'https://aplikasidev.syathiby.id/geten/',
+      'LINK_BASE': 'https://aplikasidev.syathiby.id',
+    },
   };
 
   /// Current flavor from build-time dart-define
@@ -39,6 +50,9 @@ class FlavorConfig {
 
   /// Check if current flavor is local
   static bool get isLocal => currentFlavor == 'local';
+
+  /// Check if current flavor is staging
+  static bool get isStaging => currentFlavor == 'staging';
 
   /// Get flavor display name
   static String get flavorName => currentFlavor.toUpperCase();
