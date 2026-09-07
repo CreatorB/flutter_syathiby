@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:syathiby/di/providers.dart';
 import 'package:syathiby/models/service_injection.dart';
+import 'package:syathiby/models/permit/permit.dart';
 import 'package:syathiby/models/student/siswa.dart';
+import 'package:syathiby/presentation/permit/permit_controller.dart';
 import 'package:syathiby/utils/extension/color.dart';
 import 'package:syathiby/utils/extension/typography.dart';
 
@@ -18,6 +20,11 @@ class _TapIzinBottomSheetState extends ConsumerState<TapIzinBottomSheet> {
   final _nameController = TextEditingController();
   final _detailController = TextEditingController();
   final _searchController = TextEditingController();
+
+  /// Jenis izin dari tabel `permit_type`. Sebelum 7 Sep 2026 form ini hanya
+  /// punya field teks bebas, sehingga izin yang dibuat lewat jalur tap tidak
+  /// pernah terikat kategori dan batas `max_hari` tidak bisa diberlakukan.
+  Permit? _selectedType;
 
   DateTime _startDate = DateTime.now();
   DateTime _endDate = DateTime.now();
@@ -168,6 +175,70 @@ class _TapIzinBottomSheetState extends ConsumerState<TapIzinBottomSheet> {
     return '${_formatDate(_endDate)} ${_formatTimeOfDay(_jamUntil)}:00';
   }
 
+  /// Ambil daftar `permit_type` (type=santri) dan tampilkan sebagai pilihan.
+  /// Sumbernya sama dengan yang dipakai layar "Ajukan Izin" sebelum kedua
+  /// tombol digabung, jadi daftar kategorinya tetap satu sumber kebenaran.
+  Future<void> _pickPermitType() async {
+    final currentUser = ref.read(getCurrentUserProvider);
+    final key = '${currentUser?.key}';
+
+    List<Permit> items;
+    try {
+      items = await ref.read(
+        fetchPermitTypeProvider(key: key, type: 'santri').future,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat jenis izin: $e')),
+      );
+      return;
+    }
+    if (!mounted) return;
+
+    final picked = await showModalBottomSheet<Permit>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.3,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (_, scrollController) => Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(
+                'Jenis Izin',
+                style: Theme.of(sheetContext).textTheme.titleMedium,
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: ListView.separated(
+                controller: scrollController,
+                itemCount: items.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (_, index) => ListTile(
+                  title: Text('${items[index].namePermit}'),
+                  onTap: () => Navigator.of(sheetContext).pop(items[index]),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (picked != null && mounted) {
+      setState(() {
+        _selectedType = picked;
+        _nameController.text = picked.namePermit ?? '';
+      });
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedStudents.isEmpty) {
@@ -193,6 +264,7 @@ class _TapIzinBottomSheetState extends ConsumerState<TapIzinBottomSheet> {
         _buildJamIzinUntil(),
         _detailController.text,
         studentIds,
+        idIzin: _selectedType?.idPermit?.toString() ?? '',
       );
 
       if (mounted) {
@@ -259,13 +331,22 @@ class _TapIzinBottomSheetState extends ConsumerState<TapIzinBottomSheet> {
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 children: [
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Nama Izin',
-                      hintText: 'Contoh: Izin Pulang Weekend',
+                  FormField<Permit>(
+                    validator: (_) =>
+                        _selectedType == null ? 'Wajib dipilih' : null,
+                    builder: (field) => InkWell(
+                      onTap: _pickPermitType,
+                      child: InputDecorator(
+                        decoration: InputDecoration(
+                          labelText: 'Jenis Izin',
+                          errorText: field.errorText,
+                          suffixIcon: const Icon(Icons.arrow_drop_down),
+                        ),
+                        child: Text(
+                          _selectedType?.namePermit ?? 'Pilih jenis izin',
+                        ),
+                      ),
                     ),
-                    validator: (v) => v == null || v.isEmpty ? 'Wajib diisi' : null,
                   ),
                   const SizedBox(height: 16),
                   Row(
