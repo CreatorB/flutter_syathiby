@@ -118,6 +118,9 @@ dependencies:
   data_table_2: ^2.5.15
   #creatorbe
   package_info_plus: ^9.0.0
+  # Dipakai lib/utils/device_info_interceptor.dart untuk mencatat model/OS/emulator
+  # pada setiap request, supaya jejak absensi di dashboard bisa ditelusuri.
+  device_info_plus: ^10.1.2
   restart_app: ^1.3.2
   image: ^4.8.0
 
