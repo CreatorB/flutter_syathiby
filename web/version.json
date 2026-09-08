@@ -1,9 +1,12 @@
 {
-  "version": "1.0.9",
-  "buildNumber": "9",
-  "buildDate": "2026-08-19",
+  "version": "1.0.10",
+  "buildNumber": "10",
+  "buildDate": "2026-09-08",
   "features": [
-    "Presensi Tahfidz Halaqah: routing default lebih aman (type != 'teacher') supaya tidak salah buka layar guru saat type null",
-    "Dropdown presensi tahfidz (guru & siswa): whitelist value 'hadir/sakit/izin/alfa' agar tidak assertion error saat statusAbsen kosong atau tidak valid"
+    "Log Aktivitas: setiap login, logout, dan absensi kini terekam berikut IP, model HP, OS, versi aplikasi, dan penanda emulator/GPS palsu -- termasuk percobaan yang DITOLAK. Bisa dilihat di userpanel menu Monitoring > Log Aktivitas",
+    "Izin Santri: dua tombol ('Ajukan Izin' + 'Tap Izin') digabung jadi satu 'Buat Izin Santri', dengan pilihan Jenis Izin supaya batas max_hari berlaku",
+    "Notifikasi push: konfigurasi Firebase Android diarahkan ke project yang benar (syathiby-1345121)",
+    "Absensi kelas jauh lebih cepat: index baru pada tabel absensi memangkas waktu buka daftar dari ~25 detik jadi di bawah 1 detik",
+    "Status sakit dari UKS kini punya batas waktu dan tidak lagi menempel selamanya"
   ]
 }
