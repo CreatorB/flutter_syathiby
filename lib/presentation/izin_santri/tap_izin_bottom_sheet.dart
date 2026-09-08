@@ -316,7 +316,11 @@ class _TapIzinBottomSheetState extends ConsumerState<TapIzinBottomSheet> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Izin Tap Baru', style: context.titleLarge),
+                // Judul disamakan dengan tombolnya. Sebelum 8 Sep 2026 tertulis
+                // "Izin Tap Baru", istilah yang lahir waktu masih ada dua jalur
+                // ("Ajukan Izin" vs "Tap Izin"). Sekarang jalurnya cuma satu,
+                // jadi kata "Tap" hanya menyisakan kebingungan yang sama.
+                Text('Buat Izin Santri', style: context.titleLarge),
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
                   icon: const Icon(Icons.close),
