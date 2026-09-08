@@ -18,6 +18,11 @@ abstract class TapRestInterface {
     @Part(name: 'jam_izin_from') String jamIzinFrom,
     @Part(name: 'jam_izin_until') String jamIzinUntil,
     @Part(name: 'detail') String detail,
-    @Part(name: 'student_ids') String studentIds,
-  );
+    @Part(name: 'student_ids') String studentIds, {
+    // Opsional. Dikirim sejak 7 Sep 2026 supaya backend bisa memberlakukan
+    // batas `permit_type.max_hari` -- dulu batas itu hanya dicek di jalur
+    // "Ajukan Izin" (permit/insertsantri.php), sehingga jalur tap bisa
+    // menembus kebijakan pondok.
+    @Part(name: 'id_izin') String? idIzin,
+  });
 }

@@ -90,30 +90,27 @@ class StudentPermitScreen extends HookConsumerWidget {
               ),
             ),
           ),
+          // Satu tombol saja sejak 7 Sep 2026.
+          //
+          // Dulu ada DUA: "Ajukan Izin" (permit/insertsantri.php) dan "Tap Izin"
+          // (tap/insert_izin_tap.php). Keduanya terlihat setara tapi hasilnya
+          // beda: staff berwenang yang menekan "Ajukan Izin" izinnya nyangkut
+          // 'Menunggu Persetujuan', sedangkan lewat "Tap Izin" langsung
+          // 'Disetujui'. Orang sama, maksud sama, hasil beda -- itu yang bikin
+          // bingung di lapangan.
+          //
+          // Jalur tap yang dipertahankan karena praktis semua izin nyata lewat
+          // sana (678 dari 686 izin di produksi berstatus Disetujui), dan hanya
+          // jalur itu yang menyimpan jam keluar/kembali sehingga kiosk RFID dan
+          // deteksi terlambat bisa bekerja. Kemampuan yang tadinya hanya ada di
+          // "Ajukan Izin" sudah dipindahkan ke sini: pilihan jenis izin +
+          // pemberlakuan batas max_hari. Lampiran foto tidak diikutkan karena
+          // 0 dari 686 izin pernah memakainya (backend tetap menerimanya).
           Positioned(
             bottom: 24,
             right: 16,
             child: FloatingActionButton.extended(
               heroTag: 'student-permit',
-              onPressed: () async {
-                final added = await context.pushNamed<bool>(
-                  AppRoute.addStudentPermit.name,
-                );
-                if (added == true) {
-                  pagingController.refresh();
-                }
-              },
-              label: const Text('Ajukan Izin'),
-              icon: const Icon(
-                Icons.add,
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 90,
-            right: 16,
-            child: FloatingActionButton.extended(
-              heroTag: 'tap-izin',
               onPressed: () async {
                 final added = await showModalBottomSheet<bool>(
                   context: context,
@@ -125,11 +122,10 @@ class StudentPermitScreen extends HookConsumerWidget {
                   pagingController.refresh();
                 }
               },
-              label: const Text('Tap Izin'),
+              label: const Text('Buat Izin Santri'),
               icon: const Icon(
-                Icons.badge,
+                Icons.add,
               ),
-              backgroundColor: Colors.orange,
             ),
           ),
         ],
