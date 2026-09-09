@@ -11,6 +11,7 @@ import 'package:syathiby/models/user/login.dart';
 import 'package:syathiby/res/environment_config.dart';
 import 'package:syathiby/res/strings.dart';
 import 'package:syathiby/utils/configurable_log_interceptor.dart';
+import 'package:syathiby/utils/device_info_interceptor.dart';
 import 'package:syathiby/utils/response_interceptor.dart';
 import 'package:syathiby/utils/shared_preferences_helper.dart';
 import 'package:syathiby/utils/web_location_stub.dart'
@@ -44,6 +45,14 @@ Login? getCurrentUser(GetCurrentUserRef ref) {
 Dio dio(DioRef ref) {
   final dio = Dio();
   const debugNow = String.fromEnvironment('DEBUG_NOW', defaultValue: '');
+
+  // Pasang identitas perangkat (model, OS, versi app, emulator?) sebagai header
+  // di SETIAP request. Dibaca backend untuk mengisi tabel `activity_log`, yang
+  // menjadi sumber halaman Log Aktivitas di userpanel.
+  //
+  // Diletakkan PALING AWAL supaya interceptor lain (termasuk logging) melihat
+  // header yang sudah lengkap.
+  dio.interceptors.add(DeviceInfoInterceptor());
 
   dio.interceptors.add(ResponseInterceptor());
 

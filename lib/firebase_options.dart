@@ -40,6 +40,17 @@ class DefaultFirebaseOptions {
     }
   }
 
+  // BELUM DIPERBAIKI: web/iOS/macOS masih menunjuk `al-ukhuwah`.
+  //
+  // Berbeda dengan Android, TIDAK ada bukti bahwa aplikasi web/iOS sudah
+  // terdaftar di project `syathiby-1345121` -- google-services.json hanya
+  // memuat entri Android. Menebak appId/apiKey akan membuat Firebase gagal
+  // inisialisasi, jadi sengaja dibiarkan sampai pendaftarannya dipastikan.
+  //
+  // Dampaknya terbatas: push untuk staff dikirim ke perangkat Android, dan
+  // `al-ukhuwah` sendiri masih hidup (hanya bukan milik pondok) sehingga
+  // Firebase.initializeApp di web tetap berhasil dan aplikasi web tidak rusak.
+  // Yang tidak jalan hanya push ke browser.
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyBlq_IMB8RzggMXABz-bcigTW1AoqG8GOE',
     appId: '1:1016347653502:web:63ff317a7ab88c79aaef2f',
@@ -50,12 +61,32 @@ class DefaultFirebaseOptions {
     measurementId: 'G-4HYN0ZHZXG',
   );
 
+  // Diperbaiki 8 Sep 2026 -- sebelumnya menunjuk project `al-ukhuwah`.
+  //
+  // `al-ukhuwah` adalah project LAMA sebelum rebranding dan sudah tidak ada
+  // hubungannya dengan aplikasi Syathiby sekarang; akun Google pondok bahkan
+  // tidak punya akses ke sana. Akibatnya token FCM yang didaftarkan aplikasi
+  // staff tidak pernah bisa dikirimi notifikasi oleh backend.
+  //
+  // Dibuktikan 8 Sep 2026 lewat FCM v1 dry-run (`validate_only`) dari server
+  // produksi memakai service account project `syathiby-1345121`:
+  //     token staff 083814740637 -> HTTP 403 SENDER_ID_MISMATCH
+  // Artinya token itu memang diterbitkan project LAIN.
+  //
+  // Package `id.syathiby.app` TERNYATA SUDAH TERDAFTAR di project yang benar --
+  // terlihat di apps/flutter_syathiby_walsan/android/app/google-services.json
+  // yang memuat entri untuk `id.syathiby.app` DAN `id.syathiby.walsan`. Jadi
+  // tidak perlu mendaftarkan aplikasi baru, cukup diarahkan ke sana.
+  //
+  // CATATAN: token lama tidak otomatis berpindah. Setiap staff harus memakai
+  // APK/web build baru dan login ulang supaya tokennya terdaftar di project
+  // yang benar.
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAyxA6v8e8Q9ZSNhuzq_kVl4awah8pP-6Q',
-    appId: '1:1016347653502:android:1a1b815288240108aaef2f',
-    messagingSenderId: '1016347653502',
-    projectId: 'al-ukhuwah',
-    storageBucket: 'al-ukhuwah.appspot.com',
+    apiKey: 'AIzaSyAML43jqvWkDzw7WtH5FXxDPaNQmJGbr6w',
+    appId: '1:921923279470:android:46c097ead14640fbb8247f',
+    messagingSenderId: '921923279470',
+    projectId: 'syathiby-1345121',
+    storageBucket: 'syathiby-1345121.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
