@@ -5,6 +5,39 @@ Semua perubahan penting pada Aplikasi Syathiby akan didokumentasikan dalam file 
 Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.10] - 2026-09-08
+
+### Diperbaiki
+- **Notifikasi Push Tidak Pernah Sampai — Konfigurasi Firebase Menunjuk Project Lama**
+  - **Gejala**: Tidak ada notifikasi yang pernah diterima staff, termasuk permintaan izin santri dari wali. Tidak ada pesan error apa pun di aplikasi maupun di log server
+  - **Penyebab 1 — Backend memakai API yang sudah dimatikan Google**: `Push()` di sisi server menembak **FCM Legacy HTTP API** (`fcm.googleapis.com/fcm/send`) yang didekomisi Google pada Juni 2024. Diuji 7 Sep 2026: endpoint membalas **HTTP 404**. Hasil `curl_exec()` tidak pernah diperiksa sehingga kegagalannya tidak meninggalkan jejak. Sudah diperbaiki di sisi backend (migrasi ke FCM HTTP v1 dengan OAuth2 service account) dan sudah live di produksi
+  - **Penyebab 2 — Aplikasi terdaftar di project Firebase yang salah**: `lib/firebase_options.dart` menunjuk project `al-ukhuwah`, yaitu project LAMA sebelum rebranding yang bahkan tidak bisa diakses akun Google pondok. Token FCM yang didaftarkan aplikasi tidak akan pernah bisa dikirimi notifikasi oleh backend, berapa kali pun backend diperbaiki
+  - **Bukti**: dry-run FCM v1 (`validate_only`) dari server produksi memakai service account project `syathiby-1345121` membalas `HTTP 403 SENDER_ID_MISMATCH` untuk token staff yang ada — konfirmasi bahwa token itu diterbitkan project lain (sender `1016347653502`), bukan project pondok (`921923279470`)
+  - **Solusi**: entri Android di `firebase_options.dart` diarahkan ke project `syathiby-1345121`. Package `id.syathiby.app` ternyata SUDAH terdaftar di sana, jadi tidak perlu mendaftarkan aplikasi baru
+  - **File yang Dimodifikasi**: `lib/firebase_options.dart`
+
+### Diubah
+- **Layar Izin Santri: Dua Tombol Digabung Jadi Satu**
+  - **Latar Belakang**: Layar Izin Santri punya dua tombol yang terlihat setara — "Ajukan Izin" dan "Tap Izin" — tapi hasilnya berbeda. Staff berwenang yang menekan "Ajukan Izin" izinnya tertahan di status `Menunggu Persetujuan`, sedangkan lewat "Tap Izin" langsung `Disetujui`. Orang yang sama, maksud yang sama, hasil berbeda tergantung tombol mana yang ditekan
+  - **Solusi**: kedua tombol digabung menjadi satu — **"Buat Izin Santri"**. Jalur yang dipertahankan adalah jalur tap, karena praktis semua izin nyata lewat sana (678 dari 686 izin di produksi berstatus Disetujui) dan hanya jalur itu yang menyimpan jam keluar/kembali sehingga kiosk RFID dan deteksi terlambat bisa bekerja
+  - **Kemampuan yang dipindahkan**: pilihan Jenis Izin dari tabel `permit_type`, yang sekaligus membuat backend bisa memberlakukan batas `max_hari` (sebelumnya jalur tap bisa menembus batas kebijakan pondok karena izinnya tidak terikat kategori)
+  - **Tidak diikutkan**: lampiran foto — 0 dari 686 izin di produksi pernah memakainya. Backend tetap menerimanya kalau suatu saat dibutuhkan
+  - **File yang Dimodifikasi**: `lib/presentation/izin_santri/student_permit_screen.dart`, `lib/presentation/izin_santri/tap_izin_bottom_sheet.dart`, `lib/models/tap/tap_service.dart`
+
+### Diubah
+- **Pop-up "Versi Baru Tersedia" Kini Mengacu ke Play Store, Bukan Catatan Rilis**
+  - **Masalah**: Aplikasi memutuskan ada-tidaknya update dengan membaca `CHANGELOG.md` dari branch `main` di GitHub. Konsekuensinya entri versi baru tidak boleh sampai ke `main` sebelum rilisnya benar-benar tayang di Play Store — kalau kececer, SELURUH staff melihat pop-up untuk versi yang belum bisa diunduh
+  - **Akar masalah**: branch git bukan sumber kebenaran untuk "apakah update sudah tersedia". Store-lah sumbernya
+  - **Solusi**: aplikasi menanyakan versi ke `geten/settings/appversion.php`, yang mengambilnya dari Play Store (Android) atau iTunes Lookup API (iOS). Dilakukan di server karena halaman Play Store diblokir CORS dari browser — padahal aplikasi ini juga berjalan sebagai web — dan karena Play Store tidak punya API resmi sehingga harus di-scrape; memusatkannya berarti perbaikannya cukup di satu tempat tanpa merilis ulang aplikasi
+  - **Kalau versinya tidak bisa dipastikan, aplikasi DIAM** — tidak pernah menebak. Pop-up yang salah lebih merugikan daripada tidak ada pop-up
+  - **File yang Dimodifikasi**: `lib/utils/update_checker.dart`
+
+### Catatan Deployment
+- **WAJIB setelah update**: staff perlu logout lalu login ulang agar token FCM-nya terdaftar ke project Firebase yang benar. Token lama tidak berpindah sendiri dan akan terus ditolak `SENDER_ID_MISMATCH`
+- Backend pendukungnya sudah lebih dulu live di produksi — parameter barunya opsional, jadi APK lama tetap berfungsi (hanya batas `max_hari` yang belum berlaku)
+- web/iOS masih menunjuk `al-ukhuwah` karena belum ada pendaftaran aplikasi web/iOS di project yang benar. Dampaknya terbatas pada push ke browser; aplikasi web tetap berjalan normal
+- Tidak ada perubahan schema database dari sisi aplikasi
+
 ## [1.0.9] - 2026-08-19
 
 ### Diperbaiki
