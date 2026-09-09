@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -52,22 +54,99 @@ class UpdateChecker {
   /// gagal fetch (silent fail — jangan ganggu user jika network error).
   static Future<UpdateInfo?> check(String currentVersion) async {
     try {
-      final dio = Dio();
-      final response = await dio
-          .get(
-            changelogUrl,
-            options: Options(responseType: ResponseType.plain),
-          )
-          .timeout(const Duration(seconds: 10));
+      // LANGKAH 1 -- tanya STORE, bukan CHANGELOG.
+      //
+      // Diubah 9 Sep 2026. Sebelumnya keputusan "ada update atau tidak" diambil
+      // dari CHANGELOG.md di branch `main`, sehingga entri versi baru tidak
+      // boleh sampai ke `main` sebelum rilisnya tayang di Play Store. Aturan
+      // itu mudah dilanggar, dan kalau kececer SELURUH staff melihat pop-up
+      // untuk versi yang belum bisa diunduh.
+      //
+      // Branch git bukan sumber kebenaran untuk "apakah update sudah
+      // tersedia" -- store-lah sumbernya. Sekarang backend yang menanyakannya
+      // (geten/settings/appversion.php), karena:
+      //   - halaman Play Store tidak bisa diambil dari browser (CORS), padahal
+      //     aplikasi ini juga berjalan sebagai web;
+      //   - Play Store tidak punya API resmi sehingga harus di-scrape, dan cara
+      //     itu akan patah suatu hari -- lebih baik satu tempat yang diperbaiki
+      //     daripada menunggu rilis aplikasi baru.
+      //
+      // Efek sampingnya: kode dan CHANGELOG bebas di-merge ke `main` kapan pun.
+      final storeVersion = await _versiDiStore();
 
-      final content = response.data?.toString() ?? '';
-      if (content.isEmpty) return null;
+      // Store tidak bisa dipastikan -> DIAM. Jangan pernah menebak; pop-up yang
+      // salah jauh lebih merugikan daripada tidak ada pop-up.
+      if (storeVersion == null || storeVersion.isEmpty) return null;
+      if (!_isNewer(storeVersion, currentVersion)) return null;
 
-      return _parse(content, currentVersion);
+      // LANGKAH 2 -- baru ambil catatan perubahannya, sekadar untuk isi pop-up.
+      // Sampai di sini versinya SUDAH pasti tayang di store, jadi entri
+      // CHANGELOG-nya pun pasti sudah ada. Kalau gagal diambil, pop-up tetap
+      // muncul tanpa rincian -- yang penting kabar update-nya sampai.
+      String catatan = '';
+      String tanggal = '';
+      try {
+        final dio = Dio();
+        final response = await dio
+            .get(changelogUrl, options: Options(responseType: ResponseType.plain))
+            .timeout(const Duration(seconds: 10));
+        final content = response.data?.toString() ?? '';
+        if (content.isNotEmpty) {
+          final info = _parse(content, currentVersion);
+          if (info != null && info.latestVersion == storeVersion) {
+            catatan = info.changelogContent;
+            tanggal = info.releaseDate;
+          }
+        }
+      } catch (_) {
+        // biarkan kosong
+      }
+
+      return UpdateInfo(
+        latestVersion: storeVersion,
+        releaseDate: tanggal,
+        changelogContent: catatan,
+      );
     } catch (_) {
-      // Silent fail — network error, repo private, dll.
+      // Silent fail — network error, dll.
       return null;
     }
+  }
+
+  /// Versi yang BENAR-BENAR tayang di Play Store / App Store.
+  ///
+  /// Ditanyakan ke backend, bukan langsung ke store — lihat alasannya di
+  /// [check]. Mengembalikan null kalau tidak bisa dipastikan.
+  static Future<String?> _versiDiStore() async {
+    try {
+      final platform = _platformStore();
+      if (platform == null) return null; // web/desktop: tidak ada store
+
+      final dio = Dio();
+      final res = await dio
+          .get(
+            '${FlavorConfig.apiUrl}settings/appversion.php',
+            queryParameters: {'platform': platform},
+          )
+          .timeout(const Duration(seconds: 8));
+
+      final data = res.data is Map ? res.data['data'] : null;
+      final versi = data is Map ? (data['version']?.toString() ?? '') : '';
+      return versi.isEmpty ? null : versi;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 'android' / 'ios', atau null kalau tidak berjalan di atas store mana pun.
+  ///
+  /// Build web di-update lewat deploy, bukan lewat store, jadi pop-up "unduh
+  /// versi baru" tidak masuk akal di sana — pengguna cukup me-refresh.
+  static String? _platformStore() {
+    if (kIsWeb) return null;
+    if (Platform.isAndroid) return 'android';
+    if (Platform.isIOS) return 'ios';
+    return null;
   }
 
   /// Parse CHANGELOG.md dan kembalikan UpdateInfo jika ada versi lebih baru.
