@@ -24,6 +24,14 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   - **Tidak diikutkan**: lampiran foto — 0 dari 686 izin di produksi pernah memakainya. Backend tetap menerimanya kalau suatu saat dibutuhkan
   - **File yang Dimodifikasi**: `lib/presentation/izin_santri/student_permit_screen.dart`, `lib/presentation/izin_santri/tap_izin_bottom_sheet.dart`, `lib/models/tap/tap_service.dart`
 
+### Diubah
+- **Pop-up "Versi Baru Tersedia" Kini Mengacu ke Play Store, Bukan Catatan Rilis**
+  - **Masalah**: Aplikasi memutuskan ada-tidaknya update dengan membaca `CHANGELOG.md` dari branch `main` di GitHub. Konsekuensinya entri versi baru tidak boleh sampai ke `main` sebelum rilisnya benar-benar tayang di Play Store — kalau kececer, SELURUH staff melihat pop-up untuk versi yang belum bisa diunduh
+  - **Akar masalah**: branch git bukan sumber kebenaran untuk "apakah update sudah tersedia". Store-lah sumbernya
+  - **Solusi**: aplikasi menanyakan versi ke `geten/settings/appversion.php`, yang mengambilnya dari Play Store (Android) atau iTunes Lookup API (iOS). Dilakukan di server karena halaman Play Store diblokir CORS dari browser — padahal aplikasi ini juga berjalan sebagai web — dan karena Play Store tidak punya API resmi sehingga harus di-scrape; memusatkannya berarti perbaikannya cukup di satu tempat tanpa merilis ulang aplikasi
+  - **Kalau versinya tidak bisa dipastikan, aplikasi DIAM** — tidak pernah menebak. Pop-up yang salah lebih merugikan daripada tidak ada pop-up
+  - **File yang Dimodifikasi**: `lib/utils/update_checker.dart`
+
 ### Catatan Deployment
 - **WAJIB setelah update**: staff perlu logout lalu login ulang agar token FCM-nya terdaftar ke project Firebase yang benar. Token lama tidak berpindah sendiri dan akan terus ditolak `SENDER_ID_MISMATCH`
 - Backend pendukungnya sudah lebih dulu live di produksi — parameter barunya opsional, jadi APK lama tetap berfungsi (hanya batas `max_hari` yang belum berlaku)
