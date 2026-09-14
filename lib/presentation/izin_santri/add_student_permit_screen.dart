@@ -8,7 +8,6 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:syathiby/di/providers.dart';
 import 'package:syathiby/l10n/string_hardcoded.dart';
-import 'package:syathiby/models/permit/permit.dart';
 import 'package:syathiby/presentation/izin_santri/student_permit_controller.dart';
 import 'package:syathiby/presentation/permit/permit_controller.dart';
 import 'package:syathiby/utils/extension/ui.dart';
@@ -28,10 +27,6 @@ class AddStudentPermitScreen extends HookConsumerWidget {
     final currentUser = ref.watch(getCurrentUserProvider);
     final key = '${currentUser?.key}';
     final studentPermitController = ref.watch(studentPermitControllerProvider);
-    final fetchPermitType = ref.watch(
-      fetchPermitTypeProvider(key: key, type: 'santri'),
-    );
-    final permitId = useTextEditingController();
     final permitName = useTextEditingController();
     final permitDate = useTextEditingController();
     final howManyDays = useTextEditingController();
@@ -56,7 +51,10 @@ class AddStudentPermitScreen extends HookConsumerWidget {
             detail: permitDetail.text,
             studentId: '${studentSelected.value?.nis}',
             classId: '${studentSelected.value?.idKelas}',
-            permitId: permitId.text,
+            // Kategori (permit_type) tidak lagi dipilih dari dropdown -- "Jenis
+            // Izin" kini bebas teks (name_permit). Backend menerima id_izin
+            // kosong dan melewati validasi max_hari per-kategori.
+            permitId: '',
           );
 
       if (result == null || !context.mounted) return;
@@ -71,11 +69,9 @@ class AddStudentPermitScreen extends HookConsumerWidget {
         title: Text('Input Izin'.hardcoded),
       ),
       body: Skeletonizer(
-        enabled: fetchPermitType.isLoading,
+        enabled: false,
         child: RefreshIndicator(
-          onRefresh: () => ref.refresh(
-            fetchPermitTypeProvider(key: key, type: 'santri').future,
-          ),
+          onRefresh: () async {},
           child: Form(
             key: formKey,
             child: ListView(
@@ -128,7 +124,6 @@ class AddStudentPermitScreen extends HookConsumerWidget {
                 const SizedBox(height: 16.0),
                 TextFormField(
                   controller: permitName,
-                  readOnly: true,
                   decoration: InputDecoration(
                     isDense: true,
                     border: OutlineInputBorder(
@@ -136,21 +131,9 @@ class AddStudentPermitScreen extends HookConsumerWidget {
                     ),
                     labelText: 'Jenis Izin'.hardcoded,
                     prefixIcon: const Icon(Icons.info),
-                    suffixIcon: const Icon(Icons.expand_more),
                   ),
                   validator: FormBuilderValidators.required(),
                   keyboardType: TextInputType.text,
-                  onTap: () async {
-                    final items = fetchPermitType.valueOrNull;
-                    if (items == null) return;
-                    final selected = await _showPermitTypePicker(
-                      context,
-                      items,
-                    );
-                    if (selected == null) return;
-                    permitName.text = '${selected.namePermit}';
-                    permitId.text = '${selected.idPermit}';
-                  },
                 ),
                 const Gap(16),
                 TextFormField(
@@ -232,57 +215,6 @@ class AddStudentPermitScreen extends HookConsumerWidget {
           ),
         ),
       ),
-    );
-  }
-
-  Future<Permit?> _showPermitTypePicker(
-    BuildContext context,
-    List<Permit> items,
-  ) {
-    return showModalBottomSheet<Permit>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      clipBehavior: Clip.antiAliasWithSaveLayer,
-      builder: (sheetContext) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.6,
-          minChildSize: 0.3,
-          maxChildSize: 0.9,
-          expand: false,
-          builder: (_, scrollController) {
-            return Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: Text(
-                    'Jenis Izin',
-                    style: Theme.of(sheetContext).textTheme.titleMedium,
-                  ),
-                ),
-                const Divider(height: 1),
-                Expanded(
-                  child: ListView.separated(
-                    controller: scrollController,
-                    itemCount: items.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (_, index) {
-                      final item = items[index];
-                      return ListTile(
-                        title: Text('${item.namePermit}'),
-                        onTap: () => Navigator.of(sheetContext).pop(item),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
     );
   }
 }
