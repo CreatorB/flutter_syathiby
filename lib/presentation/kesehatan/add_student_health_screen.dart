@@ -16,8 +16,6 @@ import 'package:syathiby/presentation/pelanggaran/violation_controller.dart';
 import 'package:syathiby/utils/extension/ui.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
-import '../../models/health/diagnose.dart';
-
 class AddStudentHealthScreen extends HookConsumerWidget {
   final String? studentHealthId;
   const AddStudentHealthScreen({super.key, this.studentHealthId});
@@ -30,9 +28,6 @@ class AddStudentHealthScreen extends HookConsumerWidget {
     final currentUser = ref.watch(getCurrentUserProvider);
     final key = '${currentUser?.key}';
     final studentHealthController = ref.watch(studentHealthControllerProvider);
-    final fetchHealthType = ref.watch(
-      fetchHealthTypeProvider(key: key),
-    );
 
     // Load existing data when editing
     final isEdit = studentHealthId != null && studentHealthId!.isNotEmpty;
@@ -46,7 +41,7 @@ class AddStudentHealthScreen extends HookConsumerWidget {
 
     final imageSelected = useState<File?>(null);
     final studentSelected = useState<Siswa?>(null);
-    final healthTypeSelected = useState<Diagnosa?>((null));
+    final diagnosaText = useTextEditingController();
     final complaint = useTextEditingController();
     final date = useTextEditingController();
     final hour = useTextEditingController();
@@ -71,12 +66,7 @@ class AddStudentHealthScreen extends HookConsumerWidget {
       if (istirahatSelesai.text.isEmpty) istirahatSelesai.text = '${existing.istirahatSelesai ?? ''}';
       if (pickedUp.text.isEmpty) pickedUp.text = '${existing.dijemput ?? ''}';
       if (tellParent.text.isEmpty) tellParent.text = '${existing.info_ortu ?? ''}';
-      // Diagnosa match by name
-      final types = fetchHealthType.valueOrNull ?? [];
-      final match = types.where((t) => t.name_diagnosa == existing.diagnosa).firstOrNull;
-      if (match != null && healthTypeSelected.value == null) {
-        healthTypeSelected.value = match;
-      }
+      if (diagnosaText.text.isEmpty) diagnosaText.text = existing.diagnosa ?? '';
       // Status absen - default 'sakit', preserve from existing when editing
       final existingStatus = '${existing.statusAbsen ?? ''}';
       if (existingStatus.isNotEmpty && statusAbsen.value == 'sakit') {
@@ -97,7 +87,7 @@ class AddStudentHealthScreen extends HookConsumerWidget {
             .updateStudentHealth(
               key: key,
               studentHealthId: studentHealthId!,
-              diagnose: '${healthTypeSelected.value?.name_diagnosa}',
+              diagnose: diagnosaText.text,
               complaint: complaint.text,
               date: date.text,
               hour: hour.text,
@@ -122,7 +112,7 @@ class AddStudentHealthScreen extends HookConsumerWidget {
           )
           .addStudentHealth(
             key: key,
-            diagnose: '${healthTypeSelected.value?.name_diagnosa}',
+            diagnose: diagnosaText.text,
             complaint: complaint.text,
             date: date.text,
             hour: hour.text,
@@ -146,11 +136,9 @@ class AddStudentHealthScreen extends HookConsumerWidget {
         title: Text(isEdit ? 'Edit Kesehatan'.hardcoded : 'Input Kesehatan'.hardcoded),
       ),
       body: Skeletonizer(
-        enabled: fetchHealthType.isLoading,
+        enabled: false,
         child: RefreshIndicator(
-          onRefresh: () => ref.refresh(
-            fetchHealthTypeProvider(key: key).future,
-          ),
+          onRefresh: () async {},
           child: ListView(
             children: [
               Form(
@@ -206,39 +194,17 @@ class AddStudentHealthScreen extends HookConsumerWidget {
                         },
                       ),
                       const Gap(16),
-                      DropdownSearch<Diagnosa>(
-                        selectedItem: healthTypeSelected.value,
-                        items: fetchHealthType.valueOrNull ?? [],
-                        popupProps: PopupProps.menu(
-                          showSearchBox: true,
-                          searchFieldProps: TextFieldProps(
-                            decoration: InputDecoration(
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              isDense: true,
-                              hintText: 'Pencarian...',
-                              prefixIcon: const Icon(Icons.search),
-                            ),
+                      TextFormField(
+                        controller: diagnosaText,
+                        decoration: InputDecoration(
+                          isDense: true,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.0),
                           ),
-                        ),
-                        itemAsString: (item) => '${item.name_diagnosa}',
-                        dropdownDecoratorProps: const DropDownDecoratorProps(
-                          dropdownSearchDecoration: InputDecoration(
-                            hintText: 'Jenis Penyakit',
-                            labelText: 'Jenis Penyakit',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                            prefixIcon: Icon(Icons.warning),
-                          ),
+                          labelText: 'Jenis Penyakit'.hardcoded,
+                          prefixIcon: const Icon(Icons.warning),
                         ),
                         validator: FormBuilderValidators.required(),
-                        onChanged: (healthType) {
-                          if (healthType == null) {
-                            return;
-                          }
-                          healthTypeSelected.value = healthType;
-                        },
                       ),
                       const Gap(16),
                       TextFormField(
