@@ -103,8 +103,9 @@ class StudentPermitScreen extends HookConsumerWidget {
           // sana (678 dari 686 izin di produksi berstatus Disetujui), dan hanya
           // jalur itu yang menyimpan jam keluar/kembali sehingga kiosk RFID dan
           // deteksi terlambat bisa bekerja. Kemampuan yang tadinya hanya ada di
-          // "Ajukan Izin" sudah dipindahkan ke sini: pilihan jenis izin +
-          // pemberlakuan batas max_hari. Lampiran foto tidak diikutkan karena
+          // "Ajukan Izin" sudah dipindahkan ke sini. Jenis izin diketik bebas
+          // sejak 2 Okt 2026 (bukan lagi pilihan permit_type), jadi batas
+          // max_hari per kategori tidak berlaku. Lampiran foto tidak diikutkan karena
           // 0 dari 686 izin pernah memakainya (backend tetap menerimanya).
           Positioned(
             bottom: 24,
