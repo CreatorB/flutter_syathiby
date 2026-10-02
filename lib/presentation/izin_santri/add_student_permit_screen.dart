@@ -9,7 +9,6 @@ import 'package:intl/intl.dart';
 import 'package:syathiby/di/providers.dart';
 import 'package:syathiby/l10n/string_hardcoded.dart';
 import 'package:syathiby/presentation/izin_santri/student_permit_controller.dart';
-import 'package:syathiby/presentation/permit/permit_controller.dart';
 import 'package:syathiby/utils/extension/ui.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
