@@ -1858,7 +1858,12 @@ return Scaffold(
               const Text('• ', style: TextStyle(fontSize: 13)),
               Expanded(
                 child: Text(
-                  content.replaceAll(RegExp(r'\*\*(.*?)\*\*'), r'\1'),
+                  // replaceAll() Dart TIDAK mendukung backreference: r'\1'
+                  // dulu tercetak apa adanya dan teks tebalnya hilang.
+                  content.replaceAllMapped(
+                    RegExp(r'\*\*(.*?)\*\*'),
+                    (m) => m.group(1) ?? '',
+                  ),
                   style: const TextStyle(fontSize: 13),
                 ),
               ),
