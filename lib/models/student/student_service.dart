@@ -128,6 +128,7 @@ abstract class SiswaRestInterface {
     @Field('key') String key,
     @Field('nis') String nis,
     @Field('id_kelas') String idKelas,
+    @Field('id_siswa') String idSiswa,
     @Field('status') String status,
     @Field('date') String date,
     @Field('waktu') String waktu,
@@ -149,6 +150,10 @@ abstract class SiswaRestInterface {
     @Field('key') String key,
     @Field('nis') String nis,
     @Field('id_kelas') String idKelas,
+    // id_siswa adalah kunci unik Santri. NIS tidak dipakai sebagai kunci
+    // karena NIS bisa kembar, sehingga menambah satu Santri pernah ikut
+    // memasukkan Santri lain ke halaqah yang sama.
+    @Field('id_siswa') String idSiswa,
   );
 
   @POST('siswa/insertmakan.php')
@@ -207,6 +212,9 @@ abstract class SiswaRestInterface {
     @Field('key') String key,
     @Field('nis') String nis,
     @Field('id_kelas') String idKelas,
+    // id_siswa adalah kunci unik Santri, dipakai backend agar hanya baris
+    // Santri ini yang dihapus dari halaqah (dan hanya absensinya yang ikut).
+    @Field('id_siswa') String idSiswa,
   );
 
   @POST('asrama/absen.php')

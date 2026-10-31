@@ -472,6 +472,7 @@ class TahfidzPresenceListScreen extends HookConsumerWidget {
         .addStudentPresence(
           key: key,
           studentId: '${student.nis}',
+          idSiswa: '${student.idSiswa ?? ''}',
           classId: '${student.idKelas}',
           date: '${student.date}',
           time: '${student.type}',
@@ -536,7 +537,14 @@ class TahfidzPresenceListScreen extends HookConsumerWidget {
             ),
           ),
         ),
-        itemAsString: (item) => '${item.namaLengkap}',
+        // Nama Santri bisa kembar antar data, jadi kelas ikut ditampilkan.
+        // Tanpa itu guru bisa salah memilih dan menyangka Santri lain ikut masuk.
+        itemAsString: (item) {
+          final kelas = (item.kelas ?? '').trim();
+          return kelas.isEmpty
+              ? '${item.namaLengkap}'
+              : '${item.namaLengkap} ($kelas)';
+        },
         dropdownDecoratorProps: DropDownDecoratorProps(
           dropdownSearchDecoration: InputDecoration(
             hintText: 'Tambah Murid',
@@ -558,6 +566,7 @@ class TahfidzPresenceListScreen extends HookConsumerWidget {
               .addStudentToClass(
                 key: key,
                 studentId: '${student.nis}',
+                idSiswa: '${student.idSiswa ?? ''}',
                 classId: '${student.idKelas}',
               );
           if (!context.mounted) return;
@@ -601,6 +610,7 @@ class TahfidzPresenceListScreen extends HookConsumerWidget {
         .removeStudentTahfidz(
           key: key,
           studentId: '${student?.nis}',
+          idSiswa: '${student?.idSiswa ?? ''}',
           classId: '${student?.idKelas}',
         );
     if (!context.mounted) return;
