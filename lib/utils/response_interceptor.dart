@@ -46,7 +46,17 @@ class ResponseInterceptor extends Interceptor {
     // SPECIAL CASE: search_mukholif.php and detail_mukholif.php return MukholifSearchResponse/MukholifDetailResponse structures
     // We need to keep the FULL response object (not extract just data)
     final path = response.requestOptions.path;
-    if (path.contains('search_mukholif') || path.contains('detail_mukholif') || path.contains('insert_izin_tap')) {
+    // `listsantri.php` dipakai dua service berbeda: `permit/listsantri.php`
+    // (daftar izin untuk aplikasi staff) dan `recap` yang memanggil
+    // `permit/listsantri.php`. Hanya yang pertama butuh bagian `meta`
+    // (jumlah izin per status dan lingkup sayap) ikut terbawa, jadi response
+    // tidak boleh diunwrap menjadi list saja.
+    final isPermitSantriList =
+        path.endsWith('listsantri.php') && !path.contains('permit/');
+    if (path.contains('search_mukholif') ||
+        path.contains('detail_mukholif') ||
+        path.contains('insert_izin_tap') ||
+        isPermitSantriList) {
       handler.next(response);
       return;
     }

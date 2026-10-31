@@ -45,7 +45,46 @@ abstract class Permit with _$Permit {
     @JsonKey(name: 'tap_status') String? tapStatus,
     @JsonKey(name: 'tap_history') List<TapHistory>? tapHistory,
     @JsonKey(name: 'is_late') String? isLate,
+    // Sayap Santri (Ikhwan / Akhwat) yang dihitung server dari gender.
+    String? gender,
+    String? sayap,
   }) = _Permit;
 
   factory Permit.fromJson(Map<String, dynamic> json) => _$PermitFromJson(json);
+}
+
+/// Ringkasan yang dikirim server bersama daftar izin.
+///
+/// Dipakai untuk label tab (jumlah izin per status), lingkup sayap yang
+/// otomatis dari `employees.gender_lock`, dan penanda apakah chip filter
+/// sayap masih boleh dipakai atau terkunci.
+@freezed
+abstract class PermitMeta with _$PermitMeta {
+  const factory PermitMeta({
+    @JsonKey(name: 'scope_gender') String? scopeGender,
+    @JsonKey(name: 'sayap_terkunci') int? sayapTerkunci,
+    String? sayap,
+    Map<String, int>? jumlah,
+  }) = _PermitMeta;
+
+  factory PermitMeta.fromJson(Map<String, dynamic> json) =>
+      _$PermitMetaFromJson(json);
+}
+
+/// Bungkus respons `permit/listsantri.php`.
+///
+/// Server mengembalikan objek `{status, errCode, msg, meta, data}`. Object
+/// ini dipakai agar bagian `meta` tidak hilang saat response diproses.
+@freezed
+abstract class PermitListResponse with _$PermitListResponse {
+  const factory PermitListResponse({
+    String? status,
+    @JsonKey(name: 'errCode') String? errCode,
+    String? msg,
+    PermitMeta? meta,
+    @Default(<Permit>[]) List<Permit> data,
+  }) = _PermitListResponse;
+
+  factory PermitListResponse.fromJson(Map<String, dynamic> json) =>
+      _$PermitListResponseFromJson(json);
 }

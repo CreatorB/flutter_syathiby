@@ -61,10 +61,14 @@ abstract class PermitRestInterface {
   );
 
   @GET('listsantri.php')
-  Future<List<Permit>> getSantri(
+  Future<PermitListResponse> getSantri(
     @Query('key') String key,
-    @Query('page') int? page,
-  );
+    @Query('page') int? page, {
+    // Tab status: 'Menunggu Persetujuan' | 'Disetujui' | 'Dibatalkan'.
+    @Query('status') String? status,
+    // Chip sayap: 'ikhwan' | 'akhwat'. Kosong berarti semua sayap.
+    @Query('sayap') String? sayap,
+  });
 
   @GET('type.php')
   Future<List<Permit>> type(
