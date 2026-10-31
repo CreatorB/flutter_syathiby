@@ -5,6 +5,71 @@ Semua perubahan penting pada Aplikasi Syathiby akan didokumentasikan dalam file 
 Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.11] - 2026-10-29
+
+### Diperbaiki
+- **NIS Kembar: Satu Santri Ikut Masuk ke Halaqah Santri Lain**
+  - **Gejala**: Saat guru menambah satu Santri ke halaqahnya, Santri lain yang kebetulan memakai **NIS yang sama** ikut terbawa masuk ke halaqah itu. Dikeluhkan guru: *"ada 2 santriwati yang NIS nya sama, an adhiza dan keyla khoiriyah, karena NIS nya sama otomatis ketika kita mau menambah salah satunya yang satunya masuk ke halaqoh yang sama, padahal sebenarnya mereka beda halaqoh"*
+  - **Penyebab**: Backend menentukan baris Santri yang diubah dengan **`nis` + `id_kelas`**, padahal `nis` (Nomor Induk Siswa) **tidak pernah unik** — di produksi ada 126 nomor yang dipakai lebih dari satu baris Santri. Satu permintaan berarti satu NIS, dan satu NIS bisa berarti banyak baris
+  - **Solusi**: Baris yang diubah kini ditentukan oleh **`id_siswa`** (Primary Key, dijamin unik). `nis` tetap dipakai untuk **pencarian**, bukan untuk menentukan baris yang diubah. Backend juga tetap aman untuk versi aplikasi lama: kalau `id_siswa` tidak dikirim, hanya **satu** baris yang disentuh (bukan semua baris dengan NIS sama), dan aplikasi diberi tahu lewat peringatan agar guru memeriksa ulang daftar halaqah
+  - **Data**: 22 baris Santri salinan (NIS + kelas identik, tanpa data absensi) dinonaktifkan dari daftar aktif, sehingga tidak ada lagi satu nama yang muncul dua kali di daftar halaqah. 126 NIS kembar yang tersisa sudah dilaporkan ke admin untuk diperbaiki dari kartu identitas — nilainya tidak boleh ditebak sistem, karena tabel nilai dan rapor tidak punya penanda Santri
+  - **File yang Dimodifikasi**: `lib/presentation/presensi_tahfidz/tahfidz_presence_list_screen.dart`, `lib/presentation/presensi_tahfidz/tahfidz_presence_controller.dart`, `lib/models/student/student_service.dart`
+
+### Diperbaiki
+- **Menghapus Santri dari Halaqah Tidak Lagi Menghapus Absensi Santri Lain**
+  - **Gejala**: Saat satu Santri dihapus dari halaqah, data absensi tahfidz milik Santri lain yang kebetulan memakai NIS sama ikut terhapus permanen
+  - **Penyebab**: Penghapusan dijalankan dengan `DELETE FROM absensi_tahfidz WHERE nis=… AND id_kelas=…`, sehingga ikut mengenai semua Santri dengan NIS dan kelas yang sama
+  - **Solusi**: Penghapusan kini memakai `id_siswa`, jadi hanya baris absensi Santri yang benar-benar dihapus dari halaqah
+  - **File yang Dimodifikasi**: `lib/presentation/presensi_tahfidz/tahfidz_presence_list_screen.dart`, `lib/presentation/presensi_tahfidz/tahfidz_presence_controller.dart`, `lib/models/student/student_service.dart`
+
+### Diperbaiki
+- **Presensi Tahfidz Tidak Lagi Menandai Dua Santri Hadir Sekaligus**
+  - **Gejala**: Guru menandai satu Santri hadir di tahfidz, tetapi Santri lain dengan NIS sama ikut berubah statusnya menjadi hadir
+  - **Penyebab**: Status absensi diubah berdasarkan `nis` + `id_kelas`, bukan berdasarkan Santri yang dipilih
+  - **Solusi**: Perubahan status kini memakai `id_siswa`
+  - **File yang Dimodifikasi**: `lib/presentation/presensi_tahfidz/tahfidz_presence_controller.dart`, `lib/models/student/student_service.dart`
+
+### Diubah
+- **Dropdown "Tambah Murid" Sekarang Menampilkan Kelas**
+  - **Alasan**: Ada Santri dengan nama identik. Tanpa penanda kelas, guru tidak bisa membedakan "MUHAMMAD FAIZ ARSYAD" yang satu dengan yang lain
+  - **Solusi**: Label menu kini `NAMA (KELAS)`
+  - **File yang Dimodifikasi**: `lib/presentation/presensi_tahfidz/tahfidz_presence_list_screen.dart`
+
+### Diperbaiki
+- **Absensi Tahfidz Jauh Lebih Cepat**
+  - **Gejala**: Membuka daftar presensi tahfidz terasa sangat lambat
+  - **Penyebab**: Tabel absensi tahfidz tidak punya index pada kolom `id_siswa`, sehingga setiap pencarian memindai seluruh tabel
+  - **Solusi**: Index baru pada `id_siswa` (dan `id_siswa + date`) ditambahkan di sisi server. Waktu proses migrasi yang sama turun dari **476 detik menjadi 5,6 detik**
+  - **Catatan**: perbaikan ini di sisi server (database), jadi langsung terasa tanpa perlu update aplikasi
+
+### Ditambahkan
+- **Panel Admin Menolak NIS yang Sudah Dipakai Santri Lain**
+  - **Alasan**: Penyebab utama NIS kembar adalah penyimpanan NIS yang sama tanpa pemeriksaan, baik dari form tambah Santri maupun dari impor data Excel
+  - **Solusi**: Penyimpanan NIS yang sudah dipakai Santri aktif lain ditolak, dan impor Excel melewati baris seperti itu lalu melaporkannya ke admin
+  - **File yang Dimodifikasi**: sisi server (`geten/`, `userpanel/`)
+
+### Diperbaiki
+- **Tapping Izin yang Tidak Terbaca dan Error yang Tidak Dijelaskan**
+  - **Gejala**: Santri tapping kartu RFID tapi tidak terbaca, dan pesan error di layar kios tidak menjelaskan apa pun. Dikeluhkan: *"ada siswa yang tapping tapi tidak terbaca/error saya tidak paham errornya apa karena tidak dijelaskan"*
+  - **Penyebab 1 — Kios menumpuk nomor kartu**: Kolom input di kios dikosongkan 3 detik setelah respons server, sementara pembaca RFID menulis nomor kartu yang sama berulang kali selama kartu menempel. Nomor terkirim beruntun (`00028902430` → `0002890243000289` → …) sehingga tidak cocok dengan nomor kartu yang tersimpan dan tap dianggap "kartu tidak dikenal"
+  - **Penyebab 2 — Nomor numpuk ikut tersimpan**: Server hanya mencari nomor yang persis sama, sehingga nomor numpuk itu sempat tersimpan di `siswa.id_card` milik beberapa Santri. Akibatnya kartu fisik anak-anak tersebut tidak akan pernah cocok lagi
+  - **Penyebab 3 — Pesan kios tidak menjelaskan**: Petugas hanya melihat "Tidak ada izin disetujui yang berlaku hari ini" atau "Kartu/NIS tidak dikenal" tanpa tahu harus melakukan apa
+  - **Solusi**:
+    - Kios izin dan makan: kolom input **dibersihkan seketika** saat dikirim, pembacaan ulang kartu yang sama dalam 5 detik diabaikan, dan tampilannya dipisahkan dari pembersihan input
+    - Server mengenali nomor kartu beruntun (blok berulang), nomor yang cocok dengan awalan data tersimpan, dan **memperbaiki sendiri** nomor kartu yang tercemar
+    - Pesan error sekarang menyebut penyebabnya: nama izin, tanggal berlaku, status (menunggu persetujuan / belum ada izin / sudah tidak berlaku), dan langkah yang harus dilakukan petugas
+  - **Catatan**: perbaikan kios dan pesan error ada di sisi server, jadi langsung aktif tanpa update aplikasi
+
+### Diubah
+- **Layar Izin Santri: Status Jadi Tab, Sayap Jadi Chip Filter**
+  - **Latar Belakang**: Izin untuk Ikhwan dan Akhwat selama ini tercampur dalam satu daftar. Filter yang ada tidak memisahkan apa pun karena kolom `id_store` ternyata menyimpan **unit/gedung** (nilainya seragam untuk semua Santri dan petugas), bukan sayap
+  - **Solusi**:
+    - **Tab status**: Menunggu Persetujuan / Disetujui / Dibatalkan, masing-masing dengan jumlah izin. Jumlah diambil dari server, jadi angka di tab selalu sesuai data terbaru
+    - **Chip sayap**: Semua / Ikhwan / Akhwat. Sayap ditentukan dari gender Santri
+    - **Lingkup otomatis**: Kalau akun petugas punya Gender Lock (Ikhwan saja atau Akhwat saja), server membatasi daftar ke lingkup itu dan chip sayap dikunci dengan keterangan alasannya
+    - **Lencana sayap** pada setiap baris daftar supaya petugas langsung tahu izin ini untuk Ikhwan atau Akhwat
+  - **File yang Dimodifikasi**: `lib/presentation/izin_santri/student_permit_screen.dart`, `lib/presentation/izin_santri/student_permit_controller.dart`, `lib/models/permit/permit.dart`, `lib/models/permit/permit_service.dart`, `lib/utils/response_interceptor.dart`
+
 ## [1.0.10] - 2026-09-08
 
 ### Diperbaiki

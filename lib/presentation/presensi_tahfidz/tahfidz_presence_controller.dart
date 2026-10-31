@@ -17,13 +17,14 @@ class TahfidzPresenceController extends _$TahfidzPresenceController {
   Future<Message?> removeStudentTahfidz({
     required String key,
     required String studentId,
+    required String idSiswa,
     required String classId,
   }) async {
     state = const AsyncLoading();
     final result = await AsyncValue.guard(
       () => ref
           .watch(studentServiceProvider)
-          .getDeleteHalaqah(key, studentId, classId),
+          .getDeleteHalaqah(key, studentId, classId, idSiswa),
     );
     state = result;
     return result.valueOrNull;
@@ -45,6 +46,7 @@ class TahfidzPresenceController extends _$TahfidzPresenceController {
   Future<Message?> addStudentPresence({
     required String key,
     required String studentId,
+    required String idSiswa,
     required String classId,
     required String status,
     required String date,
@@ -53,7 +55,7 @@ class TahfidzPresenceController extends _$TahfidzPresenceController {
     final result = await AsyncValue.guard(
       () => ref
           .watch(studentServiceProvider)
-          .getAbsenTahfidz(key, studentId, classId, status, date, time),
+          .getAbsenTahfidz(key, studentId, classId, idSiswa, status, date, time),
     );
     state = result;
     return result.valueOrNull;
@@ -78,6 +80,7 @@ class TahfidzPresenceController extends _$TahfidzPresenceController {
   Future<Message?> addStudentToClass({
     required String key,
     required String studentId,
+    required String idSiswa,
     required String classId,
   }) async {
     state = const AsyncLoading();
@@ -86,6 +89,7 @@ class TahfidzPresenceController extends _$TahfidzPresenceController {
             key,
             studentId,
             classId,
+            idSiswa,
           ),
     );
     state = result;

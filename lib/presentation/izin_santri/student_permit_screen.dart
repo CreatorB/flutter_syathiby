@@ -14,81 +14,155 @@ import 'package:syathiby/utils/extension/color.dart';
 import 'package:syathiby/utils/extension/typography.dart';
 import 'package:syathiby/utils/extension/ui.dart';
 
+/// Layar Izin Santri untuk petugas.
+///
+/// Susunan layar:
+///   - Tab status (Menunggu Persetujuan / Disetujui / Dibatalkan), jumlah
+///     izin per status diambil dari `meta` yang dikirim server.
+///   - Chip sayap (Semua / Ikhwan / Akhwat). Kalau petugas punya
+///     `gender_lock` tertentu, server mengunci lingkupnya dan chip tidak
+///     dipakai - layar menampilkan pemberitahuan supaya petugas tahu
+///     kenapa daftar yang tampil tidak berubah.
+///
+/// Setiap tab punya `PagingController` sendiri supaya pergantian tab tidak
+/// pernah menampilkan data milik tab lain.
 class StudentPermitScreen extends HookConsumerWidget {
   const StudentPermitScreen({super.key});
 
   static const int pagedSize = 10;
 
+  static const List<String> statusTabs = <String>[
+    'Menunggu Persetujuan',
+    'Disetujui',
+    'Dibatalkan',
+  ];
+
+  static const List<String> sayapChips = <String>['', 'ikhwan', 'akhwat'];
+
+  static const Map<String, String> sayapLabels = <String, String>{
+    '': 'Semua',
+    'ikhwan': 'Ikhwan',
+    'akhwat': 'Akhwat',
+  };
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentUser = ref.watch(getCurrentUserProvider);
     final key = '${currentUser?.key}';
-    final pagingController = useMemoized(
-      () => PagingController<int, Permit>(
-        firstPageKey: 1,
+
+    final tabController = useTabController(initialLength: statusTabs.length);
+    final sayap = useState<String>('');
+    final meta = useState<PermitMeta?>(null);
+    final sayapSebelumnya = useRef<String>('');
+
+    final pagingControllers = useMemoized(
+      () => List<PagingController<int, Permit>>.generate(
+        statusTabs.length,
+        (_) => PagingController<int, Permit>(firstPageKey: 1),
       ),
+      const [],
     );
 
-    Future<void> fetchData(int pageKey) async {
+    Future<void> fetchData(int tabIndex, int pageKey) async {
       try {
         // Use ref.invalidate + ref.read to bypass Riverpod cache
         // so each refresh fetches fresh data from the backend.
         final provider = fetchStudentPermitListProvider(
           key: key,
           page: pageKey,
+          status: statusTabs[tabIndex],
+          sayap: sayap.value.isEmpty ? null : sayap.value,
         );
         ref.invalidate(provider);
         final result = await ref.read(provider.future);
+        if (result.meta != null) {
+          meta.value = result.meta;
+        }
+        final list = result.data;
         final nextPageKey = pageKey + 1;
-        if (result.isEmpty) {
-          pagingController.appendLastPage(result);
+        if (list.isEmpty) {
+          pagingControllers[tabIndex].appendLastPage(list);
         } else {
-          pagingController.appendPage(result, nextPageKey);
+          pagingControllers[tabIndex].appendPage(list, nextPageKey);
         }
       } catch (error) {
-        pagingController.error = error;
+        pagingControllers[tabIndex].error = error;
       }
     }
 
     useEffect(() {
-      pagingController.addPageRequestListener((pageKey) {
-        fetchData(pageKey);
-      });
+      for (var i = 0; i < pagingControllers.length; i++) {
+        final tabIndex = i;
+        pagingControllers[tabIndex].addPageRequestListener((pageKey) {
+          fetchData(tabIndex, pageKey);
+        });
+      }
       return null;
-    }, []);
+    }, const []);
+
+    // Ganti chip sayap -> muat ulang semua tab dengan filter baru.
+    useEffect(() {
+      if (sayapSebelumnya.value != sayap.value) {
+        sayapSebelumnya.value = sayap.value;
+        for (final controller in pagingControllers) {
+          controller.refresh();
+        }
+      }
+      return null;
+    }, [sayap.value]);
+
+    void refreshAll() {
+      for (final controller in pagingControllers) {
+        controller.refresh();
+      }
+    }
+
+    final metaSaatIni = meta.value;
+    final terkunci = (metaSaatIni?.sayapTerkunci ?? 0) == 1;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Izin Santri'),
+        bottom: TabBar(
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          controller: tabController,
+          tabs: List.generate(statusTabs.length, (index) {
+            final jumlah = metaSaatIni?.jumlah?[statusTabs[index]];
+            final label = statusTabs[index];
+            return Tab(
+              text: jumlah == null ? label : '$label ($jumlah)',
+            );
+          }),
+        ),
       ),
       body: Stack(
         children: [
-          RefreshIndicator(
-            onRefresh: () => Future.sync(pagingController.refresh),
-            child: PagedListView(
-              pagingController: pagingController,
-              builderDelegate: PagedChildBuilderDelegate<Permit>(
-                itemBuilder: (context, permit, index) {
-                  final dateFormat = ref.watch(formatDateProvider(
-                    '${permit.date}',
-                    format: 'EEE, dd MMMM yyyy',
-                  ));
-                  final status = permit.status;
-                  final isStatusRejected = status == "Ditolak";
-                  final isStatusAccepted = status == "Disetujui";
-
-                  return _buildPermitTile(
-                    context,
-                    ref,
-                    permit,
-                    dateFormat,
-                    isStatusRejected,
-                    isStatusAccepted,
-                    pagingController,
-                  );
-                },
+          Column(
+            children: [
+              _buildSayapFilter(
+                context,
+                sayap.value,
+                terkunci,
+                metaSaatIni,
+                (value) => sayap.value = value,
               ),
-            ),
+              Expanded(
+                child: TabBarView(
+                  controller: tabController,
+                  children: List.generate(
+                    tabController.length,
+                    (index) => _buildPermitList(
+                      context,
+                      ref,
+                      index,
+                      pagingControllers[index],
+                      refreshAll,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
           // Satu tombol saja sejak 7 Sep 2026.
           //
@@ -120,7 +194,7 @@ class StudentPermitScreen extends HookConsumerWidget {
                   builder: (context) => const TapIzinBottomSheet(),
                 );
                 if (added == true) {
-                  pagingController.refresh();
+                  refreshAll();
                 }
               },
               label: const Text('Buat Izin Santri'),
@@ -134,6 +208,119 @@ class StudentPermitScreen extends HookConsumerWidget {
     );
   }
 
+  /// Baris chip filter sayap.
+  ///
+  /// Kalau lingkup sayap sudah dikunci server (`gender_lock` petugas),
+  /// chip dinonaktifkan dan pantalla menampilkan alasannya.
+  Widget _buildSayapFilter(
+    BuildContext context,
+    String sayapTerpilih,
+    bool terkunci,
+    PermitMeta? meta,
+    void Function(String value) onChanged,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final lingkup = meta?.scopeGender ?? 'all';
+    final scopeLabel = lingkup == 'laki-laki'
+        ? 'Ikhwan'
+        : lingkup == 'perempuan'
+            ? 'Akhwat'
+            : 'semua sayap';
+
+    return Container(
+      width: double.infinity,
+      color: colorScheme.surface,
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: List.generate(sayapChips.length, (index) {
+                final value = sayapChips[index];
+                final selected = value == sayapTerpilih;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(sayapLabels[value] ?? value),
+                    selected: selected,
+                    onSelected: terkunci
+                        ? null
+                        : (_) => onChanged(selected ? '' : value),
+                    selectedColor: colorScheme.primaryContainer,
+                    labelStyle: context.bodySmall?.copyWith(
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+          if (terkunci)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.lock_outline,
+                    size: 14,
+                    color: context.colorOnSurfaceVariant,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      'Lingkup otomatis: $scopeLabel. Filter sayap dikunci untuk akun ini.',
+                      style: context.bodySmall?.copyWith(
+                        color: context.colorOnSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPermitList(
+    BuildContext context,
+    WidgetRef ref,
+    int tabIndex,
+    PagingController<int, Permit> pagingController,
+    void Function() refreshAll,
+  ) {
+    return RefreshIndicator(
+      onRefresh: () => Future.sync(pagingController.refresh),
+      child: PagedListView(
+        pagingController: pagingController,
+        builderDelegate: PagedChildBuilderDelegate<Permit>(
+          itemBuilder: (context, permit, index) {
+            final dateFormat = ref.watch(formatDateProvider(
+              '${permit.date}',
+              format: 'EEE, dd MMMM yyyy',
+            ));
+            final status = permit.status;
+            final isStatusRejected = status == "Ditolak";
+            final isStatusAccepted = status == "Disetujui";
+
+            return _buildPermitTile(
+              context,
+              ref,
+              permit,
+              dateFormat,
+              isStatusRejected,
+              isStatusAccepted,
+              pagingController,
+              refreshAll,
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   Widget _buildPermitTile(
     BuildContext context,
     WidgetRef ref,
@@ -142,6 +329,7 @@ class StudentPermitScreen extends HookConsumerWidget {
     bool isStatusRejected,
     bool isStatusAccepted,
     PagingController<int, Permit> pagingController,
+    void Function() refreshAll,
   ) {
     final status = permit.status;
     final isLate = permit.isLate == '1';
@@ -195,6 +383,11 @@ class StudentPermitScreen extends HookConsumerWidget {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if ((permit.sayap ?? '').isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: _buildSayapBadge(context, permit.sayap!),
+            ),
           if (status != 'Dibatalkan' && status != 'Disetujui')
             IconButton(
               icon: Icon(
@@ -248,7 +441,7 @@ class StudentPermitScreen extends HookConsumerWidget {
           extra: permit.idPermit,
         );
         if (result == true) {
-          pagingController.refresh();
+          refreshAll();
         }
       },
       onLongPress: () => _showItemActions(
@@ -256,6 +449,7 @@ class StudentPermitScreen extends HookConsumerWidget {
         ref,
         permit,
         pagingController,
+        refreshAll,
       ),
     );
 
@@ -274,11 +468,37 @@ class StudentPermitScreen extends HookConsumerWidget {
     );
   }
 
+  /// Lencana kecil penanda sayap di baris daftar.
+  Widget _buildSayapBadge(BuildContext context, String sayap) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isIkhwan = sayap.toLowerCase() == 'ikhwan';
+    final background =
+        isIkhwan ? colorScheme.secondaryContainer : colorScheme.tertiaryContainer;
+    final foreground =
+        isIkhwan ? colorScheme.onSecondaryContainer : colorScheme.onTertiaryContainer;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        sayap,
+        style: context.bodySmall?.copyWith(
+          color: foreground,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
   Future<void> _showItemActions(
     BuildContext context,
     WidgetRef ref,
     Permit permit,
     PagingController<int, Permit> pagingController,
+    void Function() refreshAll,
   ) async {
     final currentUser = ref.read(getCurrentUserProvider);
     final key = '${currentUser?.key}';
@@ -302,7 +522,7 @@ class StudentPermitScreen extends HookConsumerWidget {
                     extra: permit.idPermit,
                   );
                   if (result == true && context.mounted) {
-                    pagingController.refresh();
+                    refreshAll();
                   }
                 },
               ),
@@ -335,7 +555,7 @@ class StudentPermitScreen extends HookConsumerWidget {
                       if (result != null &&
                           (result.status == true || result.status == 'true')) {
                         context.showSuccessMessage(result.msg);
-                        pagingController.refresh();
+                        refreshAll();
                       } else if (result != null) {
                         context.showErrorMessage(result.msg);
                       } else {
