@@ -67,12 +67,21 @@ class StudentPermitController extends _$StudentPermitController {
 }
 
 @riverpod
-Future<List<Permit>> fetchStudentPermitList(
+Future<PermitListResponse> fetchStudentPermitList(
   FetchStudentPermitListRef ref, {
   required String key,
   required int page,
+  // Tab status: 'Menunggu Persetujuan' | 'Disetujui' | 'Dibatalkan'.
+  String? status,
+  // Chip sayap: 'ikhwan' | 'akhwat'. Kosong berarti semua sayap.
+  String? sayap,
 }) async {
-  final result = await ref.watch(permitServiceProvider).getSantri(key, page);
+  final result = await ref.watch(permitServiceProvider).getSantri(
+    key,
+    page,
+    status: status,
+    sayap: sayap,
+  );
   return result;
 }
 
