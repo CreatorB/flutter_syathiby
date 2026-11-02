@@ -90,6 +90,12 @@ class HomeScreen extends HookConsumerWidget {
         : '--:--';
     final isWorking = displayTimeAttand != '--:--';
     final isClockIn = fetchPresence.valueOrNull?.absen == "1";
+    // Absen masuk + absen pulang hari ini sudah tercatat. Server
+    // (geten/attendance/presence.php) menolak absen masuk kedua pada tanggal
+    // yang sama, jadi tombol tidak boleh lagi menawarkan "Absen Masuk" --
+    // kalau tetap menawarkan, staff akan menekan tombol itu lalu menganggap
+    // absennya bermasalah (2 Nov 2026).
+    final isAbsenSelesai = fetchPresence.valueOrNull?.absenSelesai == "1";
     final isHoliday = fetchPresence.valueOrNull?.holiday == "YES";
     final isAnyLoading = fetchUserProfile.isLoading || fetchPresence.isLoading;
 
@@ -360,19 +366,40 @@ class HomeScreen extends HookConsumerWidget {
                     Visibility(
                       visible: !isHoliday,
                       child: Elegant3DButton(
-                        label: isClockIn ? 'Absen Masuk' : 'Absen Pulang',
-                        loadingLabel:
-                            isClockIn ? 'Absen masuk...' : 'Absen pulang...',
-                        backgroundColor: isClockIn
-                            ? context.colorPrimary // Hijau untuk masuk
-                            : context.colorError, // Merah untuk pulang
-                        icon:
-                            isClockIn ? Icons.check_circle : Icons.exit_to_app,
+                        label: isAbsenSelesai
+                            ? 'Absen Selesai'
+                            : (isClockIn ? 'Absen Masuk' : 'Absen Pulang'),
+                        loadingLabel: isAbsenSelesai
+                            ? 'Absen selesai'
+                            : (isClockIn ? 'Absen masuk...' : 'Absen pulang...'),
+                        backgroundColor: isAbsenSelesai
+                            ? context.colorOutline
+                            : (isClockIn
+                                ? context.colorPrimary // Hijau untuk masuk
+                                : context.colorError), // Merah untuk pulang
+                        icon: isAbsenSelesai
+                            ? Icons.verified
+                            : (isClockIn
+                                ? Icons.check_circle
+                                : Icons.exit_to_app),
                         isLoading: isAttendanceLoading.value,
                         height: 44,
                         depth: 0.62,
                         onPressed: () async {
                           if (isAttendanceLoading.value) return;
+
+                          // Absensi hari ini sudah lengkap: jangan buka alur
+                          // absen, cukup jelaskan ke staff.
+                          if (isAbsenSelesai) {
+                            await showOkAlertDialog(
+                              context: context,
+                              title: 'Absen Sudah Lengkap',
+                              message:
+                                  'Absen masuk dan absen pulang hari ini sudah tercatat. Absen berikutnya dilakukan besok.',
+                            );
+                            return;
+                          }
+
                           isAttendanceLoading.value = true;
 
                           try {
@@ -1298,10 +1325,35 @@ return Scaffold(
           ],
         );
 
-        final value = reasonLate?.firstOrNull;
+        // Dialog alasan yang DIBATALKAN (tombol Cancel) tidak boleh mengirim
+        // apa pun ke server. Sebelumnya `reasonLate?.firstOrNull` bernilai null
+        // lalu `value ?? ''` mengirim alasan kosong, sehingga server tetap
+        // menulis "Tanpa Alasan" dan mengirim push notifikasi -- cancel terlihat
+        // seperti "sudah absen" (2 Nov 2026).
+        if (reasonLate == null) {
+          ref.invalidate(fetchPresenceProvider);
+          ref.invalidate(fetchProfileProvider);
+          if (!context.mounted) return;
+          context.showSnackBar(
+            'Alasan dibatalkan. Absen tercatat tanpa alasan.',
+          );
+          return;
+        }
+
+        final value = reasonLate.firstOrNull?.trim() ?? '';
+        if (value.isEmpty) {
+          ref.invalidate(fetchPresenceProvider);
+          ref.invalidate(fetchProfileProvider);
+          if (!context.mounted) return;
+          context.showSnackBar(
+            'Alasan dibatalkan. Absen tercatat tanpa alasan.',
+          );
+          return;
+        }
+
         final result = await ref
             .read(accountControllerProvider.notifier)
-            .reasonLate(key: key, reason: value ?? '', isClockIn: true);
+            .reasonLate(key: key, reason: value, isClockIn: true);
 
         ref.invalidate(fetchPresenceProvider);
         ref.invalidate(fetchProfileProvider);
@@ -1680,10 +1732,22 @@ return Scaffold(
         ),
       ],
     );
-    final value = reasonLate?.firstOrNull;
+    // Dialog alasan yang DIBATALKAN (tombol Cancel) tidak boleh mengirim
+    // apa pun ke server -- lihat catatan di _showPresenceIn (2 Nov 2026).
+    if (reasonLate == null) {
+      if (!context.mounted) return;
+      context.showSnackBar('Alasan dibatalkan.');
+      return;
+    }
+    final value = reasonLate.firstOrNull?.trim() ?? '';
+    if (value.isEmpty) {
+      if (!context.mounted) return;
+      context.showSnackBar('Alasan dibatalkan.');
+      return;
+    }
     final result = await ref
         .read(accountControllerProvider.notifier)
-        .reasonLate(key: key, reason: value ?? '', isClockIn: false);
+        .reasonLate(key: key, reason: value, isClockIn: false);
     if (result == null || !context.mounted) return;
 
     ref.invalidate(fetchPresenceProvider(key: key));

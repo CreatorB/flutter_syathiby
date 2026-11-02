@@ -404,10 +404,26 @@ class PresenceScreen extends HookConsumerWidget {
       ],
     );
 
-    final value = reasonLate?.firstOrNull;
+    // Dialog alasan yang DIBATALKAN (tombol Cancel) tidak boleh mengirim apa pun
+    // ke server. Sebelumnya `reasonLate?.firstOrNull` bernilai null lalu
+    // `value ?? ''` mengirim alasan kosong, sehingga server tetap menulis
+    // "Tanpa Alasan" dan mengirim push notifikasi (2 Nov 2026).
+    if (reasonLate == null) {
+      if (!context.mounted) return;
+      context.showSnackBar('Alasan dibatalkan. Absen tercatat tanpa alasan.');
+      return;
+    }
+
+    final value = reasonLate.firstOrNull?.trim() ?? '';
+    if (value.isEmpty) {
+      if (!context.mounted) return;
+      context.showSnackBar('Alasan dibatalkan. Absen tercatat tanpa alasan.');
+      return;
+    }
+
     final result = await ref
         .read(accountControllerProvider.notifier)
-        .reasonLate(key: key, reason: value ?? '', isClockIn: true);
+        .reasonLate(key: key, reason: value, isClockIn: true);
     if (result == null || !context.mounted) return;
 
     context.showSuccessMessage(

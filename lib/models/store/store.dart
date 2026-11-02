@@ -47,6 +47,7 @@ class Store with _$Store {
     int? notifpermintaanobatmanager,
     int? notifukp,
     String? absen,
+    @JsonKey(name: 'absen_selesai') String? absenSelesai,
     @JsonKey(name: 'pulang_tertinggal') int? pulangTertinggal,
     @JsonKey(name: 'pulang_tertinggal_date') String? pulangTertinggalDate,
     @JsonKey(name: 'pulang_tertinggal_day') String? pulangTertinggalDay,
