@@ -34,6 +34,10 @@ class ResponseInterceptor extends Interceptor {
     // Absen pulang susulan: pesan validasi (format jam, jam melewati sekarang, dll)
     // harus sampai ke user, bukan diganti list kosong.
     'attendance/pulangsusulan',
+    // Alasan absen telat / pulang sebelum waktunya: alasan kosong ditolak
+    // server ("Alasan wajib diisi") dan pesannya harus sampai ke user.
+    // String ini juga menutup 'attendance/reasonfinish.php'.
+    'attendance/reason',
   ];
 
   bool _isMessageEndpoint(String path) {
