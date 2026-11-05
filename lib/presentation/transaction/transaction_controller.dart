@@ -85,12 +85,14 @@ class TransactionController extends _$TransactionController {
     required String invoiceId,
     required String data,
     String? reason,
+    String? nominal,
+    String? penerima,
   }) async {
     state = const AsyncLoading();
     final result = await AsyncValue.guard(
       () => ref
           .watch(transactionServiceProvider)
-          .aprovePengadaan(key, invoiceId, data, reason),
+          .aprovePengadaan(key, invoiceId, data, reason, nominal, penerima),
     );
     state = result;
     return result.valueOrNull;
