@@ -388,6 +388,7 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
             'Atasan Menolak',
             'Keuangan Proses',
             'Keuangan Menolak',
+            'Keuangan Cairkan',
             'Konfirmasi',
             'Selesai',
             'Barang Diterima',
@@ -408,6 +409,8 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
             final dialog = await _showDialogValueAndReason(context, status);
             final value = dialog.$1;
             final reason = dialog.$2;
+            final nominal = dialog.$3;
+            final penerima = dialog.$4;
             if (value == null) return;
 
             final result = await ref
@@ -417,9 +420,17 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
                   invoiceId: '$invoiceId',
                   data: value,
                   reason: reason,
+                  nominal: nominal,
+                  penerima: penerima,
                 );
             if (result == null || !context.mounted) return;
-            context.showSuccessMessage(result.msg);
+            if (result.errCode == '01') {
+              context.showSuccessMessage(result.msg);
+            } else {
+              // Backend menolak aksi yang tidak sesuai peran/status.
+              context.showErrorMessage(result.msg);
+              return;
+            }
             ref.invalidate(fetchDetailRequestTransactionProvider);
             ref.invalidate(fetchDetailRequestTransactionTimelineProvider);
             ref.invalidate(fetchAllTransactionTypeProvider);
@@ -430,15 +441,18 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
     );
   }
 
-  Future<(String?, String?)> _showDialogValueAndReason(
+  Future<(String?, String?, String?, String?)> _showDialogValueAndReason(
     BuildContext context,
     String status,
   ) async {
     String message = '';
     String? value;
     String? reason;
+    String? nominal;
+    String? penerima;
     bool isInputDialog = false;
     bool required = false;
+    bool isCairkan = false;
 
     switch (status) {
       case 'Mudir Setuju':
@@ -459,6 +473,13 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
         reason = 'Pesan untuk bagian logistik, jika ada';
         value = 'aprove_keuangan';
         isInputDialog = true;
+        break;
+      case 'Keuangan Cairkan':
+        message =
+            'Masukkan nominal yang dicairkan dan nama penerima dana. Kosongkan nominal bila nilainya sama dengan total pengajuan.';
+        value = 'cairkan_keuangan';
+        isInputDialog = true;
+        isCairkan = true;
         break;
       case 'Mudir Menolak':
         message = 'Anda menolak Permintaan ini, silahkan isi alasan Anda';
@@ -499,6 +520,47 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
       default:
         break;
     }
+    if (isCairkan) {
+      // Pencairan butuh dua hal: nominal yang dicairkan dan siapa yang
+      // menerimanya. Keduanya jadi parameter terpisah di endpoint
+      // `pengadaan/confirm.php`.
+      final input = await showTextInputDialog(
+        context: context,
+        title: 'Pencairan Dana',
+        message: message,
+        textFields: [
+          DialogTextField(
+            hintText: 'Nominal pencairan (kosong = total pengajuan)',
+            keyboardType: TextInputType.number,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) return null;
+              final angka = double.tryParse(
+                value.replaceAll(RegExp(r'[^0-9]'), ''),
+              );
+              if (angka == null || angka <= 0) return 'nominal tidak valid';
+              return null;
+            },
+            autocorrect: false,
+          ),
+          DialogTextField(
+            hintText: 'Nama penerima dana',
+            keyboardType: TextInputType.text,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'tidak boleh kosong';
+              }
+              return null;
+            },
+            autocorrect: true,
+          ),
+        ],
+      );
+      if (input == null) return (null, null, null, null);
+      nominal = input.elementAtOrNull(0);
+      penerima = input.elementAtOrNull(1);
+      reason = 'Pencairan dana oleh bagian keuangan';
+      return (value, reason, nominal, penerima);
+    }
     if (isInputDialog) {
       final input = await showTextInputDialog(
         context: context,
@@ -517,16 +579,16 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
         ],
       );
       reason = input?.firstOrNull;
-      if (reason == null) return (null, null);
+      if (reason == null) return (null, null, null, null);
     } else {
       final result = await showOkCancelAlertDialog(
         context: context,
         title: 'Info',
         message: message,
       );
-      if (result == OkCancelResult.cancel) return (null, null);
+      if (result == OkCancelResult.cancel) return (null, null, null, null);
     }
-    return (value, reason);
+    return (value, reason, nominal, penerima);
   }
 
   Widget _buildItemProgress(
