@@ -375,6 +375,8 @@ abstract class TransactionService {
     @Query('no_invoice') String id,
     @Query('value') String data,
     @Query('alasan') String? alasan,
+    @Query('nominal') String? nominal,
+    @Query('penerima') String? penerima,
   );
 
   @GET('permintaan/confirm.php')
