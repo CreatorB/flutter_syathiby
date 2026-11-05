@@ -1,12 +1,12 @@
 {
-  "version": "1.0.11",
-  "buildNumber": "11",
-  "buildDate": "2026-10-28",
+  "version": "1.0.13",
+  "buildNumber": "13",
+  "buildDate": "2026-11-06",
   "features": [
-    "Halaqah: menambah, menghapus, dan mencatat presensi tahfidz kini menentukan Santri lewat id_siswa (kunci unik), bukan NIS. NIS kembar tidak lagi membuat satu Santri ikut masuk ke halaqah Santri lain",
-    "Dropdown 'Tambah Murid' kini menampilkan kelas, jadi Santri dengan nama sama bisa dibedakan guru sebelum dipilih",
-    "Absensi tahfidz jauh lebih cepat: index baru pada id_siswa memangkas waktu pencarian absensi dari belasan detik jadi di bawah 1 detik",
-    "Data ganda Santri dengan NIS sama di kelas sama sudah dibersihkan, jadi satu nama tidak lagi muncul dua kali di daftar halaqah",
-    "Panel admin sekarang menolak menyimpan NIS yang sudah dipakai Santri lain, termasuk saat impor data dari Excel"
+    "Pengajuan perbaikan kini lewat Tim Maintenance: pengajuan harus di-ACC atasan lebih dahulu, lalu dikerjakan tim maintenance, maintenance mengklaim selesai, dan terakhir pengaju yang mengesahkan",
+    "Manager dan Mudir bisa menolak pengajuan dengan alasan; alasan Manager saat menyetujui ikut tersimpan di riwayat proses",
+    "Untuk pengajuan barang, persetujuan Mudir berjalan otomatis setelah Manager menyetujui, dan tetap bisa ditolak selama pengajuan belum ditandai selesai",
+    "Panel web kini punya modul tapping kantin: layar kasir dengan reader RFID, katalog produk beserta stok, shift kasir, dan rekap transaksi per Santri, per Kasir, dan produk terlaris",
+    "Notifikasi pengajuan kini diterima seluruh anggota tim yang berhak, bukan hanya satu orang"
   ]
 }

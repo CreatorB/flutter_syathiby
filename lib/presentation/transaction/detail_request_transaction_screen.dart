@@ -392,6 +392,11 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
             'Konfirmasi',
             'Selesai',
             'Barang Diterima',
+            // Alur pengajuan PERBAIKAN (6 Nov 2026): tim maintenance
+            // menerima pekerjaan lalu mengklaim selesai. Setelah itu pengaju
+            // yang mengesahkan ("Barang Diterima").
+            'Maintenance Terima',
+            'Maintenance Klaim Selesai',
           ],
           dropdownDecoratorProps: const DropDownDecoratorProps(
             dropdownSearchDecoration: InputDecoration(
@@ -457,15 +462,32 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
     switch (status) {
       case 'Mudir Setuju':
         message =
-            'Apakah Anda menyetujui Pengajuan ini? klik setuju. Selanjutnya data akan dikirim ke manager untuk dilakukan persetujuan';
-        reason = 'Pesan untuk pengadaan ini, jika ada';
+            'Apakah Anda menyetujui Pengajuan ini? Untuk pengajuan perbaikan, pengajuan langsung diteruskan ke Tim Maintenance.';
+        reason = 'Pesan untuk pengajuan ini, jika ada';
         value = 'aprove_mudir';
         isInputDialog = true;
         break;
       case 'Atasan Setuju':
         message =
             'Apakah Anda menyetujui Pengajuan ini? klik setuju, Selanjutnya data akan dikirim kebagian keuangan';
+        reason = 'Pesan untuk pengajuan ini, jika ada';
         value = 'aprove_manager';
+        isInputDialog = true;
+        break;
+      case 'Maintenance Terima':
+        message =
+            'Apakah Tim Maintenance menerima pekerjaan perbaikan ini? Silakan isi keterangan bila perlu.';
+        reason = 'Keterangan pekerjaan, jika ada';
+        value = 'confirm_maintenance';
+        isInputDialog = true;
+        break;
+      case 'Maintenance Klaim Selesai':
+        message =
+            'Apakah pekerjaan perbaikan sudah selesai? Keterangan wajib diisi sebagai bukti pekerjaan rampung.';
+        reason = 'Keterangan pekerjaan yang sudah selesai';
+        value = 'selesai_maintenance';
+        isInputDialog = true;
+        required = true;
         break;
       case 'Keuangan Proses':
         message =
@@ -514,7 +536,7 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
         break;
       case 'Barang Diterima':
         message =
-            'Pastikan barang atau uang yang di ajukan sudah Anda terima? klik selesai untuk menyelesaikan proses permohonan ini';
+            'Pastikan barang atau uang yang di ajukan sudah Anda terima, atau pekerjaan perbaikan sudah memuaskan? klik selesai untuk menyelesaikan proses permohonan ini';
         value = 'finish_user';
         break;
       default:
