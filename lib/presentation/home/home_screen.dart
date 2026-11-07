@@ -121,7 +121,6 @@ class HomeScreen extends HookConsumerWidget {
     final isTahfidz = presenceData?.tahfidz == 1;
     final isKeuangan = presenceData?.keuangan == 1;
     final isUnitUsaha = presenceData?.unitusaha == 1;
-    final isPermohonan = presenceData?.permohonan == 1;
     final safeLevel = presenceData?.level ?? '';
 
 // Cek update sekali saja saat home pertama kali tampil
@@ -992,8 +991,8 @@ return Scaffold(
               ),
               buildListMenu(
                 title: 'Permohonan Barang/Dana',
-                enabled: (isPermohonan && safeLevel == 'admin') ||
-                    (safeLevel != 'staff' && safeLevel != 'pengabdian'),
+                // Semua staff boleh mengajukan dan memantau status pengajuan.
+                enabled: currentUser != null,
                 menus: [
                   MenuGrid(
                     title: 'Permohonan',

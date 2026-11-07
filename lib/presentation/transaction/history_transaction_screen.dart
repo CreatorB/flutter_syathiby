@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:syathiby/di/providers.dart';
+import 'package:syathiby/models/transaction/transaction.dart';
 import 'package:syathiby/presentation/transaction/transaction_controller.dart';
 import 'package:syathiby/utils/extension/color.dart';
 import 'package:syathiby/utils/extension/typography.dart';
@@ -58,7 +59,7 @@ class HistoryTransactionScreen extends HookConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Daftar Pengadaan'),
+        title: const Text('Semua Pengajuan'),
         actions: [
           IconButton(
             onPressed: () async {
@@ -81,6 +82,7 @@ class HistoryTransactionScreen extends HookConsumerWidget {
             onPressed: () {
               context.goNamed(AppRoute.requestItems.name);
             },
+            tooltip: 'Antrean tugas saya',
             icon: const Icon(Icons.history),
           ),
         ],
@@ -153,7 +155,7 @@ class HistoryTransactionScreen extends HookConsumerWidget {
                           style: context.titleMediumBold,
                         ),
                         subtitle: Text(
-                          '${history?.nameTable}',
+                          _subtitle(history),
                           style: context.bodyMedium,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -195,7 +197,9 @@ class HistoryTransactionScreen extends HookConsumerWidget {
                           shape: const CircleBorder(),
                           heroTag: '${history?.noInvoice}',
                           child: Icon(
-                            Icons.medical_information,
+                            _isPerbaikan(history)
+                                ? Icons.build
+                                : Icons.medical_information,
                             color: context.colorPrimary,
                           ),
                         ),
@@ -218,3 +222,16 @@ class HistoryTransactionScreen extends HookConsumerWidget {
     );
   }
 }
+
+/// Baris kedua: jenis pengajuan dan pemohon (field opsional dari server baru).
+String _subtitle(Transaction? history) {
+  final info = [history?.jenisKegiatan, history?.pemohon]
+      .whereType<String>()
+      .where((e) => e.trim().isNotEmpty)
+      .join(' - ');
+  final bidang = history?.nameTable ?? '';
+  return info.isEmpty ? bidang : '$bidang\n$info';
+}
+
+bool _isPerbaikan(Transaction? history) =>
+    history?.jenisKegiatan?.trim().toLowerCase() == 'perbaikan';

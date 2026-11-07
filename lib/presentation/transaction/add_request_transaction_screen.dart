@@ -8,6 +8,7 @@ import 'package:input_quantity/input_quantity.dart';
 import 'package:syathiby/l10n/string_hardcoded.dart';
 import 'package:syathiby/models/allocation/allocation.dart';
 import 'package:syathiby/models/product/product.dart';
+import 'package:syathiby/models/transaction/petugas_pengajuan.dart';
 import 'package:syathiby/models/transaction/request_transaction.dart';
 import 'package:syathiby/presentation/transaction/transaction_controller.dart';
 import 'package:syathiby/routing/app_router.dart';
@@ -18,8 +19,15 @@ import 'package:syathiby/utils/extension/ui.dart';
 import '../../di/providers.dart';
 import '../../utils/custom_avatar_widget.dart';
 
+const _jenisPerbaikan = 'Perbaikan';
+
+bool _isPerbaikan(String? jenis) =>
+    jenis?.trim().toLowerCase() == _jenisPerbaikan.toLowerCase();
+
 class AddRequestTransactionScreen extends HookConsumerWidget {
-  final Product item;
+  /// null = pengajuan perbaikan tanpa barang (dibuka dari tombol "Ajukan
+  /// Perbaikan" di daftar barang).
+  final Product? item;
 
   const AddRequestTransactionScreen({
     super.key,
@@ -42,11 +50,30 @@ class AddRequestTransactionScreen extends HookConsumerWidget {
     final typeSelected = useState<Allocation?>(null);
 
     final key = '${currentUser?.key}';
+    final initialItem = item;
     final productItems = useState<List<Product>>(
       [
-        item.copyWith(amount: 1),
+        if (initialItem != null) initialItem.copyWith(amount: 1),
       ],
     );
+    final petugasSelected = useState<List<Petugas>>([]);
+    final petugasPengajuan =
+        ref.watch(fetchPetugasPengajuanProvider(key: key)).valueOrNull;
+    final isPerbaikan = _isPerbaikan(typeSelected.value?.allocationName);
+
+    useEffect(() {
+      if (initialItem != null) return null;
+      Future.microtask(() async {
+        final types =
+            await ref.read(fetchAllTransactionTypeProvider(key: key).future);
+        final perbaikan =
+            types.where((e) => _isPerbaikan(e.allocationName)).firstOrNull;
+        if (perbaikan != null && typeSelected.value == null) {
+          typeSelected.value = perbaikan;
+        }
+      });
+      return null;
+    }, const []);
     final total = _getTotalSpending(productItems.value);
     final totalFormat = ref.watch(formatCurrencyProvider('$total'));
 
@@ -67,7 +94,14 @@ class AddRequestTransactionScreen extends HookConsumerWidget {
                   if (!formKey.currentState!.validate()) {
                     return;
                   }
-                  if (productItems.value.isEmpty) {
+                  if (isPerbaikan && petugasSelected.value.isEmpty) {
+                    context.showErrorMessage(
+                      'Pilih minimal satu petugas perbaikan',
+                    );
+                    return;
+                  }
+                  // Perbaikan boleh tanpa barang; Barang/Jasa wajib ada.
+                  if (!isPerbaikan && productItems.value.isEmpty) {
                     context.showErrorMessage('Produk tidak boleh kosong');
                     return;
                   }
@@ -95,6 +129,11 @@ class AddRequestTransactionScreen extends HookConsumerWidget {
                           paymentType: 1,
                           totalOrder: total.toDouble(),
                           product: items,
+                          petugas: isPerbaikan
+                              ? petugasSelected.value
+                                  .map((e) => '${e.telp}')
+                                  .toList()
+                              : null,
                         ),
                       );
                   if (result == null || !context.mounted) return;
@@ -110,18 +149,77 @@ class AddRequestTransactionScreen extends HookConsumerWidget {
           ),
           body: Stack(
             children: [
-              ListView.builder(
-                itemCount: productItems.value.length,
-                itemBuilder: (ctx, index) {
-                  final item = productItems.value.elementAt(index);
-                  return _buildItem(
+              ListView(
+                children: [
+                  _buildFlowInfo(
                     context,
-                    ref,
-                    item,
-                    productItems,
-                    index,
-                  );
-                },
+                    isPerbaikan: isPerbaikan,
+                    petugasPengajuan: petugasPengajuan,
+                  ),
+                  if (isPerbaikan)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
+                      child: DropdownSearch<Petugas>.multiSelection(
+                        items: petugasPengajuan?.petugas ?? [],
+                        selectedItems: petugasSelected.value,
+                        compareFn: (a, b) => a.telp == b.telp,
+                        itemAsString: (e) => '${e.nama}',
+                        popupProps: PopupPropsMultiSelection.menu(
+                          showSearchBox: true,
+                          showSelectedItems: true,
+                          searchFieldProps: TextFieldProps(
+                            decoration: InputDecoration(
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              isDense: true,
+                              hintText: 'Pencarian...',
+                              prefixIcon: const Icon(Icons.search),
+                            ),
+                          ),
+                        ),
+                        dropdownDecoratorProps: const DropDownDecoratorProps(
+                          dropdownSearchDecoration: InputDecoration(
+                            hintText: 'Pilih petugas yang mengerjakan',
+                            labelText: 'Petugas Perbaikan *',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                            prefixIcon: Icon(Icons.engineering),
+                          ),
+                        ),
+                        validator: (value) => (value == null || value.isEmpty)
+                            ? 'Pilih minimal satu petugas'
+                            : null,
+                        onChanged: (value) {
+                          petugasSelected.value = value;
+                        },
+                      ),
+                    ),
+                  if (productItems.value.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                        isPerbaikan
+                            ? 'Belum ada barang. Untuk perbaikan, barang boleh dikosongkan.'
+                            : 'Belum ada barang. Tambahkan lewat "Tambah Barang" di bawah.',
+                        style: context.bodySmall,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  for (var index = 0;
+                      index < productItems.value.length;
+                      index++)
+                    _buildItem(
+                      context,
+                      ref,
+                      productItems.value.elementAt(index),
+                      productItems,
+                      index,
+                    ),
+                ],
               ),
               Visibility(
                 visible: controller.isLoading,
@@ -331,6 +429,44 @@ class AddRequestTransactionScreen extends HookConsumerWidget {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFlowInfo(
+    BuildContext context, {
+    required bool isPerbaikan,
+    required PetugasPengajuan? petugasPengajuan,
+  }) {
+    final atasanNama = petugasPengajuan?.atasanNama ?? '';
+    final namaTampil = atasanNama.isNotEmpty ? atasanNama : '-';
+    final atasanOtomatis = petugasPengajuan?.atasanOtomatis == 1;
+    final String atasanText;
+    final String alurText;
+    if (isPerbaikan) {
+      atasanText = 'Atasan: $namaTampil (disetujui otomatis)';
+      alurText = 'Alur perbaikan: diajukan -> petugas menerima & mengerjakan '
+          '-> petugas klaim selesai -> Anda konfirmasi. Atasan masih bisa '
+          'menolak selama pekerjaan belum dimulai.';
+    } else {
+      atasanText = atasanOtomatis
+          ? 'Atasan yang menyetujui: $namaTampil (otomatis, Anda pimpinan)'
+          : 'Atasan yang menyetujui: $namaTampil';
+      alurText = 'Alur pengadaan: diajukan -> ACC atasan -> Mudir -> Keuangan '
+          '-> pencairan -> logistik -> selesai -> Anda konfirmasi diterima.';
+    }
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(atasanText, style: context.bodyMediumBold),
+            const SizedBox(height: 4),
+            Text(alurText, style: context.bodySmall),
+          ],
         ),
       ),
     );

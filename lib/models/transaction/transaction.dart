@@ -21,6 +21,9 @@ class Transaction with _$Transaction {
     @JsonKey(name: 'status') String? status,
     @JsonKey(name: 'type') String? type,
     @JsonKey(name: 'name_table') String? nameTable,
+    @JsonKey(name: 'jeniskegiatan') String? jenisKegiatan,
+    @JsonKey(name: 'name_kegiatan') String? nameKegiatan,
+    @JsonKey(name: 'pemohon') String? pemohon,
   }) = _Transaction;
 
   factory Transaction.fromJson(Map<String, dynamic> json) =>

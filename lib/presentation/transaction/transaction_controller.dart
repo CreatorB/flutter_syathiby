@@ -7,6 +7,7 @@ import 'package:syathiby/models/product/product.dart';
 import 'package:syathiby/models/service_injection.dart';
 import 'package:syathiby/models/transaction/detail_transaction.dart';
 import 'package:syathiby/models/transaction/order.dart';
+import 'package:syathiby/models/transaction/petugas_pengajuan.dart';
 import 'package:syathiby/models/transaction/request_transaction.dart';
 import 'package:syathiby/models/transaction/transaction.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -132,6 +133,15 @@ Future<List<Transaction>> fetchRequestItems(
   required String key,
 }) async {
   final result = ref.watch(transactionServiceProvider).dataPengadaan(key);
+  return result;
+}
+
+@riverpod
+Future<PetugasPengajuan> fetchPetugasPengajuan(
+  FetchPetugasPengajuanRef ref, {
+  required String key,
+}) async {
+  final result = ref.watch(transactionServiceProvider).getPetugasPengajuan(key);
   return result;
 }
 
