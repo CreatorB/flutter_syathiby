@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:syathiby/di/providers.dart';
+import 'package:syathiby/firebase_options.dart';
 import 'package:syathiby/models/days/days.dart';
 import 'package:syathiby/models/service_injection.dart';
 import 'package:syathiby/models/store/store.dart';
@@ -54,9 +56,10 @@ class FcmTokenSync extends _$FcmTokenSync {
       final sessionKey = key ?? ref.read(getCurrentUserProvider)?.key;
       if (sessionKey == null || sessionKey.isEmpty) return;
       if (kIsWeb) {
-        // Token browser berasal dari project Firebase `al-ukhuwah`, sedangkan
-        // token Android dari `syathiby-1345121`. Keduanya dikirimi server,
-        // jadi token browser disimpan terpisah (`platform: web`).
+        // Token browser berasal dari Web App project Firebase
+        // `syathiby-1345121` (10 Nov 2026), sama seperti token Android.
+        // Keduanya dikirimi server, jadi token browser disimpan terpisah
+        // (`platform: web`) supaya tidak saling menimpa.
         final tokenWeb = await _fetchWebToken();
         if (tokenWeb == null || tokenWeb.isEmpty) return;
         await _sendWeb(sessionKey, tokenWeb, force: force);
@@ -88,6 +91,11 @@ class FcmTokenSync extends _$FcmTokenSync {
       return null;
     }
     try {
+      // Di web, Firebase TIDAK di-init di `main()` (dilewati demi kompatibilitas
+      // Safari). Tanpa init, `firebase_options.dart` ter-tree-shake dan browser
+      // memakai service worker project yang salah/expired. Jadi init sekarang
+      // secara lazy: hanya saat pengguna benar-benar minta izin notifikasi.
+      await _ensureFirebaseWeb();
       final messaging = ref.read(firebaseMessagingProvider);
       final izin = await messaging.requestPermission();
       if (izin.authorizationStatus == AuthorizationStatus.denied) {
@@ -100,6 +108,33 @@ class FcmTokenSync extends _$FcmTokenSync {
     } catch (e) {
       debugPrint('Pengambilan token FCM web gagal: $e');
       return null;
+    }
+  }
+
+  /// Inisialisasi Firebase khusus web (idempotent, aman dipanggil berulang).
+  ///
+  /// CATATAN penting (akar masalah push web):
+  /// - Di `main()`, `await _initFirebase()` hanya dipanggil bila `!kIsWeb`.
+  ///   Saat build web, `kIsWeb` = true, sehingga cabang itu dibuang dan
+  ///   `DefaultFirebaseOptions` ikut ter-*tree-shake*: `main.dart.js` jadi
+  ///   0 string `AIza`/`syathiby-1345121`, dan browser memakai project yang
+  ///   salah (dulu `al-ukhuwah`, token-nya ditolak server).
+  /// - Solusinya: inisialisasi Firebase dilakukan LAZY di jalur ini, hanya
+  ///   saat pengguna benar-benar meminta izin notifikasi browser.
+  /// - Guard `if (!kIsWeb) return;` sengaja DIJAGA: saat build web
+  ///   `kIsWeb` = true sehingga guard tidak aktif dan seluruh isi fungsi tetap
+  ///   hidup (config ikut ke bundle). Saat build Android, guard memangkas
+  ///   cabang web agar bundle mobile tidakbringing konfigurasi web.
+  Future<void> _ensureFirebaseWeb() async {
+    if (!kIsWeb) return;
+    if (Firebase.apps.isNotEmpty) return;
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      ).timeout(const Duration(seconds: 15));
+      debugPrint('Firebase web diinisialisasi (project syathiby-1345121)');
+    } catch (e) {
+      debugPrint('Inisialisasi Firebase web gagal: $e');
     }
   }
 
