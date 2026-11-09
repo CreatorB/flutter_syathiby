@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:syathiby/di/providers.dart';
 import 'package:syathiby/models/days/days.dart';
@@ -46,11 +45,14 @@ class FcmTokenSync extends _$FcmTokenSync {
   /// [force] dipakai saat login: key sesi tidak berganti antar login, sedangkan
   /// server memindahkan token ke akun terakhir yang login di perangkat ini.
   Future<void> sync({String? key, bool force = false}) {
-    return _running ??=
-        _sync(key, force).whenComplete(() => _running = null);
+    return _running ??= _sync(key, force).whenComplete(() => _running = null);
   }
 
   Future<void> _sync(String? key, bool force) async {
+    // Web memakai project Firebase `al-ukhuwah`, sedangkan server mengirim lewat
+    // service account `syathiby-1345121`: token web ditolak (SENDER_ID_MISMATCH)
+    // dan menimpa token Android akun yang sama. Kirim token Android saja.
+    if (kIsWeb) return;
     try {
       final sessionKey = key ?? ref.read(getCurrentUserProvider)?.key;
       if (sessionKey == null || sessionKey.isEmpty) return;
@@ -63,18 +65,11 @@ class FcmTokenSync extends _$FcmTokenSync {
     }
   }
 
-  Future<String?> _fetchToken() async {
-    final fcm = ref.read(firebaseMessagingProvider);
-    if (kIsWeb) {
-      // Di web getToken melempar error bila izin notifikasi belum/tidak diberi.
-      final settings = await fcm
-          .requestPermission()
-          .timeout(const Duration(seconds: 10));
-      if (settings.authorizationStatus == AuthorizationStatus.denied) {
-        return null;
-      }
-    }
-    return fcm.getToken().timeout(const Duration(seconds: 15));
+  Future<String?> _fetchToken() {
+    return ref
+        .read(firebaseMessagingProvider)
+        .getToken()
+        .timeout(const Duration(seconds: 15));
   }
 
   Future<void> _send(String key, String token, {bool force = false}) async {
@@ -89,10 +84,8 @@ class FcmTokenSync extends _$FcmTokenSync {
   }
 
   void _listenTokenRefresh() {
-    _refreshSub ??= ref
-        .read(firebaseMessagingProvider)
-        .onTokenRefresh
-        .listen((token) async {
+    _refreshSub ??= ref.read(firebaseMessagingProvider).onTokenRefresh.listen(
+        (token) async {
       try {
         final key = ref.read(getCurrentUserProvider)?.key;
         if (key == null || key.isEmpty || token.isEmpty) return;
