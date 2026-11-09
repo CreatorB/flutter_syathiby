@@ -82,9 +82,58 @@ class ItemsScreen extends HookConsumerWidget {
         child: Skeletonizer(
           enabled: fetchAllItem.isLoading || transactionController.isLoading,
           child: ListView.builder(
-            itemCount: itemCount,
+            itemCount: itemCount + 2,
             itemBuilder: (ctx, index) {
-              final item = fetchAllItem.valueOrNull?.elementAtOrNull(index);
+              if (index == 0) {
+                // Perbaikan tidak wajib memilih barang.
+                return Card(
+                  margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                  child: ListTile(
+                    leading: Icon(
+                      Icons.build_circle,
+                      color: context.colorPrimary,
+                    ),
+                    title: Text(
+                      'Ajukan Perbaikan',
+                      style: context.bodyMediumBold,
+                    ),
+                    subtitle: const Text(
+                      'Tanpa memilih barang, langsung pilih tim perbaikan',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      context.goNamed(AppRoute.orderItem.name);
+                    },
+                  ),
+                );
+              }
+              if (index == 1) {
+                // Jasa ikut alur tim perbaikan (keputusan user 9 Nov 2026).
+                return Card(
+                  margin: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+                  child: ListTile(
+                    leading: Icon(
+                      Icons.handyman,
+                      color: context.colorPrimary,
+                    ),
+                    title: Text(
+                      'Ajukan Jasa',
+                      style: context.bodyMediumBold,
+                    ),
+                    subtitle: const Text(
+                      'Tanpa memilih barang, langsung pilih tim yang mengerjakan',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      context.goNamed(
+                        AppRoute.orderItem.name,
+                        queryParameters: {'jenis': 'Jasa'},
+                      );
+                    },
+                  ),
+                );
+              }
+              final item = fetchAllItem.valueOrNull?.elementAtOrNull(index - 2);
               return _buildItem(context, ref, item, key);
             },
           ),

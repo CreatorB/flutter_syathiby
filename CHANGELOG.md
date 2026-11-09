@@ -5,6 +5,24 @@ Semua perubahan penting pada Aplikasi Syathiby akan didokumentasikan dalam file 
 Format berdasarkan [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.12] - 2026-11-09
+
+### Diubah
+- **Alur Pengajuan Barang dan Perbaikan Dipisah**
+  - Semua pengajuan harus di-ACC atasan lebih dahulu (otomatis bila pemohon sendiri pimpinan), lalu persetujuan Mudir berjalan otomatis. Mudir tetap bisa menolak selama proses belum berjalan
+  - Pengajuan perbaikan kini memilih **Tim Perbaikan**, bukan petugas perorangan. Siapa pun anggota tim bisa menerima & mengerjakan, lalu mengklaim selesai, dan terakhir pemohon yang mengesahkan
+  - **File yang Dimodifikasi**: `lib/presentation/transaction/add_request_transaction_screen.dart`, `lib/presentation/transaction/detail_request_transaction_screen.dart`, `lib/models/transaction/petugas_pengajuan.dart`, `lib/models/transaction/request_transaction.dart`, `lib/models/transaction/detail_transaction.dart`
+
+### Ditambahkan
+- **Semua Staff Bisa Melihat Status Pengajuan**
+  - Status dan timeline proses pengajuan kini terlihat oleh seluruh staff, sedangkan tombol aksi hanya muncul untuk yang berhak
+
+### Diperbaiki
+- **Notifikasi Kembali Sampai ke Perangkat**
+  - **Penyebab**: Sejak Juni 2026 aplikasi tidak pernah lagi mengirim token notifikasi perangkat ke server, sehingga notifikasi pengajuan tidak sampai
+  - **Solusi**: Token dikirim ke server setelah login, sekali setiap aplikasi dibuka, dan setiap kali token diperbarui
+  - **File yang Dimodifikasi**: `lib/presentation/home/fetch_presence_controller.dart`, `lib/presentation/home/home_screen.dart`, `lib/presentation/login/login_controller.dart`
+
 ## [1.0.11] - 2026-10-29
 
 ### Diperbaiki
