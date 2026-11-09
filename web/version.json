@@ -1,8 +1,10 @@
 {
-  "version": "1.0.12",
-  "buildNumber": "14",
+  "version": "1.0.14",
+  "buildNumber": "15",
   "buildDate": "2026-11-09",
   "features": [
+    "Pengajuan Jasa kini ikut alur Tim Perbaikan: ACC atasan manual, persetujuan Mudir berjalan otomatis, lalu dikerjakan tim yang dipilih dan terakhir pemohon yang mengesahkan",
+    "Tersedia tombol \"Ajukan Jasa\" di daftar barang, dan jenis kegiatan perbaikan maupun jasa sama-sama bisa dipilih tim yang mengerjakan",
     "Alur pengajuan barang dan perbaikan dipisah: pengajuan di-ACC atasan, persetujuan Mudir berjalan otomatis, dan perbaikan dikerjakan Tim Perbaikan yang dipilih saat mengajukan",
     "Semua staff bisa melihat status pengajuan beserta timeline prosesnya",
     "Notifikasi diperbaiki: token perangkat kembali dikirim ke server setelah login dan saat aplikasi dibuka",

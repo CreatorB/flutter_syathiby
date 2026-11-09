@@ -12,6 +12,7 @@ import 'package:syathiby/models/transaction/petugas_pengajuan.dart';
 import 'package:syathiby/models/transaction/request_transaction.dart';
 import 'package:syathiby/presentation/transaction/transaction_controller.dart';
 import 'package:syathiby/routing/app_router.dart';
+import 'package:syathiby/utils/alur_kegiatan.dart';
 import 'package:syathiby/utils/extension/color.dart';
 import 'package:syathiby/utils/extension/typography.dart';
 import 'package:syathiby/utils/extension/ui.dart';
@@ -19,19 +20,19 @@ import 'package:syathiby/utils/extension/ui.dart';
 import '../../di/providers.dart';
 import '../../utils/custom_avatar_widget.dart';
 
-const _jenisPerbaikan = 'Perbaikan';
-
-bool _isPerbaikan(String? jenis) =>
-    jenis?.trim().toLowerCase() == _jenisPerbaikan.toLowerCase();
-
 class AddRequestTransactionScreen extends HookConsumerWidget {
-  /// null = pengajuan perbaikan tanpa barang (dibuka dari tombol "Ajukan
-  /// Perbaikan" di daftar barang).
+  /// null = pengajuan tanpa barang (dibuka dari tombol "Ajukan Perbaikan" /
+  /// "Ajukan Jasa" di daftar barang).
   final Product? item;
+
+  /// Jenis kegiatan yang langsung dipilih, mis. "Jasa". null = pakai
+  /// bawaan (Perbaikan).
+  final String? jenisAwal;
 
   const AddRequestTransactionScreen({
     super.key,
     required this.item,
+    this.jenisAwal,
   });
 
   @override
@@ -60,7 +61,7 @@ class AddRequestTransactionScreen extends HookConsumerWidget {
     final petugasPengajuan =
         ref.watch(fetchPetugasPengajuanProvider(key: key)).valueOrNull;
     final timList = petugasPengajuan?.tim ?? const <TimPerbaikan>[];
-    final isPerbaikan = _isPerbaikan(typeSelected.value?.allocationName);
+    final pakaiAlurTim = isAlurTim(typeSelected.value?.allocationName);
     // Tim dipilih otomatis bila hanya ada satu.
     final timAktif =
         timSelected.value ?? (timList.length == 1 ? timList.first : null);
@@ -70,10 +71,19 @@ class AddRequestTransactionScreen extends HookConsumerWidget {
       Future.microtask(() async {
         final types =
             await ref.read(fetchAllTransactionTypeProvider(key: key).future);
-        final perbaikan =
-            types.where((e) => _isPerbaikan(e.allocationName)).firstOrNull;
-        if (perbaikan != null && typeSelected.value == null) {
-          typeSelected.value = perbaikan;
+        // Jenis yang diminta (mis. "Jasa") didahulukan; kalau tidak ada,
+        // pakai bawaan "Perbaikan".
+        final diminta = jenisAwal?.trim().toLowerCase();
+        final terpilih = jenisAwal == null
+            ? types.where((e) => isJenisPerbaikan(e.allocationName)).firstOrNull
+            : types
+                .where(
+                  (e) =>
+                      (e.allocationName?.trim().toLowerCase() ?? '') == diminta,
+                )
+                .firstOrNull;
+        if (terpilih != null && typeSelected.value == null) {
+          typeSelected.value = terpilih;
         }
       });
       return null;
@@ -98,12 +108,12 @@ class AddRequestTransactionScreen extends HookConsumerWidget {
                   if (!formKey.currentState!.validate()) {
                     return;
                   }
-                  if (isPerbaikan && timList.isNotEmpty && timAktif == null) {
-                    context.showErrorMessage('Pilih tim perbaikan');
+                  if (pakaiAlurTim && timList.isNotEmpty && timAktif == null) {
+                    context.showErrorMessage('Pilih tim yang mengerjakan');
                     return;
                   }
-                  // Perbaikan boleh tanpa barang; Barang/Jasa wajib ada.
-                  if (!isPerbaikan && productItems.value.isEmpty) {
+                  // Perbaikan & jasa boleh tanpa barang; barang wajib ada.
+                  if (!pakaiAlurTim && productItems.value.isEmpty) {
                     context.showErrorMessage('Produk tidak boleh kosong');
                     return;
                   }
@@ -131,7 +141,7 @@ class AddRequestTransactionScreen extends HookConsumerWidget {
                           paymentType: 1,
                           totalOrder: total.toDouble(),
                           product: items,
-                          idTim: isPerbaikan ? timAktif?.id : null,
+                          idTim: pakaiAlurTim ? timAktif?.id : null,
                         ),
                       );
                   if (result == null || !context.mounted) return;
@@ -151,10 +161,10 @@ class AddRequestTransactionScreen extends HookConsumerWidget {
                 children: [
                   _buildFlowInfo(
                     context,
-                    isPerbaikan: isPerbaikan,
+                    isAlurTim: pakaiAlurTim,
                     petugasPengajuan: petugasPengajuan,
                   ),
-                  if (isPerbaikan && timList.isNotEmpty)
+                  if (pakaiAlurTim && timList.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
@@ -202,8 +212,8 @@ class AddRequestTransactionScreen extends HookConsumerWidget {
                     Padding(
                       padding: const EdgeInsets.all(16),
                       child: Text(
-                        isPerbaikan
-                            ? 'Belum ada barang. Untuk perbaikan, barang boleh dikosongkan.'
+                        pakaiAlurTim
+                            ? 'Belum ada barang. Untuk perbaikan/jasa, barang boleh dikosongkan.'
                             : 'Belum ada barang. Tambahkan lewat "Tambah Barang" di bawah.',
                         style: context.bodySmall,
                         textAlign: TextAlign.center,
@@ -436,7 +446,7 @@ class AddRequestTransactionScreen extends HookConsumerWidget {
 
   Widget _buildFlowInfo(
     BuildContext context, {
-    required bool isPerbaikan,
+    required bool isAlurTim,
     required PetugasPengajuan? petugasPengajuan,
   }) {
     final atasanNama = petugasPengajuan?.atasanNama ?? '';
@@ -445,8 +455,8 @@ class AddRequestTransactionScreen extends HookConsumerWidget {
     final atasanText = atasanOtomatis
         ? 'Atasan yang menyetujui: $namaTampil (otomatis)'
         : 'Atasan yang menyetujui: $namaTampil';
-    final alurText = isPerbaikan
-        ? 'Alur perbaikan: Diajukan -> ACC Atasan -> Mudir (otomatis) '
+    final alurText = isAlurTim
+        ? 'Alur perbaikan/jasa: Diajukan -> ACC Atasan -> Mudir (otomatis) '
             '-> Dikerjakan Tim Perbaikan -> Klaim selesai -> Anda mengesahkan. '
             'Mudir masih bisa menolak selama pekerjaan belum dimulai.'
         : 'Alur pengadaan: diajukan -> ACC atasan -> Mudir -> Keuangan '

@@ -1547,6 +1547,7 @@ GoRouter goRouter(GoRouterRef ref) {
                             builder: (context, state) =>
                                 AddRequestTransactionScreen(
                               item: state.extra as Product?,
+                              jenisAwal: state.uri.queryParameters['jenis'],
                             ),
                           ),
                           GoRoute(

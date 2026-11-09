@@ -9,6 +9,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:syathiby/di/providers.dart';
 import 'package:syathiby/models/job/job_detail.dart';
 import 'package:syathiby/presentation/transaction/transaction_controller.dart';
+import 'package:syathiby/utils/alur_kegiatan.dart';
 import 'package:syathiby/utils/extension/color.dart';
 import 'package:syathiby/utils/extension/typography.dart';
 import 'package:syathiby/utils/extension/ui.dart';
@@ -69,8 +70,7 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
     );
     final totalRequest =
         ref.watch(formatCurrencyProvider('${invoice?.totalOrder}'));
-    final isPerbaikan =
-        invoice?.jenisKegiatan?.trim().toLowerCase() == 'perbaikan';
+    final pakaiAlurTim = isAlurTim(invoice?.jenisKegiatan);
     final aksi = invoice?.aksi;
     // aksi null = server lama, tampilkan semua aksi seperti sebelumnya.
     final actions = aksi == null
@@ -296,7 +296,7 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
                         ],
                       ),
                     ],
-                    if (isPerbaikan) ...[
+                    if (pakaiAlurTim) ...[
                       const SizedBox(height: 10),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -372,8 +372,8 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   child: Text(
-                    isPerbaikan
-                        ? 'Tidak ada barang (perbaikan tanpa barang).'
+                    pakaiAlurTim
+                        ? 'Tidak ada barang (perbaikan/jasa tanpa barang).'
                         : 'Tidak ada barang.',
                     style: context.bodySmall,
                   ),
@@ -528,7 +528,7 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
                   final dialog = await _showDialogValueAndReason(
                     context,
                     status,
-                    isPerbaikan: isPerbaikan,
+                    isAlurTim: pakaiAlurTim,
                   );
                   final value = dialog.$1;
                   final reason = dialog.$2;
@@ -567,7 +567,7 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
   Future<(String?, String?, String?, String?)> _showDialogValueAndReason(
     BuildContext context,
     String status, {
-    bool isPerbaikan = false,
+    bool isAlurTim = false,
   }) async {
     String message = '';
     String? value;
@@ -580,15 +580,16 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
 
     switch (status) {
       case 'aprove_mudir':
-        message =
-            'Apakah Anda menyetujui Pengajuan ini? Selanjutnya diteruskan ke bagian keuangan.';
+        message = isAlurTim
+            ? 'Apakah Anda menyetujui Pengajuan ini? Selanjutnya diteruskan ke tim yang dipilih.'
+            : 'Apakah Anda menyetujui Pengajuan ini? Selanjutnya diteruskan ke bagian keuangan.';
         reason = 'Pesan untuk pengajuan ini, jika ada';
         value = 'aprove_mudir';
         isInputDialog = true;
         break;
       case 'aprove_manager':
-        message = isPerbaikan
-            ? 'Apakah Anda (Atasan) menyetujui perbaikan ini? Selanjutnya disetujui Mudir otomatis lalu dikerjakan tim perbaikan yang dipilih.'
+        message = isAlurTim
+            ? 'Apakah Anda (Atasan) menyetujui pengajuan ini? Selanjutnya disetujui Mudir otomatis lalu dikerjakan tim yang dipilih.'
             : 'Apakah Anda (Atasan) menyetujui Pengajuan ini? Selanjutnya diteruskan ke Mudir lalu bagian keuangan.';
         reason = 'Pesan untuk pengajuan ini, jika ada';
         value = 'aprove_manager';
@@ -596,14 +597,14 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
         break;
       case 'confirm_maintenance':
         message =
-            'Terima dan mulai kerjakan perbaikan ini? Setelah dikerjakan, Mudir tidak bisa lagi menolak. Silakan isi keterangan bila perlu.';
+            'Terima dan mulai kerjakan pengajuan ini? Setelah dikerjakan, Mudir tidak bisa lagi menolak. Silakan isi keterangan bila perlu.';
         reason = 'Keterangan pekerjaan, jika ada';
         value = 'confirm_maintenance';
         isInputDialog = true;
         break;
       case 'selesai_maintenance':
         message =
-            'Apakah pekerjaan perbaikan sudah selesai? Keterangan wajib diisi sebagai bukti pekerjaan rampung.';
+            'Apakah pekerjaan sudah selesai? Keterangan wajib diisi sebagai bukti pekerjaan rampung.';
         reason = 'Keterangan pekerjaan yang sudah selesai';
         value = 'selesai_maintenance';
         isInputDialog = true;
@@ -656,8 +657,8 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
         required = true;
         break;
       case 'finish_user':
-        message = isPerbaikan
-            ? 'Pastikan pekerjaan perbaikan sudah selesai dan memuaskan. Klik OK untuk menyelesaikan permohonan ini.'
+        message = isAlurTim
+            ? 'Pastikan pekerjaan sudah selesai dan memuaskan. Klik OK untuk menyelesaikan permohonan ini.'
             : 'Pastikan barang atau uang yang di ajukan sudah Anda terima. Klik OK untuk menyelesaikan proses permohonan ini.';
         value = 'finish_user';
         break;
