@@ -9,6 +9,8 @@ abstract class AppConstant {
   static const String keyLoginSession = 'login_session';
   static const String keyUserSession = 'user_session';
   static const String keyDeviceToken = 'device_token';
+  // Token FCM terakhir yang berhasil dikirim ke server, per key sesi.
+  static const String keyFcmSyncedPrefix = 'fcm_synced_';
   static const String keyRememberMe = 'remember_me';
   static const String keySavedPhone = 'saved_phone';
   static const String keySavedPassword = 'saved_password';

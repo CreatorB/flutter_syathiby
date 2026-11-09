@@ -9,12 +9,30 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:syathiby/di/providers.dart';
 import 'package:syathiby/models/job/job_detail.dart';
 import 'package:syathiby/presentation/transaction/transaction_controller.dart';
+import 'package:syathiby/utils/alur_kegiatan.dart';
 import 'package:syathiby/utils/extension/color.dart';
 import 'package:syathiby/utils/extension/typography.dart';
 import 'package:syathiby/utils/extension/ui.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../utils/custom_avatar_widget.dart';
+
+/// Nilai `value` untuk `pengadaan/confirm.php` beserta labelnya, urut sesuai
+/// alur. Server baru mengirim `struk.aksi` berisi subset nilai ini.
+const _actionLabels = <String, String>{
+  'aprove_manager': 'ACC Atasan',
+  'reject_manager': 'Tolak (Atasan)',
+  'aprove_mudir': 'Mudir Setuju',
+  'reject_mudir': 'Mudir Menolak',
+  'aprove_keuangan': 'Keuangan Proses',
+  'reject_keuangan': 'Keuangan Menolak',
+  'cairkan_keuangan': 'Keuangan Cairkan',
+  'confirm_humas': 'Konfirmasi',
+  'finish_humas': 'Selesai',
+  'confirm_maintenance': 'Terima & Kerjakan (Tim Perbaikan)',
+  'selesai_maintenance': 'Klaim Selesai (Tim Perbaikan)',
+  'finish_user': 'Konfirmasi Diterima/Selesai (Pemohon)',
+};
 
 class DetailRequestTransactionScreen extends HookConsumerWidget {
   final String? invoiceId;
@@ -52,6 +70,19 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
     );
     final totalRequest =
         ref.watch(formatCurrencyProvider('${invoice?.totalOrder}'));
+    final pakaiAlurTim = isAlurTim(invoice?.jenisKegiatan);
+    final aksi = invoice?.aksi;
+    // aksi null = server lama, tampilkan semua aksi seperti sebelumnya.
+    final actions = aksi == null
+        ? _actionLabels.keys.toList()
+        : aksi.where(_actionLabels.containsKey).toList();
+    final showActions = !fetchDetailRequest.isLoading && actions.isNotEmpty;
+    final atasanNama = invoice?.atasanNama ?? '';
+    final timNama = invoice?.tim?.trim() ?? '';
+    final petugasNama = (invoice?.petugas ?? [])
+        .map((e) => e.nama ?? e.telp ?? '')
+        .where((e) => e.isNotEmpty)
+        .join(', ');
     return Scaffold(
       appBar: AppBar(
         title: const Text('Detail Permohonan'),
@@ -218,6 +249,89 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
                         ),
                       ],
                     ),
+                    if (invoice?.atasan != null) ...[
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Atasan',
+                            style: TextStyle(
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Flexible(
+                            child: Wrap(
+                              alignment: WrapAlignment.end,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 6,
+                              children: [
+                                Text(
+                                  atasanNama.isNotEmpty ? atasanNama : '-',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                if (invoice?.atasanOtomatis == 1)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(4),
+                                      color: context.colorPrimaryContainer,
+                                    ),
+                                    child: Text(
+                                      'otomatis',
+                                      style: context.bodySmall?.copyWith(
+                                        color: context.colorOnPrimaryContainer,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (pakaiAlurTim) ...[
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Tim Perbaikan',
+                            style: TextStyle(
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Flexible(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  timNama.isNotEmpty ? timNama : '-',
+                                  textAlign: TextAlign.end,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                if (petugasNama.isNotEmpty)
+                                  Text(
+                                    petugasNama,
+                                    textAlign: TextAlign.end,
+                                    style: context.bodySmall,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 10),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -253,6 +367,17 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
                 ),
               ),
               const SizedBox(height: 8),
+              if (!fetchDetailRequest.isLoading && (data?.isEmpty ?? true))
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Text(
+                    pakaiAlurTim
+                        ? 'Tidak ada barang (perbaikan/jasa tanpa barang).'
+                        : 'Tidak ada barang.',
+                    style: context.bodySmall,
+                  ),
+                ),
               ListView.builder(
                 physics: const NeverScrollableScrollPhysics(),
                 shrinkWrap: true,
@@ -374,82 +499,76 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
           ),
         ),
       ),
-      bottomNavigationBar: Container(
-        margin: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 8,
-        ),
-        child: DropdownSearch<String>(
-          selectedItem: statusSelected.value,
-          items: const [
-            'Mudir Setuju',
-            'Mudir Menolak',
-            'Atasan Setuju',
-            'Atasan Menolak',
-            'Keuangan Proses',
-            'Keuangan Menolak',
-            'Keuangan Cairkan',
-            'Konfirmasi',
-            'Selesai',
-            'Barang Diterima',
-            // Alur pengajuan PERBAIKAN (6 Nov 2026): tim maintenance
-            // menerima pekerjaan lalu mengklaim selesai. Setelah itu pengaju
-            // yang mengesahkan ("Barang Diterima").
-            'Maintenance Terima',
-            'Maintenance Klaim Selesai',
-          ],
-          dropdownDecoratorProps: const DropDownDecoratorProps(
-            dropdownSearchDecoration: InputDecoration(
-              hintText: 'Ubah Status Permohonan',
-              labelText: 'Ubah Status Permohonan',
-              border: OutlineInputBorder(),
-              isDense: true,
-              prefixIcon: Icon(Icons.dataset),
-            ),
-          ),
-          onChanged: (status) async {
-            if (status == null) {
-              return;
-            }
-            final dialog = await _showDialogValueAndReason(context, status);
-            final value = dialog.$1;
-            final reason = dialog.$2;
-            final nominal = dialog.$3;
-            final penerima = dialog.$4;
-            if (value == null) return;
+      bottomNavigationBar: !showActions
+          ? null
+          : Container(
+              margin: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 8,
+              ),
+              child: DropdownSearch<String>(
+                selectedItem: actions.contains(statusSelected.value)
+                    ? statusSelected.value
+                    : null,
+                items: actions,
+                itemAsString: (value) => _actionLabels[value] ?? value,
+                dropdownDecoratorProps: const DropDownDecoratorProps(
+                  dropdownSearchDecoration: InputDecoration(
+                    hintText: 'Ubah Status Permohonan',
+                    labelText: 'Ubah Status Permohonan',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                    prefixIcon: Icon(Icons.dataset),
+                  ),
+                ),
+                onChanged: (status) async {
+                  if (status == null) {
+                    return;
+                  }
+                  final dialog = await _showDialogValueAndReason(
+                    context,
+                    status,
+                    isAlurTim: pakaiAlurTim,
+                  );
+                  final value = dialog.$1;
+                  final reason = dialog.$2;
+                  final nominal = dialog.$3;
+                  final penerima = dialog.$4;
+                  if (value == null) return;
 
-            final result = await ref
-                .read(transactionControllerProvider.notifier)
-                .approveRequestTransaction(
-                  key: key,
-                  invoiceId: '$invoiceId',
-                  data: value,
-                  reason: reason,
-                  nominal: nominal,
-                  penerima: penerima,
-                );
-            if (result == null || !context.mounted) return;
-            if (result.errCode == '01') {
-              context.showSuccessMessage(result.msg);
-            } else {
-              // Backend menolak aksi yang tidak sesuai peran/status.
-              context.showErrorMessage(result.msg);
-              return;
-            }
-            ref.invalidate(fetchDetailRequestTransactionProvider);
-            ref.invalidate(fetchDetailRequestTransactionTimelineProvider);
-            ref.invalidate(fetchAllTransactionTypeProvider);
-            statusSelected.value = status;
-          },
-        ),
-      ),
+                  final result = await ref
+                      .read(transactionControllerProvider.notifier)
+                      .approveRequestTransaction(
+                        key: key,
+                        invoiceId: '$invoiceId',
+                        data: value,
+                        reason: reason,
+                        nominal: nominal,
+                        penerima: penerima,
+                      );
+                  if (result == null || !context.mounted) return;
+                  if (result.errCode == '01') {
+                    context.showSuccessMessage(result.msg);
+                  } else {
+                    // Backend menolak aksi yang tidak sesuai peran/status.
+                    context.showErrorMessage(result.msg);
+                    return;
+                  }
+                  ref.invalidate(fetchDetailRequestTransactionProvider);
+                  ref.invalidate(fetchDetailRequestTransactionTimelineProvider);
+                  ref.invalidate(fetchAllTransactionTypeProvider);
+                  statusSelected.value = status;
+                },
+              ),
+            ),
     );
   }
 
   Future<(String?, String?, String?, String?)> _showDialogValueAndReason(
     BuildContext context,
-    String status,
-  ) async {
+    String status, {
+    bool isAlurTim = false,
+  }) async {
     String message = '';
     String? value;
     String? reason;
@@ -460,73 +579,76 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
     bool isCairkan = false;
 
     switch (status) {
-      case 'Mudir Setuju':
-        message =
-            'Apakah Anda menyetujui Pengajuan ini? Untuk pengajuan perbaikan, pengajuan langsung diteruskan ke Tim Maintenance.';
+      case 'aprove_mudir':
+        message = isAlurTim
+            ? 'Apakah Anda menyetujui Pengajuan ini? Selanjutnya diteruskan ke tim yang dipilih.'
+            : 'Apakah Anda menyetujui Pengajuan ini? Selanjutnya diteruskan ke bagian keuangan.';
         reason = 'Pesan untuk pengajuan ini, jika ada';
         value = 'aprove_mudir';
         isInputDialog = true;
         break;
-      case 'Atasan Setuju':
-        message =
-            'Apakah Anda menyetujui Pengajuan ini? klik setuju, Selanjutnya data akan dikirim kebagian keuangan';
+      case 'aprove_manager':
+        message = isAlurTim
+            ? 'Apakah Anda (Atasan) menyetujui pengajuan ini? Selanjutnya disetujui Mudir otomatis lalu dikerjakan tim yang dipilih.'
+            : 'Apakah Anda (Atasan) menyetujui Pengajuan ini? Selanjutnya diteruskan ke Mudir lalu bagian keuangan.';
         reason = 'Pesan untuk pengajuan ini, jika ada';
         value = 'aprove_manager';
         isInputDialog = true;
         break;
-      case 'Maintenance Terima':
+      case 'confirm_maintenance':
         message =
-            'Apakah Tim Maintenance menerima pekerjaan perbaikan ini? Silakan isi keterangan bila perlu.';
+            'Terima dan mulai kerjakan pengajuan ini? Setelah dikerjakan, Mudir tidak bisa lagi menolak. Silakan isi keterangan bila perlu.';
         reason = 'Keterangan pekerjaan, jika ada';
         value = 'confirm_maintenance';
         isInputDialog = true;
         break;
-      case 'Maintenance Klaim Selesai':
+      case 'selesai_maintenance':
         message =
-            'Apakah pekerjaan perbaikan sudah selesai? Keterangan wajib diisi sebagai bukti pekerjaan rampung.';
+            'Apakah pekerjaan sudah selesai? Keterangan wajib diisi sebagai bukti pekerjaan rampung.';
         reason = 'Keterangan pekerjaan yang sudah selesai';
         value = 'selesai_maintenance';
         isInputDialog = true;
         required = true;
         break;
-      case 'Keuangan Proses':
+      case 'aprove_keuangan':
         message =
             'Apakah Anda akan memproses Pengajuan ini? klik proses. Selanjutnya data akan dikirim ke bagian logistik.';
         reason = 'Pesan untuk bagian logistik, jika ada';
         value = 'aprove_keuangan';
         isInputDialog = true;
         break;
-      case 'Keuangan Cairkan':
+      case 'cairkan_keuangan':
         message =
             'Masukkan nominal yang dicairkan dan nama penerima dana. Kosongkan nominal bila nilainya sama dengan total pengajuan.';
         value = 'cairkan_keuangan';
         isInputDialog = true;
         isCairkan = true;
         break;
-      case 'Mudir Menolak':
+      case 'reject_mudir':
         message = 'Anda menolak Permintaan ini, silahkan isi alasan Anda';
         value = 'reject_mudir';
         isInputDialog = true;
         required = true;
         break;
-      case 'Atasan Menolak':
-        message = 'Anda menolak Permintaan ini, silahkan isi alasan Anda';
+      case 'reject_manager':
+        message =
+            'Anda (Atasan) menolak Permintaan ini, silahkan isi alasan Anda';
         value = 'reject_manager';
         isInputDialog = true;
         required = true;
         break;
-      case 'Keuangan Menolak':
+      case 'reject_keuangan':
         message = 'Anda menolak Permintaan ini, silahkan isi alasan Anda';
         value = 'reject_keuangan';
         isInputDialog = true;
         required = true;
         break;
-      case 'Konfirmasi':
+      case 'confirm_humas':
         message =
             'Apakah Anda akan mengonfirmasi Pengajuan ini? klik proses dan silahkan berbelanja';
         value = 'confirm_humas';
         break;
-      case 'Selesai':
+      case 'finish_humas':
         message =
             'Pastikan barang yang dipesan sudah tersedia? Masukkan Nomor Nota dan klik selesai';
         reason = 'Ketik Nomor Nota';
@@ -534,9 +656,10 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
         isInputDialog = true;
         required = true;
         break;
-      case 'Barang Diterima':
-        message =
-            'Pastikan barang atau uang yang di ajukan sudah Anda terima, atau pekerjaan perbaikan sudah memuaskan? klik selesai untuk menyelesaikan proses permohonan ini';
+      case 'finish_user':
+        message = isAlurTim
+            ? 'Pastikan pekerjaan sudah selesai dan memuaskan. Klik OK untuk menyelesaikan permohonan ini.'
+            : 'Pastikan barang atau uang yang di ajukan sudah Anda terima. Klik OK untuk menyelesaikan proses permohonan ini.';
         value = 'finish_user';
         break;
       default:
@@ -593,7 +716,9 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
             hintText: reason ?? 'Alasan Anda',
             keyboardType: TextInputType.text,
             validator: (value) {
-              if (required) return 'tidak boleh kosong';
+              if (required && (value == null || value.trim().isEmpty)) {
+                return 'tidak boleh kosong';
+              }
               return null;
             },
             autocorrect: true,

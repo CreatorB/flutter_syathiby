@@ -15,6 +15,7 @@ import 'package:syathiby/models/transaction/history_transaction.dart';
 import 'package:syathiby/models/transaction/history_transfer.dart';
 import 'package:syathiby/models/transaction/non_tunai.dart';
 import 'package:syathiby/models/transaction/order.dart';
+import 'package:syathiby/models/transaction/petugas_pengajuan.dart';
 import 'package:syathiby/models/transaction/req_trans.dart';
 import 'package:syathiby/models/transaction/request_add_order.dart';
 import 'package:syathiby/models/transaction/request_kulakan.dart';
@@ -193,6 +194,11 @@ abstract class TransactionService {
     @Query('status') String status,
   );
 
+  @GET('pengadaan/petugas.php')
+  Future<PetugasPengajuan> getPetugasPengajuan(
+    @Query('key') String key,
+  );
+
   @GET('pengadaan/listdatapengadaan.php')
   Future<List<Transaction>> dataPengadaan(
     @Query('key') String key,
@@ -339,7 +345,7 @@ abstract class TransactionService {
     @Query('search') String id,
   );
 
-  @GET('pengadaan/searchpengadaan.php')
+  @GET('history/searchpengadaan.php')
   Future<List<Transaction>> searchPengadaan(
     @Query('key') String key,
     @Query('search') String id,

@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:syathiby/models/transaction/petugas_pengajuan.dart';
 
 part 'detail_transaction.freezed.dart';
 part 'detail_transaction.g.dart';
@@ -53,6 +54,14 @@ class Struk with _$Struk {
     @JsonKey(name: 'namabidang') String? namaBidang,
     @JsonKey(name: 'level') String? level,
     @JsonKey(name: 'waktu') String? waktu,
+    @JsonKey(name: 'pemohon_telp') String? pemohonTelp,
+    @JsonKey(name: 'atasan') String? atasan,
+    @JsonKey(name: 'atasan_nama') String? atasanNama,
+    @JsonKey(name: 'atasan_otomatis') int? atasanOtomatis,
+    @JsonKey(name: 'tim') String? tim,
+    @JsonKey(name: 'petugas') List<Petugas>? petugas,
+    // null = server lama (belum mengirim daftar aksi per pengguna).
+    @JsonKey(name: 'aksi') List<String>? aksi,
   }) = _Struk;
 
   factory Struk.fromJson(Map<String, dynamic> json) => _$StrukFromJson(json);

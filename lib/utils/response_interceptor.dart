@@ -38,6 +38,10 @@ class ResponseInterceptor extends Interceptor {
     // server ("Alasan wajib diisi") dan pesannya harus sampai ke user.
     // String ini juga menutup 'attendance/reasonfinish.php'.
     'attendance/reason',
+    // Aksi & simpan pengajuan: pesan penolakan server (bukan peran, status
+    // tidak sesuai, alasan kosong) harus tampil apa adanya.
+    'pengadaan/confirm',
+    'pengadaan/prosesspengadaan',
   ];
 
   bool _isMessageEndpoint(String path) {

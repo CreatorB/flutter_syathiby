@@ -50,7 +50,14 @@ class HomeScreen extends HookConsumerWidget {
     final isAttendanceLoading = useState(false);
     final currentUser = ref.watch(getCurrentUserProvider);
     final key = '${currentUser?.key}';
-    // Token save is now handled lazily on login success, not on every home build
+    // Token FCM disinkronkan sekali per key sesi, bukan setiap rebuild.
+    useEffect(() {
+      if (currentUser?.key == null) return null;
+      Future.microtask(
+        () => ref.read(fcmTokenSyncProvider.notifier).sync(key: key),
+      );
+      return null;
+    }, [key]);
     final fetchUserProfile = ref.watch(fetchProfileProvider(key: key));
     final fetchPresence = ref.watch(fetchPresenceProvider(key: key));
     final currentDateFormat = ref.watch(
@@ -121,7 +128,6 @@ class HomeScreen extends HookConsumerWidget {
     final isTahfidz = presenceData?.tahfidz == 1;
     final isKeuangan = presenceData?.keuangan == 1;
     final isUnitUsaha = presenceData?.unitusaha == 1;
-    final isPermohonan = presenceData?.permohonan == 1;
     final safeLevel = presenceData?.level ?? '';
 
 // Cek update sekali saja saat home pertama kali tampil
@@ -992,8 +998,8 @@ return Scaffold(
               ),
               buildListMenu(
                 title: 'Permohonan Barang/Dana',
-                enabled: (isPermohonan && safeLevel == 'admin') ||
-                    (safeLevel != 'staff' && safeLevel != 'pengabdian'),
+                // Semua staff boleh mengajukan dan memantau status pengajuan.
+                enabled: currentUser != null,
                 menus: [
                   MenuGrid(
                     title: 'Permohonan',

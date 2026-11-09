@@ -1,6 +1,8 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
 import 'package:syathiby/di/providers.dart';
+import 'package:syathiby/presentation/home/fetch_presence_controller.dart';
 import 'package:syathiby/models/service_injection.dart';
 import 'package:syathiby/models/user/login.dart';
 import 'package:syathiby/res/strings.dart';
@@ -62,12 +64,10 @@ class LoginController extends _$LoginController {
   Future<void> _saveSession(Login login) async {
     final pref = ref.read(sharedPreferencesHelperProvider);
     await pref.setObject(AppConstant.keyLoginSession, login.toJson());
-    try {
-      final token = await ref.read(firebaseMessagingProvider).getToken();
-      await pref.setString(AppConstant.keyDeviceToken, token ?? '');
-    } catch (e) {
-      debugPrint('Gagal mendapatkan Firebase token: $e');
-    }
+    // Tidak di-await supaya login tidak tertahan menunggu token FCM.
+    unawaited(
+      ref.read(fcmTokenSyncProvider.notifier).sync(key: login.key, force: true),
+    );
   }
 
   Future<void> _saveCredentials(String phone, String password, bool rememberMe) async {

@@ -37,6 +37,8 @@ class RequestTransaction with _$RequestTransaction {
     @JsonKey(name: 'name_kegiatan') String? nameKegiatan,
     @JsonKey(name: 'name_subkegiatan') String? nameSubkegiatan,
     @JsonKey(name: 'jeniskegiatan') String? jenisKegiatan,
+    // Tim perbaikan yang dipilih, hanya dipakai bila jenis = Perbaikan.
+    @JsonKey(name: 'id_tim') int? idTim,
   }) = _RequestTransaction;
 
   factory RequestTransaction.fromJson(Map<String, dynamic> json) =>
