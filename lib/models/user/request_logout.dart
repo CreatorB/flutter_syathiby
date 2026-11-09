@@ -13,6 +13,9 @@ class RequestLogout with _$RequestLogout {
     bool? mock,
     String? device,
     String? lokasi,
+    /// 'web' = token browser disimpan di kolom `users.token_web` (project
+    /// Firebase `al-ukhuwah`), bukan `users.token` (Android).
+    String? platform,
   }) = _RequestLogout;
 
   factory RequestLogout.fromJson(Map<String, dynamic> json) =>
