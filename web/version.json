@@ -1,12 +1,12 @@
 {
-  "version": "1.0.13",
-  "buildNumber": "13",
-  "buildDate": "2026-11-06",
+  "version": "1.0.12",
+  "buildNumber": "14",
+  "buildDate": "2026-11-09",
   "features": [
-    "Pengajuan perbaikan kini lewat Tim Maintenance: pengajuan harus di-ACC atasan lebih dahulu, lalu dikerjakan tim maintenance, maintenance mengklaim selesai, dan terakhir pengaju yang mengesahkan",
+    "Alur pengajuan barang dan perbaikan dipisah: pengajuan di-ACC atasan, persetujuan Mudir berjalan otomatis, dan perbaikan dikerjakan Tim Perbaikan yang dipilih saat mengajukan",
+    "Semua staff bisa melihat status pengajuan beserta timeline prosesnya",
+    "Notifikasi diperbaiki: token perangkat kembali dikirim ke server setelah login dan saat aplikasi dibuka",
     "Manager dan Mudir bisa menolak pengajuan dengan alasan; alasan Manager saat menyetujui ikut tersimpan di riwayat proses",
-    "Untuk pengajuan barang, persetujuan Mudir berjalan otomatis setelah Manager menyetujui, dan tetap bisa ditolak selama pengajuan belum ditandai selesai",
-    "Panel web kini punya modul tapping kantin: layar kasir dengan reader RFID, katalog produk beserta stok, shift kasir, dan rekap transaksi per Santri, per Kasir, dan produk terlaris",
-    "Notifikasi pengajuan kini diterima seluruh anggota tim yang berhak, bukan hanya satu orang"
+    "Panel web kini punya modul tapping kantin: layar kasir dengan reader RFID, katalog produk beserta stok, shift kasir, dan rekap transaksi per Santri, per Kasir, dan produk terlaris"
   ]
 }

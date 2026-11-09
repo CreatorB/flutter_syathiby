@@ -1,8 +1,13 @@
+import 'dart:async';
+
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
+import 'package:syathiby/di/providers.dart';
 import 'package:syathiby/models/days/days.dart';
 import 'package:syathiby/models/service_injection.dart';
 import 'package:syathiby/models/store/store.dart';
 import 'package:syathiby/models/user/request_logout.dart';
-import 'package:syathiby/models/user/user.dart';
+import 'package:syathiby/res/strings.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'fetch_presence_controller.g.dart';
@@ -25,17 +30,76 @@ Future<List<Days>> fetchScheduleJob(
   return result;
 }
 
-@riverpod
-Future<User> saveTokenToServer(
-  SaveTokenToServerRef ref, {
-  required String key,
-  required String token,
-}) async {
-  final result = await ref.watch(userServiceProvider).getToken(
-        RequestLogout(
-          key: key,
-          token: token,
-        ),
-      );
-  return result;
+/// Mengirim token FCM ke `profile/gettoken.php` supaya server bisa mengirim
+/// notifikasi. Dipanggil setelah login, sekali per app start, dan saat token
+/// diganti Firebase. Kegagalan hanya dicatat, tidak pernah memblokir UI.
+@Riverpod(keepAlive: true)
+class FcmTokenSync extends _$FcmTokenSync {
+  StreamSubscription<String>? _refreshSub;
+  Future<void>? _running;
+
+  @override
+  void build() {
+    ref.onDispose(() => _refreshSub?.cancel());
+  }
+
+  /// [force] dipakai saat login: key sesi tidak berganti antar login, sedangkan
+  /// server memindahkan token ke akun terakhir yang login di perangkat ini.
+  Future<void> sync({String? key, bool force = false}) {
+    return _running ??=
+        _sync(key, force).whenComplete(() => _running = null);
+  }
+
+  Future<void> _sync(String? key, bool force) async {
+    try {
+      final sessionKey = key ?? ref.read(getCurrentUserProvider)?.key;
+      if (sessionKey == null || sessionKey.isEmpty) return;
+      _listenTokenRefresh();
+      final token = await _fetchToken();
+      if (token == null || token.isEmpty) return;
+      await _send(sessionKey, token, force: force);
+    } catch (e) {
+      debugPrint('Sinkronisasi token FCM gagal: $e');
+    }
+  }
+
+  Future<String?> _fetchToken() async {
+    final fcm = ref.read(firebaseMessagingProvider);
+    if (kIsWeb) {
+      // Di web getToken melempar error bila izin notifikasi belum/tidak diberi.
+      final settings = await fcm
+          .requestPermission()
+          .timeout(const Duration(seconds: 10));
+      if (settings.authorizationStatus == AuthorizationStatus.denied) {
+        return null;
+      }
+    }
+    return fcm.getToken().timeout(const Duration(seconds: 15));
+  }
+
+  Future<void> _send(String key, String token, {bool force = false}) async {
+    final pref = ref.read(sharedPreferencesHelperProvider);
+    await pref.setString(AppConstant.keyDeviceToken, token);
+    final syncedKey = '${AppConstant.keyFcmSyncedPrefix}$key';
+    if (!force && pref.getString(syncedKey) == token) return;
+    await ref
+        .read(userServiceProvider)
+        .getToken(RequestLogout(key: key, token: token));
+    await pref.setString(syncedKey, token);
+  }
+
+  void _listenTokenRefresh() {
+    _refreshSub ??= ref
+        .read(firebaseMessagingProvider)
+        .onTokenRefresh
+        .listen((token) async {
+      try {
+        final key = ref.read(getCurrentUserProvider)?.key;
+        if (key == null || key.isEmpty || token.isEmpty) return;
+        await _send(key, token);
+      } catch (e) {
+        debugPrint('Sinkronisasi token FCM (refresh) gagal: $e');
+      }
+    }, onError: (Object e) => debugPrint('onTokenRefresh error: $e'));
+  }
 }

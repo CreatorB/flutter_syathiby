@@ -98,7 +98,7 @@ class ItemsScreen extends HookConsumerWidget {
                       style: context.bodyMediumBold,
                     ),
                     subtitle: const Text(
-                      'Tanpa memilih barang, langsung tunjuk petugas perbaikan',
+                      'Tanpa memilih barang, langsung pilih tim perbaikan',
                     ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {

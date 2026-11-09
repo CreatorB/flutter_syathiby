@@ -50,7 +50,14 @@ class HomeScreen extends HookConsumerWidget {
     final isAttendanceLoading = useState(false);
     final currentUser = ref.watch(getCurrentUserProvider);
     final key = '${currentUser?.key}';
-    // Token save is now handled lazily on login success, not on every home build
+    // Token FCM disinkronkan sekali per key sesi, bukan setiap rebuild.
+    useEffect(() {
+      if (currentUser?.key == null) return null;
+      Future.microtask(
+        () => ref.read(fcmTokenSyncProvider.notifier).sync(key: key),
+      );
+      return null;
+    }, [key]);
     final fetchUserProfile = ref.watch(fetchProfileProvider(key: key));
     final fetchPresence = ref.watch(fetchPresenceProvider(key: key));
     final currentDateFormat = ref.watch(

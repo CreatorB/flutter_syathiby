@@ -56,10 +56,14 @@ class AddRequestTransactionScreen extends HookConsumerWidget {
         if (initialItem != null) initialItem.copyWith(amount: 1),
       ],
     );
-    final petugasSelected = useState<List<Petugas>>([]);
+    final timSelected = useState<TimPerbaikan?>(null);
     final petugasPengajuan =
         ref.watch(fetchPetugasPengajuanProvider(key: key)).valueOrNull;
+    final timList = petugasPengajuan?.tim ?? const <TimPerbaikan>[];
     final isPerbaikan = _isPerbaikan(typeSelected.value?.allocationName);
+    // Tim dipilih otomatis bila hanya ada satu.
+    final timAktif =
+        timSelected.value ?? (timList.length == 1 ? timList.first : null);
 
     useEffect(() {
       if (initialItem != null) return null;
@@ -94,10 +98,8 @@ class AddRequestTransactionScreen extends HookConsumerWidget {
                   if (!formKey.currentState!.validate()) {
                     return;
                   }
-                  if (isPerbaikan && petugasSelected.value.isEmpty) {
-                    context.showErrorMessage(
-                      'Pilih minimal satu petugas perbaikan',
-                    );
+                  if (isPerbaikan && timList.isNotEmpty && timAktif == null) {
+                    context.showErrorMessage('Pilih tim perbaikan');
                     return;
                   }
                   // Perbaikan boleh tanpa barang; Barang/Jasa wajib ada.
@@ -129,11 +131,7 @@ class AddRequestTransactionScreen extends HookConsumerWidget {
                           paymentType: 1,
                           totalOrder: total.toDouble(),
                           product: items,
-                          petugas: isPerbaikan
-                              ? petugasSelected.value
-                                  .map((e) => '${e.telp}')
-                                  .toList()
-                              : null,
+                          idTim: isPerbaikan ? timAktif?.id : null,
                         ),
                       );
                   if (result == null || !context.mounted) return;
@@ -156,46 +154,48 @@ class AddRequestTransactionScreen extends HookConsumerWidget {
                     isPerbaikan: isPerbaikan,
                     petugasPengajuan: petugasPengajuan,
                   ),
-                  if (isPerbaikan)
+                  if (isPerbaikan && timList.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 4,
                       ),
-                      child: DropdownSearch<Petugas>.multiSelection(
-                        items: petugasPengajuan?.petugas ?? [],
-                        selectedItems: petugasSelected.value,
-                        compareFn: (a, b) => a.telp == b.telp,
-                        itemAsString: (e) => '${e.nama}',
-                        popupProps: PopupPropsMultiSelection.menu(
-                          showSearchBox: true,
-                          showSelectedItems: true,
-                          searchFieldProps: TextFieldProps(
-                            decoration: InputDecoration(
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              isDense: true,
-                              hintText: 'Pencarian...',
-                              prefixIcon: const Icon(Icons.search),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          DropdownSearch<TimPerbaikan>(
+                            items: timList,
+                            selectedItem: timAktif,
+                            compareFn: (a, b) => a.id == b.id,
+                            itemAsString: (e) => '${e.nama}',
+                            popupProps: const PopupProps.menu(
+                              showSelectedItems: true,
                             ),
+                            dropdownDecoratorProps:
+                                const DropDownDecoratorProps(
+                              dropdownSearchDecoration: InputDecoration(
+                                hintText: 'Pilih tim yang mengerjakan',
+                                labelText: 'Tim Perbaikan *',
+                                border: OutlineInputBorder(),
+                                isDense: true,
+                                prefixIcon: Icon(Icons.engineering),
+                              ),
+                            ),
+                            validator: (value) =>
+                                value == null ? 'Pilih tim perbaikan' : null,
+                            onChanged: (value) {
+                              timSelected.value = value;
+                            },
                           ),
-                        ),
-                        dropdownDecoratorProps: const DropDownDecoratorProps(
-                          dropdownSearchDecoration: InputDecoration(
-                            hintText: 'Pilih petugas yang mengerjakan',
-                            labelText: 'Petugas Perbaikan *',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                            prefixIcon: Icon(Icons.engineering),
-                          ),
-                        ),
-                        validator: (value) => (value == null || value.isEmpty)
-                            ? 'Pilih minimal satu petugas'
-                            : null,
-                        onChanged: (value) {
-                          petugasSelected.value = value;
-                        },
+                          if (_namaAnggota(timAktif).isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4, left: 4),
+                              child: Text(
+                                'Anggota: ${_namaAnggota(timAktif)}',
+                                style: context.bodySmall,
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   if (productItems.value.isEmpty)
@@ -442,20 +442,15 @@ class AddRequestTransactionScreen extends HookConsumerWidget {
     final atasanNama = petugasPengajuan?.atasanNama ?? '';
     final namaTampil = atasanNama.isNotEmpty ? atasanNama : '-';
     final atasanOtomatis = petugasPengajuan?.atasanOtomatis == 1;
-    final String atasanText;
-    final String alurText;
-    if (isPerbaikan) {
-      atasanText = 'Atasan: $namaTampil (disetujui otomatis)';
-      alurText = 'Alur perbaikan: diajukan -> petugas menerima & mengerjakan '
-          '-> petugas klaim selesai -> Anda konfirmasi. Atasan masih bisa '
-          'menolak selama pekerjaan belum dimulai.';
-    } else {
-      atasanText = atasanOtomatis
-          ? 'Atasan yang menyetujui: $namaTampil (otomatis, Anda pimpinan)'
-          : 'Atasan yang menyetujui: $namaTampil';
-      alurText = 'Alur pengadaan: diajukan -> ACC atasan -> Mudir -> Keuangan '
-          '-> pencairan -> logistik -> selesai -> Anda konfirmasi diterima.';
-    }
+    final atasanText = atasanOtomatis
+        ? 'Atasan yang menyetujui: $namaTampil (otomatis)'
+        : 'Atasan yang menyetujui: $namaTampil';
+    final alurText = isPerbaikan
+        ? 'Alur perbaikan: Diajukan -> ACC Atasan -> Mudir (otomatis) '
+            '-> Dikerjakan Tim Perbaikan -> Klaim selesai -> Anda mengesahkan. '
+            'Mudir masih bisa menolak selama pekerjaan belum dimulai.'
+        : 'Alur pengadaan: diajukan -> ACC atasan -> Mudir -> Keuangan '
+            '-> pencairan -> logistik -> selesai -> Anda konfirmasi diterima.';
     return Card(
       margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
       child: Padding(
@@ -513,6 +508,11 @@ class AddRequestTransactionScreen extends HookConsumerWidget {
       ),
     );
   }
+
+  String _namaAnggota(TimPerbaikan? tim) => (tim?.anggota ?? [])
+      .map((e) => e.nama ?? e.telp ?? '')
+      .where((e) => e.isNotEmpty)
+      .join(', ');
 
   num _getTotalSpending(List<Product> items) {
     num total = 0;

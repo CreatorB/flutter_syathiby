@@ -58,6 +58,7 @@ class Struk with _$Struk {
     @JsonKey(name: 'atasan') String? atasan,
     @JsonKey(name: 'atasan_nama') String? atasanNama,
     @JsonKey(name: 'atasan_otomatis') int? atasanOtomatis,
+    @JsonKey(name: 'tim') String? tim,
     @JsonKey(name: 'petugas') List<Petugas>? petugas,
     // null = server lama (belum mengirim daftar aksi per pengguna).
     @JsonKey(name: 'aksi') List<String>? aksi,

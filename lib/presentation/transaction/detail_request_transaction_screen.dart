@@ -28,8 +28,8 @@ const _actionLabels = <String, String>{
   'cairkan_keuangan': 'Keuangan Cairkan',
   'confirm_humas': 'Konfirmasi',
   'finish_humas': 'Selesai',
-  'confirm_maintenance': 'Terima & Kerjakan (Petugas)',
-  'selesai_maintenance': 'Klaim Selesai (Petugas)',
+  'confirm_maintenance': 'Terima & Kerjakan (Tim Perbaikan)',
+  'selesai_maintenance': 'Klaim Selesai (Tim Perbaikan)',
   'finish_user': 'Konfirmasi Diterima/Selesai (Pemohon)',
 };
 
@@ -78,6 +78,7 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
         : aksi.where(_actionLabels.containsKey).toList();
     final showActions = !fetchDetailRequest.isLoading && actions.isNotEmpty;
     final atasanNama = invoice?.atasanNama ?? '';
+    final timNama = invoice?.tim?.trim() ?? '';
     final petugasNama = (invoice?.petugas ?? [])
         .map((e) => e.nama ?? e.telp ?? '')
         .where((e) => e.isNotEmpty)
@@ -302,19 +303,30 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Petugas',
+                            'Tim Perbaikan',
                             style: TextStyle(
                               fontSize: 14,
                             ),
                           ),
                           const SizedBox(width: 16),
                           Flexible(
-                            child: Text(
-                              petugasNama.isNotEmpty ? petugasNama : '-',
-                              textAlign: TextAlign.end,
-                              style: const TextStyle(
-                                fontSize: 14,
-                              ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  timNama.isNotEmpty ? timNama : '-',
+                                  textAlign: TextAlign.end,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                if (petugasNama.isNotEmpty)
+                                  Text(
+                                    petugasNama,
+                                    textAlign: TextAlign.end,
+                                    style: context.bodySmall,
+                                  ),
+                              ],
                             ),
                           ),
                         ],
@@ -576,7 +588,7 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
         break;
       case 'aprove_manager':
         message = isPerbaikan
-            ? 'Apakah Anda (Atasan) menyetujui perbaikan ini? Selanjutnya dikerjakan petugas yang ditunjuk.'
+            ? 'Apakah Anda (Atasan) menyetujui perbaikan ini? Selanjutnya disetujui Mudir otomatis lalu dikerjakan tim perbaikan yang dipilih.'
             : 'Apakah Anda (Atasan) menyetujui Pengajuan ini? Selanjutnya diteruskan ke Mudir lalu bagian keuangan.';
         reason = 'Pesan untuk pengajuan ini, jika ada';
         value = 'aprove_manager';
@@ -584,7 +596,7 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
         break;
       case 'confirm_maintenance':
         message =
-            'Terima dan mulai kerjakan perbaikan ini? Setelah dikerjakan, atasan tidak bisa lagi menolak. Silakan isi keterangan bila perlu.';
+            'Terima dan mulai kerjakan perbaikan ini? Setelah dikerjakan, Mudir tidak bisa lagi menolak. Silakan isi keterangan bila perlu.';
         reason = 'Keterangan pekerjaan, jika ada';
         value = 'confirm_maintenance';
         isInputDialog = true;
