@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:syathiby/di/providers.dart';
 import 'package:syathiby/models/days/days.dart';
@@ -49,13 +50,18 @@ class FcmTokenSync extends _$FcmTokenSync {
   }
 
   Future<void> _sync(String? key, bool force) async {
-    // Web memakai project Firebase `al-ukhuwah`, sedangkan server mengirim lewat
-    // service account `syathiby-1345121`: token web ditolak (SENDER_ID_MISMATCH)
-    // dan menimpa token Android akun yang sama. Kirim token Android saja.
-    if (kIsWeb) return;
     try {
       final sessionKey = key ?? ref.read(getCurrentUserProvider)?.key;
       if (sessionKey == null || sessionKey.isEmpty) return;
+      if (kIsWeb) {
+        // Token browser berasal dari project Firebase `al-ukhuwah`, sedangkan
+        // token Android dari `syathiby-1345121`. Keduanya dikirimi server,
+        // jadi token browser disimpan terpisah (`platform: web`).
+        final tokenWeb = await _fetchWebToken();
+        if (tokenWeb == null || tokenWeb.isEmpty) return;
+        await _sendWeb(sessionKey, tokenWeb, force: force);
+        return;
+      }
       _listenTokenRefresh();
       final token = await _fetchToken();
       if (token == null || token.isEmpty) return;
@@ -72,6 +78,31 @@ class FcmTokenSync extends _$FcmTokenSync {
         .timeout(const Duration(seconds: 15));
   }
 
+  /// Token untuk browser. Butuh izin notifikasi + kunci VAPID project web.
+  Future<String?> _fetchWebToken() async {
+    if (AppConstant.vapidKey.isEmpty) {
+      debugPrint(
+        'Push web dilewati: kunci VAPID belum diisi '
+        '(--dart-define=FCM_VAPID_KEY=...)',
+      );
+      return null;
+    }
+    try {
+      final messaging = ref.read(firebaseMessagingProvider);
+      final izin = await messaging.requestPermission();
+      if (izin.authorizationStatus == AuthorizationStatus.denied) {
+        debugPrint('Push web dilewati: izin notifikasi browser ditolak');
+        return null;
+      }
+      return await messaging
+          .getToken(vapidKey: AppConstant.vapidKey)
+          .timeout(const Duration(seconds: 15));
+    } catch (e) {
+      debugPrint('Pengambilan token FCM web gagal: $e');
+      return null;
+    }
+  }
+
   Future<void> _send(String key, String token, {bool force = false}) async {
     final pref = ref.read(sharedPreferencesHelperProvider);
     await pref.setString(AppConstant.keyDeviceToken, token);
@@ -80,6 +111,17 @@ class FcmTokenSync extends _$FcmTokenSync {
     await ref
         .read(userServiceProvider)
         .getToken(RequestLogout(key: key, token: token));
+    await pref.setString(syncedKey, token);
+  }
+
+  /// Kirim token browser ke server (disimpan di `users.token_web`).
+  Future<void> _sendWeb(String key, String token, {bool force = false}) async {
+    final pref = ref.read(sharedPreferencesHelperProvider);
+    final syncedKey = '${AppConstant.keyFcmSyncedPrefix}web_$key';
+    if (!force && pref.getString(syncedKey) == token) return;
+    await ref
+        .read(userServiceProvider)
+        .getToken(RequestLogout(key: key, token: token, platform: 'web'));
     await pref.setString(syncedKey, token);
   }
 
