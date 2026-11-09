@@ -11,6 +11,10 @@ abstract class AppConstant {
   static const String keyDeviceToken = 'device_token';
   // Token FCM terakhir yang berhasil dikirim ke server, per key sesi.
   static const String keyFcmSyncedPrefix = 'fcm_synced_';
+  // Kunci VAPID (Web Push certificate) project Firebase `al-ukhuwah`.
+  // Diberikan saat build: --dart-define=FCM_VAPID_KEY=<kunci publik>.
+  // Kosong = push notifikasi browser belum aktif; sisa fitur tetap normal.
+  static const String vapidKey = String.fromEnvironment('FCM_VAPID_KEY');
   static const String keyRememberMe = 'remember_me';
   static const String keySavedPhone = 'saved_phone';
   static const String keySavedPassword = 'saved_password';
