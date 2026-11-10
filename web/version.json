@@ -1,10 +1,10 @@
 {
-  "version": "1.0.15",
-  "buildNumber": "16",
+  "version": "1.0.12",
+  "buildNumber": "12",
   "buildDate": "2026-11-10",
   "features": [
     "Aplikasi web kini memakai satu project Firebase yang sama dengan Android, yaitu syathiby-1345121. Sebelumnya versi web masih menunjuk project milik pihak lain sehingga token notifikasi browser selalu ditolak server",
-    "Notifikasi push ke browser siap diaktifkan begitu kunci VAPID (Web Push certificate) project syathiby-1345121 ditambahkan saat build",
+    "Notifikasi push ke browser kini aktif: Web Push certificate (kunci VAPID) project syathiby-1345121 sudah dipasang saat build, sehingga token perangkat browser tidak lagi ditolak server",
     "Pengajuan Jasa kini ikut alur Tim Perbaikan: ACC atasan manual, persetujuan Mudir berjalan otomatis, lalu dikerjakan tim yang dipilih dan terakhir pemohon yang mengesahkan",
     "Tersedia tombol \"Ajukan Jasa\" di daftar barang, dan jenis kegiatan perbaikan maupun jasa sama-sama bisa dipilih tim yang mengerjakan",
     "Alur pengajuan barang dan perbaikan dipisah: pengajuan di-ACC atasan, persetujuan Mudir berjalan otomatis, dan perbaikan dikerjakan Tim Perbaikan yang dipilih saat mengajukan",
