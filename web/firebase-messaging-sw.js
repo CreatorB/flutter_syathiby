@@ -1,14 +1,17 @@
 importScripts("https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js");
 
+// Service worker Firebase untuk aplikasi STAFF (syathiby.id/web/).
+// Project: syathiby-1345121 (10 Nov 2026). Sebelumnya `al-ukhuwah` --
+// token dari project itu ditolak FCM karena service account pondok hanya
+// punya akses ke `syathiby-1345121`.
 firebase.initializeApp({
-    apiKey: "AIzaSyBlq_IMB8RzggMXABz-bcigTW1AoqG8GOE",
-    appId: "1:1016347653502:web:63ff317a7ab88c79aaef2f",
-    messagingSenderId: "1016347653502",
-    projectId: "al-ukhuwah",
-    authDomain: "al-ukhuwah.firebaseapp.com",
-    storageBucket: "al-ukhuwah.appspot.com",
-    measurementId: "G-4HYN0ZHZXG"
+    apiKey: "AIzaSyCPx66WcwnjqYRUJzTrXUf7BPh_6FH49Us",
+    appId: "1:921923279470:web:85be64ad22693dffb8247f",
+    messagingSenderId: "921923279470",
+    projectId: "syathiby-1345121",
+    authDomain: "syathiby-1345121.firebaseapp.com",
+    storageBucket: "syathiby-1345121.firebasestorage.app"
 });
 
 const messaging = firebase.messaging();

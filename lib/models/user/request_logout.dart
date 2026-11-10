@@ -14,7 +14,7 @@ class RequestLogout with _$RequestLogout {
     String? device,
     String? lokasi,
     /// 'web' = token browser disimpan di kolom `users.token_web` (project
-    /// Firebase `al-ukhuwah`), bukan `users.token` (Android).
+    /// Firebase `syathiby-1345121`), bukan `users.token` (Android).
     String? platform,
   }) = _RequestLogout;
 
