@@ -40,25 +40,23 @@ class DefaultFirebaseOptions {
     }
   }
 
-  // BELUM DIPERBAIKI: web/iOS/macOS masih menunjuk `al-ukhuwah`.
+  // Web -> project `syathiby-1345121` (10 Nov 2026).
   //
-  // Berbeda dengan Android, TIDAK ada bukti bahwa aplikasi web/iOS sudah
-  // terdaftar di project `syathiby-1345121` -- google-services.json hanya
-  // memuat entri Android. Menebak appId/apiKey akan membuat Firebase gagal
-  // inisialisasi, jadi sengaja dibiarkan sampai pendaftarannya dipastikan.
+  // Sebelumnya menunjuk `al-ukhuwah`, project milik entitas lain yang tokennya
+  // selalu ditolak FCM (SENDER_ID_MISMATCH) karena service account pondok hanya
+  // punya akses ke `syathiby-1345121`. Web App dibuat resmi di project yang
+  // benar lewat Firebase Management API (10 Nov 2026), lalu di-pointing ke sini.
   //
-  // Dampaknya terbatas: push untuk staff dikirim ke perangkat Android, dan
-  // `al-ukhuwah` sendiri masih hidup (hanya bukan milik pondok) sehingga
-  // Firebase.initializeApp di web tetap berhasil dan aplikasi web tidak rusak.
-  // Yang tidak jalan hanya push ke browser.
+  // PENTING: `measurementId` sengaja dikosongkan. Web App baru ini belum punya
+  // property Analytics/measurement, dan analytics tidak dipakai aplikasi --
+  // kalau diisi ngawur, Firebase.initializeApp gagal di browser.
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBlq_IMB8RzggMXABz-bcigTW1AoqG8GOE',
-    appId: '1:1016347653502:web:63ff317a7ab88c79aaef2f',
-    messagingSenderId: '1016347653502',
-    projectId: 'al-ukhuwah',
-    authDomain: 'al-ukhuwah.firebaseapp.com',
-    storageBucket: 'al-ukhuwah.appspot.com',
-    measurementId: 'G-4HYN0ZHZXG',
+    apiKey: 'AIzaSyCPx66WcwnjqYRUJzTrXUf7BPh_6FH49Us',
+    appId: '1:921923279470:web:85be64ad22693dffb8247f',
+    messagingSenderId: '921923279470',
+    projectId: 'syathiby-1345121',
+    authDomain: 'syathiby-1345121.firebaseapp.com',
+    storageBucket: 'syathiby-1345121.firebasestorage.app',
   );
 
   // Diperbaiki 8 Sep 2026 -- sebelumnya menunjuk project `al-ukhuwah`.
@@ -90,33 +88,31 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyAW5xtcR4X3_QoVPN0hITaVUff4oN36FJw',
-    appId: '1:1016347653502:ios:0b8bbd56aa7a5940aaef2f',
-    messagingSenderId: '1016347653502',
-    projectId: 'al-ukhuwah',
-    storageBucket: 'al-ukhuwah.appspot.com',
-    androidClientId: '1016347653502-ur1p7vvqvv751j4oq2l5vhu8l8patuq0.apps.googleusercontent.com',
-    iosBundleId: 'com.muslimdeveloper.alUkhuwah',
+    apiKey: 'AIzaSyAML43jqvWkDzw7WtH5FXxDPaNQmJGbr6w',
+    appId: '1:921923279470:ios:d800315881ec2206b8247f',
+    messagingSenderId: '921923279470',
+    projectId: 'syathiby-1345121',
+    storageBucket: 'syathiby-1345121.firebasestorage.app',
+    iosBundleId: 'id.syathiby.app',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyAW5xtcR4X3_QoVPN0hITaVUff4oN36FJw',
-    appId: '1:1016347653502:ios:0b8bbd56aa7a5940aaef2f',
-    messagingSenderId: '1016347653502',
-    projectId: 'al-ukhuwah',
-    storageBucket: 'al-ukhuwah.appspot.com',
-    androidClientId: '1016347653502-ur1p7vvqvv751j4oq2l5vhu8l8patuq0.apps.googleusercontent.com',
-    iosBundleId: 'com.muslimdeveloper.alUkhuwah',
+    apiKey: 'AIzaSyAML43jqvWkDzw7WtH5FXxDPaNQmJGbr6w',
+    appId: '1:921923279470:ios:d800315881ec2206b8247f',
+    messagingSenderId: '921923279470',
+    projectId: 'syathiby-1345121',
+    storageBucket: 'syathiby-1345121.firebasestorage.app',
+    iosBundleId: 'id.syathiby.app',
   );
 
+  // Windows memakai konfigurasi web yang sama dengan project `syathiby-1345121`.
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyBlq_IMB8RzggMXABz-bcigTW1AoqG8GOE',
-    appId: '1:1016347653502:web:d0f5cb0559477366aaef2f',
-    messagingSenderId: '1016347653502',
-    projectId: 'al-ukhuwah',
-    authDomain: 'al-ukhuwah.firebaseapp.com',
-    storageBucket: 'al-ukhuwah.appspot.com',
-    measurementId: 'G-BLL9274RPR',
+    apiKey: 'AIzaSyCPx66WcwnjqYRUJzTrXUf7BPh_6FH49Us',
+    appId: '1:921923279470:web:85be64ad22693dffb8247f',
+    messagingSenderId: '921923279470',
+    projectId: 'syathiby-1345121',
+    authDomain: 'syathiby-1345121.firebaseapp.com',
+    storageBucket: 'syathiby-1345121.firebasestorage.app',
   );
 
 }
