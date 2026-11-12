@@ -24,14 +24,11 @@ const _actionLabels = <String, String>{
   'reject_manager': 'Tolak (Atasan)',
   'aprove_mudir': 'Mudir Setuju',
   'reject_mudir': 'Mudir Menolak',
-  'aprove_keuangan': 'Keuangan Proses',
+  'aprove_keuangan': 'ACC Keuangan & Cairkan Dana',
   'reject_keuangan': 'Keuangan Menolak',
-  'cairkan_keuangan': 'Keuangan Cairkan',
-  'confirm_humas': 'Konfirmasi',
-  'finish_humas': 'Selesai',
   'confirm_maintenance': 'Terima & Kerjakan (Tim Perbaikan)',
   'selesai_maintenance': 'Klaim Selesai (Tim Perbaikan)',
-  'finish_user': 'Konfirmasi Diterima/Selesai (Pemohon)',
+  'finish_user': 'Barang Datang - Selesai (Pemohon)',
 };
 
 class DetailRequestTransactionScreen extends HookConsumerWidget {
@@ -611,16 +608,11 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
         required = true;
         break;
       case 'aprove_keuangan':
+        // 12 Nov 2026: ACC keuangan sekaligus pencairan dana. Satu aksi,
+        // jadi form pencairan (nominal + penerima) ikut tampil.
         message =
-            'Apakah Anda akan memproses Pengajuan ini? klik proses. Selanjutnya data akan dikirim ke bagian logistik.';
-        reason = 'Pesan untuk bagian logistik, jika ada';
+            'Setujui pengajuan ini sekaligus cairkan dananya. Kosongkan nominal bila nilainya sama dengan total pengajuan.';
         value = 'aprove_keuangan';
-        isInputDialog = true;
-        break;
-      case 'cairkan_keuangan':
-        message =
-            'Masukkan nominal yang dicairkan dan nama penerima dana. Kosongkan nominal bila nilainya sama dengan total pengajuan.';
-        value = 'cairkan_keuangan';
         isInputDialog = true;
         isCairkan = true;
         break;
@@ -659,7 +651,7 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
       case 'finish_user':
         message = isAlurTim
             ? 'Pastikan pekerjaan sudah selesai dan memuaskan. Klik OK untuk menyelesaikan permohonan ini.'
-            : 'Pastikan barang atau uang yang di ajukan sudah Anda terima. Klik OK untuk menyelesaikan proses permohonan ini.';
+            : 'Pastikan barang yang dipesan sudah datang dan diterima. Klik OK untuk mengesahkan pengajuan ini selesai.';
         value = 'finish_user';
         break;
       default:

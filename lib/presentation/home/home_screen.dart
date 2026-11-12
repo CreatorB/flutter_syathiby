@@ -1009,6 +1009,40 @@ return Scaffold(
                       'level': safeLevel
                     },
                   ),
+                  MenuGrid(
+                    title: 'Antrean Tugas',
+                    iconData: Icons.pending_actions_outlined,
+                    goToRouteName: AppRoute.requestItems.name,
+                  ),
+                ],
+              ),
+              buildListMenu(
+                title: 'Pengadaan, Perbaikan & Kantin',
+                // Form pengajuan bebas (isi barang sendiri, tanpa katalog)
+                // dan modul kantin. Semua staff boleh mengajukan.
+                enabled: currentUser != null,
+                menus: [
+                  MenuGrid(
+                    title: 'Pengadaan',
+                    iconData: Icons.inventory_2_outlined,
+                    goToRouteName: AppRoute.addPengajuan.name,
+                    queryParameters: {
+                      'jenis': 'Pengadaan Barang'
+                    },
+                  ),
+                  MenuGrid(
+                    title: 'Perbaikan',
+                    iconData: Icons.build_outlined,
+                    goToRouteName: AppRoute.addPengajuan.name,
+                    queryParameters: {
+                      'jenis': 'Perbaikan'
+                    },
+                  ),
+                  MenuGrid(
+                    title: 'Kantin',
+                    iconData: Icons.shopping_cart_outlined,
+                    goToRouteName: AppRoute.kantin.name,
+                  ),
                 ],
               ),
               buildListMenu(

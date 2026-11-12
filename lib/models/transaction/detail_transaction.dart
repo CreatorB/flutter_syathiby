@@ -51,6 +51,8 @@ class Struk with _$Struk {
     @JsonKey(name: 'alokasi') String? alokasi,
     @JsonKey(name: 'jeniskegiatan') String? jenisKegiatan,
     @JsonKey(name: 'keterangan') String? keterangan,
+    // Tujuan pengajuan (mode bebas, tanpa katalog barang).
+    @JsonKey(name: 'tujuan') String? tujuan,
     @JsonKey(name: 'namabidang') String? namaBidang,
     @JsonKey(name: 'level') String? level,
     @JsonKey(name: 'waktu') String? waktu,
@@ -83,6 +85,8 @@ class TransactionData with _$TransactionData {
     @JsonKey(name: 'stock') String? stock,
     @JsonKey(name: 'img') String? img,
     @JsonKey(name: 'note') String? note,
+    // Deskripsi item yang ditulis pemohon (mode bebas).
+    @JsonKey(name: 'deskripsi') String? deskripsi,
     @JsonKey(name: 'unit') String? unit,
   }) = _TransactionData;
 

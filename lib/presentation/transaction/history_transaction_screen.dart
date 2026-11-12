@@ -214,7 +214,9 @@ class HistoryTransactionScreen extends HookConsumerWidget {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          context.goNamed(AppRoute.items.name);
+          // Form pengajuan bebas: pemohon isi sendiri nama barang, nominal,
+          // jumlah, dan deskripsi (katalog tidak dipakai lagi).
+          context.goNamed(AppRoute.addPengajuan.name);
         },
         label: const Text('Tambah'),
         icon: const Icon(Icons.add),
