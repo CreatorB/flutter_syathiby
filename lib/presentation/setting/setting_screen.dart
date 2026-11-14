@@ -11,6 +11,7 @@ import 'package:syathiby/utils/custom_avatar_widget.dart';
 import 'package:syathiby/utils/extension/color.dart';
 import 'package:syathiby/utils/extension/typography.dart';
 
+import '../home/fetch_presence_controller.dart';
 import 'account_controller.dart';
 import 'local_auth_controller.dart';
 
@@ -22,6 +23,8 @@ class SettingScreen extends HookConsumerWidget {
     final currentUser = ref.watch(getCurrentUserProvider);
     final key = '${currentUser?.key}';
     final fetchUserProfile = ref.watch(fetchProfileProvider(key: key));
+    final tanpaAbsen =
+        ref.watch(fetchPresenceProvider(key: key)).valueOrNull?.tanpaAbsen == 1;
     final isDarkMode = AdaptiveTheme.of(context).mode.isDark;
     final isBiometricsFaceId = ref.watch(isBiometricsFaceIdProvider);
     final biometricsTitle =
@@ -93,13 +96,15 @@ class SettingScreen extends HookConsumerWidget {
                       context.goNamed(AppRoute.account.name);
                     },
                   ),
-                  const Divider(),
-                  buildListItem(
-                    'Pendaftaran Absen $biometricsTitle',
-                    onTap: () {
-                      context.goNamed(AppRoute.fingerprint.name);
-                    },
-                  ),
+                  if (!tanpaAbsen) ...[
+                    const Divider(),
+                    buildListItem(
+                      'Pendaftaran Absen $biometricsTitle',
+                      onTap: () {
+                        context.goNamed(AppRoute.fingerprint.name);
+                      },
+                    ),
+                  ],
                   // const Divider(),
                   // buildListItem(
                   //   'Pendaftaran Absen Wajah',
@@ -112,6 +117,12 @@ class SettingScreen extends HookConsumerWidget {
                     'Ubah Password',
                     onTap: () {
                       context.goNamed(AppRoute.changePassword.name);
+                    },
+                  ),
+                  buildListItem(
+                    'Ubah Nomor HP',
+                    onTap: () {
+                      context.goNamed(AppRoute.changePhone.name);
                     },
                   ),
                 ],

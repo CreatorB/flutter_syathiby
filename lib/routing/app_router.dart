@@ -118,6 +118,7 @@ import 'package:syathiby/presentation/rumah_tangga/places_screen.dart';
 import 'package:syathiby/presentation/rumah_tangga/upsert_inventory_screen.dart';
 import 'package:syathiby/presentation/setting/account_screen.dart';
 import 'package:syathiby/presentation/setting/change_password_screen.dart';
+import 'package:syathiby/presentation/setting/change_phone_screen.dart';
 import 'package:syathiby/presentation/setting/face_unclock_screen.dart';
 import 'package:syathiby/presentation/setting/presence_type.dart';
 import 'package:syathiby/presentation/setting/setting_screen.dart';
@@ -210,6 +211,7 @@ enum AppRoute {
   faceUnlock,
   facePreview,
   changePassword,
+  changePhone,
   privacyPolicy,
   agreement,
   aboutUs,
@@ -1741,6 +1743,11 @@ GoRouter goRouter(GoRouterRef ref) {
                     path: 'change-password',
                     name: AppRoute.changePassword.name,
                     builder: (context, state) => const ChangePasswordScreen(),
+                  ),
+                  GoRoute(
+                    path: 'change-phone',
+                    name: AppRoute.changePhone.name,
+                    builder: (context, state) => const ChangePhoneScreen(),
                   ),
                   GoRoute(
                     path: 'privacy-policy',

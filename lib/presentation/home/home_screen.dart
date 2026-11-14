@@ -108,6 +108,7 @@ class HomeScreen extends HookConsumerWidget {
 
     final profileData = fetchUserProfile.valueOrNull;
     final presenceData = fetchPresence.valueOrNull;
+    final tanpaAbsen = presenceData?.tanpaAbsen == 1;
 
     final safeUserName = profileData?.fullName?.isNotEmpty == true ? profileData!.fullName! : 'User';
     final safePosition = profileData?.position?.isNotEmpty == true ? profileData!.position! : '-';
@@ -163,7 +164,7 @@ class HomeScreen extends HookConsumerWidget {
     // Absen masuk yang tidak pernah ditutup (staff lupa absen pulang) ditawarkan
     // untuk dilengkapi. Tanpa ini absen pulang hari itu hilang permanen: backend
     // membuang sesi basi setelah 18 jam dan tidak ada jalur pengisian susulan.
-    final tanggalTertinggal = presenceData?.pulangTertinggal == 1
+    final tanggalTertinggal = !tanpaAbsen && presenceData?.pulangTertinggal == 1
         ? presenceData?.pulangTertinggalDate
         : null;
     useEffect(() {
@@ -182,6 +183,26 @@ class HomeScreen extends HookConsumerWidget {
       });
       return null;
     }, [tanggalTertinggal]);
+
+    Widget buildVersi() {
+      return Center(
+        child: FutureBuilder<PackageInfo>(
+          future: PackageInfo.fromPlatform(),
+          builder: (context, snapshot) {
+            if (snapshot.hasData) {
+              return Text(
+                'Versi ${snapshot.data!.version}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: context.colorPrimary.withOpacity(0.8),
+                ),
+              );
+            }
+            return const SizedBox();
+          },
+        ),
+      );
+    }
 
     Widget buildHeader() {
       return Container(
@@ -241,6 +262,12 @@ class HomeScreen extends HookConsumerWidget {
                 ),
               ],
             ),
+            if (tanpaAbsen)
+              Padding(
+                padding: const EdgeInsets.only(top: 12, bottom: 4),
+                child: buildVersi(),
+              )
+            else
             Card(
               margin: const EdgeInsets.symmetric(
                 vertical: 16,
@@ -440,23 +467,7 @@ class HomeScreen extends HookConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Center(
-                      child: FutureBuilder<PackageInfo>(
-                        future: PackageInfo.fromPlatform(),
-                        builder: (context, snapshot) {
-                          if (snapshot.hasData) {
-                            return Text(
-                              'Versi ${snapshot.data!.version}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: context.colorPrimary.withOpacity(0.8),
-                              ),
-                            );
-                          }
-                          return const SizedBox(); // Jangan tampilkan apa-apa saat loading
-                        },
-                      ),
-                    ),
+                    buildVersi(),
                   ],
                 ),
               ),
@@ -665,16 +676,17 @@ return Scaffold(
             children: [
               buildHeader(),
               const SizedBox(height: 8),
-              buildPresenceAndJob(),
+              if (!tanpaAbsen) buildPresenceAndJob(),
               const SizedBox(height: 8),
               buildListMenu(
                 enabled: true,
                 menus: [
-                  MenuGrid(
-                    title: 'Izin',
-                    iconData: Icons.info,
-                    goToRouteName: AppRoute.permit.name,
-                  ),
+                  if (!tanpaAbsen)
+                    MenuGrid(
+                      title: 'Izin',
+                      iconData: Icons.info,
+                      goToRouteName: AppRoute.permit.name,
+                    ),
                   MenuGrid(
                     title: 'Penugasan',
                     iconData: Icons.work,
@@ -690,11 +702,12 @@ return Scaffold(
                     iconData: Icons.car_rental,
                     goToRouteName: AppRoute.visitingPresence.name,
                   ),
-                  MenuGrid(
-                    title: 'Absensi',
-                    iconData: Icons.insert_chart,
-                    goToRouteName: AppRoute.presenceReport.name,
-                  ),
+                  if (!tanpaAbsen)
+                    MenuGrid(
+                      title: 'Absensi',
+                      iconData: Icons.insert_chart,
+                      goToRouteName: AppRoute.presenceReport.name,
+                    ),
                   MenuGrid(
                     title: 'Pelanggaran',
                     iconData: Icons.warning,
@@ -976,14 +989,15 @@ return Scaffold(
                 title: 'Menu Lainnya',
                 enabled: true,
                 menus: [
-                  MenuGrid(
-                    title: 'Tukar Shift',
-                    iconData: Icons.swap_horizontal_circle,
-                    goToRouteName: AppRoute.changeShift.name,
-                    queryParameters: {
-                      'level': safeLevel
-                    },
-                  ),
+                  if (!tanpaAbsen)
+                    MenuGrid(
+                      title: 'Tukar Shift',
+                      iconData: Icons.swap_horizontal_circle,
+                      goToRouteName: AppRoute.changeShift.name,
+                      queryParameters: {
+                        'level': safeLevel
+                      },
+                    ),
                   MenuGrid(
                     title: 'Pertemuan',
                     iconData: Icons.meeting_room,
@@ -994,6 +1008,27 @@ return Scaffold(
                     iconData: Icons.history_edu,
                     goToRouteName: AppRoute.activityPresence.name,
                   ),
+                  if (presenceData?.menuPengadaan != 0)
+                    MenuGrid(
+                      title: 'Pengadaan',
+                      iconData: Icons.inventory_2_outlined,
+                      goToRouteName: AppRoute.addPengajuan.name,
+                      queryParameters: {'jenis': 'Pengadaan Barang'},
+                    ),
+                  if (presenceData?.menuPerbaikan != 0)
+                    MenuGrid(
+                      title: 'Perbaikan',
+                      iconData: Icons.build_outlined,
+                      goToRouteName: AppRoute.addPengajuan.name,
+                      queryParameters: {'jenis': 'Perbaikan'},
+                    ),
+                  if (presenceData?.menuKantin == 1 ||
+                      presenceData?.adminUtama == 1)
+                    MenuGrid(
+                      title: 'Kantin',
+                      iconData: Icons.shopping_cart_outlined,
+                      goToRouteName: AppRoute.kantin.name,
+                    ),
                 ],
               ),
               buildListMenu(
@@ -1013,35 +1048,6 @@ return Scaffold(
                     title: 'Antrean Tugas',
                     iconData: Icons.pending_actions_outlined,
                     goToRouteName: AppRoute.requestItems.name,
-                  ),
-                ],
-              ),
-              buildListMenu(
-                title: 'Pengadaan, Perbaikan & Kantin',
-                // Form pengajuan bebas (isi barang sendiri, tanpa katalog)
-                // dan modul kantin. Semua staff boleh mengajukan.
-                enabled: currentUser != null,
-                menus: [
-                  MenuGrid(
-                    title: 'Pengadaan',
-                    iconData: Icons.inventory_2_outlined,
-                    goToRouteName: AppRoute.addPengajuan.name,
-                    queryParameters: {
-                      'jenis': 'Pengadaan Barang'
-                    },
-                  ),
-                  MenuGrid(
-                    title: 'Perbaikan',
-                    iconData: Icons.build_outlined,
-                    goToRouteName: AppRoute.addPengajuan.name,
-                    queryParameters: {
-                      'jenis': 'Perbaikan'
-                    },
-                  ),
-                  MenuGrid(
-                    title: 'Kantin',
-                    iconData: Icons.shopping_cart_outlined,
-                    goToRouteName: AppRoute.kantin.name,
                   ),
                 ],
               ),
