@@ -96,7 +96,34 @@ class HistoryTransactionScreen extends HookConsumerWidget {
             status: '',
           ).future,
         ),
-        child: Skeletonizer(
+        child: (!fetchHistoryTransaction.isLoading &&
+                (fetchHistoryTransaction.hasError ||
+                    filterHistoryTransaction?.isEmpty != false))
+            ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  const SizedBox(height: 120),
+                  Icon(
+                    fetchHistoryTransaction.hasError
+                        ? Icons.error_outline
+                        : Icons.inbox_outlined,
+                    size: 56,
+                    color: Colors.grey,
+                  ),
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Text(
+                      fetchHistoryTransaction.hasError
+                          ? 'Gagal memuat pengajuan. Tarik ke bawah untuk mencoba lagi.'
+                          : 'Belum ada pengajuan pada rentang tanggal ini.',
+                      textAlign: TextAlign.center,
+                      style: context.bodyMedium,
+                    ),
+                  ),
+                ],
+              )
+            : Skeletonizer(
           enabled: fetchHistoryTransaction.isLoading,
           child: ListView.builder(
             itemCount: itemCount,
