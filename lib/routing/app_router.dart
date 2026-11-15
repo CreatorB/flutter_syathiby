@@ -118,6 +118,7 @@ import 'package:syathiby/presentation/rumah_tangga/places_screen.dart';
 import 'package:syathiby/presentation/rumah_tangga/upsert_inventory_screen.dart';
 import 'package:syathiby/presentation/setting/account_screen.dart';
 import 'package:syathiby/presentation/setting/change_password_screen.dart';
+import 'package:syathiby/presentation/setting/change_phone_screen.dart';
 import 'package:syathiby/presentation/setting/face_unclock_screen.dart';
 import 'package:syathiby/presentation/setting/presence_type.dart';
 import 'package:syathiby/presentation/setting/setting_screen.dart';
@@ -162,12 +163,14 @@ import '../presentation/rapat/detail_meeting_screen.dart';
 import '../presentation/rekap/add_manual_attendance_screen.dart';
 import '../presentation/rekap/data_presence_screen.dart';
 import '../presentation/report/attendance_report_screen.dart';
+import '../presentation/kantin/kantin_screen.dart';
 import '../presentation/report/student_fasting_screen.dart';
 import '../presentation/setting/face_preview_screen.dart';
 import '../presentation/setting/fingerprint_screen.dart';
 import '../presentation/tahfidzh/detail_tahfidz_grade_screen.dart';
 import '../presentation/tahfidzh/upsert_tahfidz_grade_screen.dart';
 import '../presentation/transaction/add_item_screen.dart';
+import '../presentation/transaction/add_pengajuan_screen.dart';
 import '../presentation/transaction/add_request_transaction_screen.dart';
 import '../presentation/transaction/detail_request_transaction_screen.dart';
 import '../presentation/transaction/items_screen.dart';
@@ -208,6 +211,7 @@ enum AppRoute {
   faceUnlock,
   facePreview,
   changePassword,
+  changePhone,
   privacyPolicy,
   agreement,
   aboutUs,
@@ -368,6 +372,8 @@ enum AppRoute {
   detailRequestTransaction,
   orderItem,
   addItem,
+  addPengajuan,
+  kantin,
   scanQr,
   dataPresence,
   attendanceRecapMonth,
@@ -1571,6 +1577,20 @@ GoRouter goRouter(GoRouterRef ref) {
                           status: state.uri.queryParameters['status'],
                         ),
                       ),
+                      // Form pengajuan bebas: pemohon menulis sendiri nama
+                      // barang, nominal, jumlah, dan deskripsi tiap item.
+                      GoRoute(
+                        path: 'pengajuan',
+                        name: AppRoute.addPengajuan.name,
+                        builder: (context, state) => AddPengajuanScreen(
+                          jenisAwal: state.uri.queryParameters['jenis'],
+                        ),
+                      ),
+                      GoRoute(
+                        path: 'kantin',
+                        name: AppRoute.kantin.name,
+                        builder: (context, state) => const KantinScreen(),
+                      ),
                     ],
                   ),
                 ],
@@ -1723,6 +1743,11 @@ GoRouter goRouter(GoRouterRef ref) {
                     path: 'change-password',
                     name: AppRoute.changePassword.name,
                     builder: (context, state) => const ChangePasswordScreen(),
+                  ),
+                  GoRoute(
+                    path: 'change-phone',
+                    name: AppRoute.changePhone.name,
+                    builder: (context, state) => const ChangePhoneScreen(),
                   ),
                   GoRoute(
                     path: 'privacy-policy',
