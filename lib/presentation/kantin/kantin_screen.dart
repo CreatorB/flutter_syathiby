@@ -3,14 +3,14 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:syathiby/di/providers.dart';
-import 'package:syathiby/models/kantin/kantin_models.dart';
 import 'package:syathiby/models/kantin/kantin_repository.dart';
 import 'package:syathiby/utils/extension/color.dart';
 import 'package:syathiby/utils/extension/typography.dart';
 
-/// Modul Kantin di aplikasi (read-only): katalog produk dan riwayat belanja.
-/// Hak akses diputuskan server; transaksi kasir serta vendor & settlement
-/// dikelola lewat panel web.
+import 'kasir_tab.dart';
+
+/// Modul Kantin di aplikasi: kasir (kartu RFID), katalog produk, riwayat belanja.
+/// Hak akses diputuskan server; vendor & settlement dikelola lewat panel web.
 class KantinScreen extends HookConsumerWidget {
   const KantinScreen({super.key});
 
@@ -18,12 +18,12 @@ class KantinScreen extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final key = '${ref.watch(getCurrentUserProvider)?.key}';
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Kantin'),
           bottom: const TabBar(
-            tabs: [Tab(text: 'Katalog Produk'), Tab(text: 'Riwayat Belanja')],
+            tabs: [Tab(text: 'Kasir'), Tab(text: 'Katalog'), Tab(text: 'Riwayat')],
           ),
         ),
         body: Column(
@@ -38,7 +38,7 @@ class KantinScreen extends HookConsumerWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Transaksi kasir serta vendor & settlement dikelola lewat panel web.',
+                      'Vendor & settlement dikelola lewat panel web.',
                       style: context.bodySmall,
                     ),
                   ),
@@ -47,7 +47,7 @@ class KantinScreen extends HookConsumerWidget {
             ),
             Expanded(
               child: TabBarView(
-                children: [_KatalogTab(keySesi: key), _RiwayatTab(keySesi: key)],
+                children: [KasirTab(keySesi: key), _KatalogTab(keySesi: key), _RiwayatTab(keySesi: key)],
               ),
             ),
           ],

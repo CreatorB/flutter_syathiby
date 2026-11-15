@@ -1,3 +1,5 @@
+import 'dart:math';
+
 /// Model read-only modul Kantin. Server (`geten/kantin/*.php`) mengirim angka
 /// sebagai string (hasil `mysqli_fetch_assoc`), jadi semua parsing toleran.
 int _int(dynamic v) => v is num ? v.toInt() : int.tryParse('${v ?? ''}') ?? 0;
@@ -120,4 +122,146 @@ class KantinRiwayat {
         jumlah: _int(j['jumlah']),
         total: _int(j['total']),
       );
+}
+
+/// Hasil `transaksi.php?act=cek_kartu`.
+class KantinKartu {
+  const KantinKartu({
+    required this.idSiswa,
+    required this.nis,
+    required this.nama,
+    required this.idCard,
+    required this.saldo,
+  });
+
+  final int idSiswa;
+  final String nis;
+  final String nama;
+  final String idCard;
+  final int saldo;
+
+  factory KantinKartu.fromJson(Map<String, dynamic> j) => KantinKartu(
+        idSiswa: _int(j['id_siswa']),
+        nis: _str(j['nis']),
+        nama: _str(j['nama_santri']),
+        idCard: _str(j['id_card']),
+        saldo: _int(j['saldo']),
+      );
+}
+
+class KantinNotaItem {
+  const KantinNotaItem({required this.nama, required this.harga, required this.jumlah, required this.subtotal});
+
+  final String nama;
+  final int harga;
+  final int jumlah;
+  final int subtotal;
+
+  factory KantinNotaItem.fromJson(Map<String, dynamic> j) => KantinNotaItem(
+        nama: _str(j['nama']),
+        harga: _int(j['harga']),
+        jumlah: _int(j['jumlah']),
+        subtotal: _int(j['subtotal']),
+      );
+}
+
+/// Hasil `transaksi.php?act=simpan`.
+class KantinNota {
+  const KantinNota({
+    required this.noNota,
+    required this.tanggal,
+    required this.jam,
+    required this.namaSantri,
+    required this.total,
+    required this.metode,
+    required this.saldoSebelum,
+    required this.saldoSesudah,
+    required this.items,
+    required this.duplikat,
+  });
+
+  final String noNota;
+  final String tanggal;
+  final String jam;
+  final String namaSantri;
+  final int total;
+  final String metode;
+  final int saldoSebelum;
+  final int saldoSesudah;
+  final List<KantinNotaItem> items;
+  final bool duplikat;
+
+  factory KantinNota.fromJson(Map<String, dynamic> j) => KantinNota(
+        noNota: _str(j['no_nota']),
+        tanggal: _str(j['tanggal']),
+        jam: _str(j['jam']),
+        namaSantri: _str(j['nama_santri']),
+        total: _int(j['total']),
+        metode: _str(j['metode']),
+        saldoSebelum: _int(j['saldo_sebelum']),
+        saldoSesudah: _int(j['saldo_sesudah']),
+        items: (j['items'] is List ? j['items'] as List : const [])
+            .whereType<Map>()
+            .map((e) => KantinNotaItem.fromJson(Map<String, dynamic>.from(e)))
+            .toList(),
+        duplikat: j['duplikat'] == true,
+      );
+}
+
+class BarisKeranjang {
+  const BarisKeranjang(this.produk, this.jumlah);
+  final KantinProduk produk;
+  final int jumlah;
+
+  int get subtotal => produk.harga * jumlah;
+}
+
+/// Keranjang kasir. Tidak boleh melebihi stok yang ditampilkan server;
+/// keputusan akhir stok tetap di server saat `simpan`.
+class Keranjang {
+  const Keranjang([this.baris = const []]);
+  final List<BarisKeranjang> baris;
+
+  int get total => baris.fold(0, (s, b) => s + b.subtotal);
+  bool get kosong => baris.isEmpty;
+
+  int jumlahDari(int idProduk) {
+    for (final b in baris) {
+      if (b.produk.id == idProduk) return b.jumlah;
+    }
+    return 0;
+  }
+
+  bool bisaTambah(KantinProduk p) => jumlahDari(p.id) < p.stok;
+
+  Keranjang tambah(KantinProduk p) {
+    if (!bisaTambah(p)) return this;
+    final ada = jumlahDari(p.id) > 0;
+    return Keranjang(ada
+        ? [for (final b in baris) b.produk.id == p.id ? BarisKeranjang(b.produk, b.jumlah + 1) : b]
+        : [...baris, BarisKeranjang(p, 1)]);
+  }
+
+  Keranjang kurang(KantinProduk p) => Keranjang([
+        for (final b in baris)
+          if (b.produk.id != p.id)
+            b
+          else if (b.jumlah > 1)
+            BarisKeranjang(b.produk, b.jumlah - 1),
+      ]);
+
+  Keranjang hapus(int idProduk) => Keranjang([for (final b in baris) if (b.produk.id != idProduk) b]);
+
+  /// Format yang diminta server: `[{"id":<id_produk>,"jumlah":n}]`.
+  List<Map<String, int>> get itemsServer =>
+      [for (final b in baris) {'id': b.produk.id, 'jumlah': b.jumlah}];
+}
+
+/// Token idempotensi: 32 karakter [A-Za-z0-9]. Dibuat SEKALI per upaya
+/// transaksi dan dipakai ulang saat percobaan ulang, supaya saldo tidak
+/// terpotong dua kali (server menolak/menggandakan token yang sama).
+String buatTokenKantin([Random? acak]) {
+  const huruf = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  final r = acak ?? Random.secure();
+  return List.generate(32, (_) => huruf[r.nextInt(huruf.length)]).join();
 }
