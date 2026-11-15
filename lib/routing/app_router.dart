@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:syathiby/di/providers.dart';
@@ -391,6 +392,10 @@ final _shellNavigatorCKey = GlobalKey<NavigatorState>();
 final _shellNavigatorDKey = GlobalKey<NavigatorState>();
 final _shellNavigatorEKey = GlobalKey<NavigatorState>();
 
+// Muat ulang di web menghilangkan `extra` navigasi; halaman yang membutuhkannya akan crash (layar putih).
+bool _pemuatanAwal = true;
+const _lokasiTanpaExtra = {'/guest-news', '/guest-prayer', '/guest-user', '/news', '/prayer', '/performance', '/setting'};
+
 @riverpod
 GoRouter goRouter(GoRouterRef ref) {
   return GoRouter(
@@ -409,6 +414,18 @@ GoRouter goRouter(GoRouterRef ref) {
       );
     },
     redirect: (context, state) async {
+      if (kIsWeb && _pemuatanAwal) {
+        final lokasiAwal = Uri.base.fragment.split('?').first;
+        if (state.matchedLocation == lokasiAwal) {
+          _pemuatanAwal = false;
+          if (state.extra == null &&
+              state.matchedLocation != '/' &&
+              !_lokasiTanpaExtra.contains(state.matchedLocation) &&
+              !state.matchedLocation.startsWith('/auth')) {
+            return '/${state.matchedLocation.split('/')[1]}';
+          }
+        }
+      }
       // Handle legacy /login route (redirect to /auth/login)
       if (state.matchedLocation == '/login') {
         return '/auth/login';
