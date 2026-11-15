@@ -37,6 +37,8 @@ class RequestTransaction with _$RequestTransaction {
     @JsonKey(name: 'name_kegiatan') String? nameKegiatan,
     @JsonKey(name: 'name_subkegiatan') String? nameSubkegiatan,
     @JsonKey(name: 'jeniskegiatan') String? jenisKegiatan,
+    // Tujuan pengajuan (dipakai mode bebas, tanpa katalog barang).
+    @JsonKey(name: 'tujuan') String? tujuan,
     // Tim perbaikan yang dipilih, hanya dipakai bila jenis = Perbaikan.
     @JsonKey(name: 'id_tim') int? idTim,
   }) = _RequestTransaction;
@@ -53,6 +55,8 @@ class Barang with _$Barang {
     @JsonKey(name: 'amount_product') double? amountProduct,
     @JsonKey(name: 'new_price') String? newPrice,
     @JsonKey(name: 'notes') String? notes,
+    // Nama item diisi manual pemohon (mode pengajuan bebas, tanpa katalog).
+    @JsonKey(name: 'nama_item') String? namaItem,
   }) = _Barang;
 
   factory Barang.fromJson(Map<String, dynamic> json) => _$BarangFromJson(json);

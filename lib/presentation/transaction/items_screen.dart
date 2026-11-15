@@ -98,11 +98,14 @@ class ItemsScreen extends HookConsumerWidget {
                       style: context.bodyMediumBold,
                     ),
                     subtitle: const Text(
-                      'Tanpa memilih barang, langsung pilih tim perbaikan',
+                      'Tulis sendiri barang yang perlu diperbaiki, tanpa katalog',
                     ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {
-                      context.goNamed(AppRoute.orderItem.name);
+                      context.goNamed(
+                        AppRoute.addPengajuan.name,
+                        queryParameters: {'jenis': 'Perbaikan'},
+                      );
                     },
                   ),
                 );
@@ -121,12 +124,12 @@ class ItemsScreen extends HookConsumerWidget {
                       style: context.bodyMediumBold,
                     ),
                     subtitle: const Text(
-                      'Tanpa memilih barang, langsung pilih tim yang mengerjakan',
+                      'Tulis sendiri kebutuhan jasa, tanpa memilih barang',
                     ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {
                       context.goNamed(
-                        AppRoute.orderItem.name,
+                        AppRoute.addPengajuan.name,
                         queryParameters: {'jenis': 'Jasa'},
                       );
                     },

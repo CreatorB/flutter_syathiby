@@ -113,6 +113,14 @@ abstract class UserService {
     @Field('new_password') String newPassword,
   );
 
+  @POST('settings/updatephone.php')
+  @FormUrlEncoded()
+  Future<Message> changePhone(
+    @Field('key') String key,
+    @Field('password') String password,
+    @Field('new_phone') String newPhone,
+  );
+
   @POST('profile/login.php')
   @FormUrlEncoded()
   Future<List<Login>> login(

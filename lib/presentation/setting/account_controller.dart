@@ -65,6 +65,23 @@ class AccountController extends _$AccountController {
     return result.valueOrNull;
   }
 
+  Future<Message?> changePhone({
+    required String key,
+    required String password,
+    required String newPhone,
+  }) async {
+    state = const AsyncLoading();
+    final result = await AsyncValue.guard(
+      () => ref.watch(userServiceProvider).changePhone(
+            key,
+            password,
+            newPhone,
+          ),
+    );
+    state = result;
+    return result.valueOrNull;
+  }
+
   Future<Absent?> registerPresence({
     required String key,
     required PresenceType presenceType,

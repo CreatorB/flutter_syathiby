@@ -65,6 +65,11 @@ class Store with _$Store {
     int? keuangan,
     int? meeting,
     int? unitusaha,
+    @JsonKey(name: 'admin_utama') int? adminUtama,
+    @JsonKey(name: 'menu_pengadaan') int? menuPengadaan,
+    @JsonKey(name: 'menu_perbaikan') int? menuPerbaikan,
+    @JsonKey(name: 'menu_kantin') int? menuKantin,
+    @JsonKey(name: 'tanpa_absen') int? tanpaAbsen,
   }) = _Store;
 
   factory Store.fromJson(Map<String, dynamic> json) => _$StoreFromJson(json);
