@@ -16,7 +16,19 @@ class KantinProduk {
     required this.minimalStok,
     required this.satuan,
     required this.aktif,
+    this.idKategori = 0,
+    this.jenis = 'milik',
+    this.idPenitip = 0,
+    this.namaPenitip = '',
+    this.hargaSetor = 0,
   });
+
+  final int idKategori;
+  final String jenis; // 'milik' | 'titipan'
+  final int idPenitip;
+  final String namaPenitip;
+  final int hargaSetor;
+  bool get titipan => jenis == 'titipan';
 
   final int id;
   final String kode;
@@ -40,7 +52,21 @@ class KantinProduk {
         minimalStok: _int(j['minimal_stok']),
         satuan: _str(j['satuan']).isEmpty ? 'pcs' : _str(j['satuan']),
         aktif: j['status'] == null || _int(j['status']) == 1,
+        idKategori: _int(j['id_kategori']),
+        jenis: _str(j['jenis']) == 'titipan' ? 'titipan' : 'milik',
+        idPenitip: _int(j['id_penitip']),
+        namaPenitip: _str(j['nama_penitip']),
+        hargaSetor: _int(j['harga_setor']),
       );
+}
+
+class KantinKategori {
+  const KantinKategori(this.id, this.nama);
+  final int id;
+  final String nama;
+
+  factory KantinKategori.fromJson(Map<String, dynamic> j) =>
+      KantinKategori(_int(j['id_kategori']), _str(j['nama_kategori']));
 }
 
 class KantinItem {
@@ -97,13 +123,18 @@ class KantinTransaksi {
 }
 
 class KantinKatalog {
-  const KantinKatalog(this.produk);
+  const KantinKatalog(this.produk, [this.kategori = const []]);
   final List<KantinProduk> produk;
+  final List<KantinKategori> kategori;
 
   factory KantinKatalog.fromJson(Map<String, dynamic> j) => KantinKatalog(
         (j['produk'] is List ? j['produk'] as List : const [])
             .whereType<Map>()
             .map((e) => KantinProduk.fromJson(Map<String, dynamic>.from(e)))
+            .toList(),
+        (j['kategori'] is List ? j['kategori'] as List : const [])
+            .whereType<Map>()
+            .map((e) => KantinKategori.fromJson(Map<String, dynamic>.from(e)))
             .toList(),
       );
 }

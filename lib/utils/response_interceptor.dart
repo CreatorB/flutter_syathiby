@@ -42,6 +42,9 @@ class ResponseInterceptor extends Interceptor {
     // tidak sesuai, alasan kosong) harus tampil apa adanya.
     'pengadaan/confirm',
     'pengadaan/prosesspengadaan',
+    // Kantin: validasi server (errCode 02 tanpa data) harus tampil apa adanya,
+    // bukan diganti list kosong yang terbaca sebagai sukses.
+    'kantin/',
   ];
 
   bool _isMessageEndpoint(String path) {

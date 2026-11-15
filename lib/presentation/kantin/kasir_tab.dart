@@ -1,30 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:syathiby/models/kantin/kantin_models.dart';
 import 'package:syathiby/models/kantin/kantin_repository.dart';
+import 'package:syathiby/models/kantin/kantin_titipan_models.dart';
+import 'package:syathiby/models/kantin/kantin_titipan_repository.dart';
 import 'package:syathiby/utils/extension/color.dart';
 import 'package:syathiby/utils/extension/typography.dart';
 
-String _rp(int v) => 'Rp ${NumberFormat.decimalPattern('id_ID').format(v)}';
+import 'kantin_widgets.dart';
 
-/// Kasir kantin: scan/ketik kartu RFID -> pilih produk -> bayar.
+enum _Langkah { pilih, kartu, preview, nota }
+
+/// Kasir kantin: (1) pilih barang (banyak sekaligus, total langsung tampil)
+/// -> (2) tap kartu santri -> (3) pratinjau konfirmasi (detail santri, item,
+/// saldo sebelum/sesudah, jatah harian) -> (4) konfirmasi & bayar -> (5) nota.
 /// Pembaca RFID USB/OTG bekerja sebagai keyboard dan mengirim Enter, jadi
-/// kolom kartu cukup memakai onSubmitted. Hak akses dan semua batas
-/// (stok, saldo, jam, batas harian) diputuskan server.
+/// kolom kartu cukup memakai onSubmitted. Hak akses dan semua batas (stok,
+/// saldo, jam, batas harian) diputuskan server.
 class KasirTab extends HookConsumerWidget {
   const KasirTab({super.key, required this.keySesi});
   final String keySesi;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final langkah = useState(_Langkah.pilih);
     final kartuCtl = useTextEditingController();
     final fokus = useFocusNode();
     final cari = useState('');
-    final kartu = useState<KantinKartu?>(null);
     final keranjang = useState(const Keranjang());
     final metode = useState('tabungan');
+    final preview = useState<KantinPreview?>(null);
     final token = useRef<String?>(null);
     final sibuk = useState(false);
     final galat = useState<String?>(null);
@@ -33,40 +39,48 @@ class KasirTab extends HookConsumerWidget {
     void ubahKeranjang(Keranjang baru) {
       keranjang.value = baru;
       token.value = null; // isi transaksi berubah -> transaksi baru
+      preview.value = null;
       galat.value = null;
     }
 
     void ulang() {
-      kartu.value = null;
+      langkah.value = _Langkah.pilih;
       keranjang.value = const Keranjang();
       metode.value = 'tabungan';
+      preview.value = null;
       token.value = null;
       galat.value = null;
       nota.value = null;
       kartuCtl.clear();
       cari.value = '';
-      fokus.requestFocus();
     }
 
-    Future<void> cekKartu() async {
+    void kembaliKeBarang() {
+      langkah.value = _Langkah.pilih;
+      preview.value = null;
+      token.value = null;
+      galat.value = null;
+    }
+
+    Future<void> pratinjau() async {
       final id = kartuCtl.text.trim();
       if (id.isEmpty || sibuk.value) return;
       sibuk.value = true;
       galat.value = null;
       try {
-        kartu.value = await kantinCekKartu(ref, keySesi, id);
-        token.value = null;
+        final p = await kantinPreview(ref, key: keySesi, idCard: id, keranjang: keranjang.value, metode: metode.value);
+        preview.value = p;
+        token.value = null; // kartu/isi bisa berbeda dari percobaan sebelumnya
+        langkah.value = _Langkah.preview;
       } catch (e) {
-        kartu.value = null;
         galat.value = kantinPesanError(e);
       } finally {
         sibuk.value = false;
       }
     }
 
-    Future<void> bayar() async {
-      final k = kartu.value;
-      if (k == null || keranjang.value.kosong || sibuk.value) return;
+    Future<void> bayar({required String idCard}) async {
+      if (keranjang.value.kosong || sibuk.value) return;
       sibuk.value = true;
       galat.value = null;
       token.value ??= buatTokenKantin();
@@ -74,14 +88,16 @@ class KasirTab extends HookConsumerWidget {
         nota.value = await kantinSimpan(
           ref,
           key: keySesi,
-          idCard: k.idCard,
+          idCard: idCard,
           keranjang: keranjang.value,
           metode: metode.value,
           token: token.value!,
         );
         token.value = null;
+        langkah.value = _Langkah.nota;
         ref.invalidate(kantinRiwayatProvider);
         ref.invalidate(kantinKatalogProvider(keySesi));
+        ref.invalidate(kantinPenitipProvider(keySesi));
       } catch (e) {
         // Token sengaja DIPERTAHANKAN: kalau koneksi putus setelah server
         // memproses, mencoba lagi tidak memotong saldo dua kali.
@@ -91,69 +107,48 @@ class KasirTab extends HookConsumerWidget {
       }
     }
 
-    final n = nota.value;
-    if (n != null) return _NotaView(nota: n, onBaru: ulang);
+    switch (langkah.value) {
+      case _Langkah.nota:
+        return NotaView(nota: nota.value!, onBaru: ulang);
+      case _Langkah.kartu:
+        return _LangkahKartu(
+          keranjang: keranjang.value,
+          tunai: metode.value == 'tunai',
+          kartuCtl: kartuCtl,
+          fokus: fokus,
+          sibuk: sibuk.value,
+          galat: galat.value,
+          onPratinjau: pratinjau,
+          onKembali: kembaliKeBarang,
+        );
+      case _Langkah.preview:
+        return _LangkahPreview(
+          preview: preview.value!,
+          sibuk: sibuk.value,
+          galat: galat.value,
+          onKonfirmasi: () => bayar(idCard: kartuCtl.text.trim()),
+          onBatal: ulang,
+          onGantiKartu: () {
+            token.value = null;
+            preview.value = null;
+            galat.value = null;
+            kartuCtl.clear();
+            langkah.value = _Langkah.kartu;
+          },
+          onUbahBarang: kembaliKeBarang,
+        );
+      case _Langkah.pilih:
+        break;
+    }
 
     final katalog = ref.watch(kantinKatalogProvider(keySesi));
-    final k = kartu.value;
     final total = keranjang.value.total;
-    final kurang = k != null && metode.value == 'tabungan' && total > k.saldo;
 
-    return ListView(
-      padding: const EdgeInsets.all(12),
+    return Column(
       children: [
-        TextField(
-          controller: kartuCtl,
-          focusNode: fokus,
-          autofocus: true,
-          enabled: !sibuk.value,
-          textInputAction: TextInputAction.search,
-          onSubmitted: (_) => cekKartu(),
-          onChanged: (_) {
-            if (kartu.value != null) {
-              kartu.value = null;
-              keranjang.value = const Keranjang();
-              token.value = null;
-            }
-          },
-          decoration: InputDecoration(
-            labelText: 'Nomor kartu RFID',
-            hintText: 'Tempelkan kartu pada pembaca atau ketik nomor',
-            prefixIcon: const Icon(Icons.credit_card),
-            border: const OutlineInputBorder(),
-            suffixIcon: IconButton(
-              tooltip: 'Cek kartu',
-              icon: const Icon(Icons.search),
-              onPressed: sibuk.value ? null : cekKartu,
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        FilledButton.icon(
-          onPressed: sibuk.value ? null : cekKartu,
-          icon: const Icon(Icons.nfc),
-          label: const Text('Cek Kartu'),
-        ),
-        if (galat.value != null) _Banner(teks: galat.value!, merah: true),
-        if (k != null) ...[
-          const SizedBox(height: 12),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.person),
-              title: Text(k.nama, style: context.bodyMedium?.copyWith(fontWeight: FontWeight.bold)),
-              subtitle: Text('NIS ${k.nis}'),
-              trailing: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text('Saldo', style: context.bodySmall),
-                  Text(_rp(k.saldo), style: context.bodyMedium?.copyWith(fontWeight: FontWeight.bold)),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+          child: TextField(
             decoration: const InputDecoration(
               prefixIcon: Icon(Icons.search),
               hintText: 'Cari produk',
@@ -162,10 +157,11 @@ class KasirTab extends HookConsumerWidget {
             ),
             onChanged: (v) => cari.value = v.trim().toLowerCase(),
           ),
-          const SizedBox(height: 4),
-          katalog.when(
-            loading: () => const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())),
-            error: (e, _) => _Banner(teks: kantinPesanError(e), merah: true),
+        ),
+        Expanded(
+          child: katalog.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => KantinPesan(ikon: Icons.lock_outline, teks: kantinPesanError(e)),
             data: (kat) {
               final daftar = kat.produk
                   .where((p) =>
@@ -176,142 +172,304 @@ class KasirTab extends HookConsumerWidget {
                           p.kode.toLowerCase().contains(cari.value)))
                   .toList();
               if (daftar.isEmpty) {
-                return const Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Center(child: Text('Tidak ada produk tersedia.')),
-                );
+                return const KantinPesan(ikon: Icons.inventory_2_outlined, teks: 'Tidak ada produk tersedia.');
               }
-              return Column(
-                children: [
-                  for (final p in daftar)
-                    ListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(p.nama),
-                      subtitle: Text('${_rp(p.harga)} · stok ${p.stok} ${p.satuan}'),
-                      trailing: _Stepper(
-                        jumlah: keranjang.value.jumlahDari(p.id),
-                        bisaTambah: keranjang.value.bisaTambah(p) && !sibuk.value,
-                        onTambah: () => ubahKeranjang(keranjang.value.tambah(p)),
-                        onKurang: sibuk.value ? null : () => ubahKeranjang(keranjang.value.kurang(p)),
-                      ),
+              return ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                itemCount: daftar.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (context, i) {
+                  final p = daftar[i];
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(p.nama),
+                    subtitle: Text([
+                      rp(p.harga),
+                      'stok ${p.stok} ${p.satuan}',
+                      if (p.titipan) 'titipan',
+                    ].join(' · ')),
+                    trailing: KantinStepper(
+                      jumlah: keranjang.value.jumlahDari(p.id),
+                      bisaTambah: keranjang.value.bisaTambah(p),
+                      onTambah: () => ubahKeranjang(keranjang.value.tambah(p)),
+                      onKurang: () => ubahKeranjang(keranjang.value.kurang(p)),
                     ),
-                ],
+                  );
+                },
               );
             },
           ),
-          const Divider(height: 24),
-          Text('Keranjang', style: context.bodyMedium?.copyWith(fontWeight: FontWeight.bold)),
-          if (keranjang.value.kosong)
-            const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('Belum ada barang.'))
-          else
-            for (final b in keranjang.value.baris)
-              ListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                title: Text('${b.produk.nama} x${b.jumlah}'),
-                subtitle: Text(_rp(b.subtotal)),
-                trailing: IconButton(
-                  tooltip: 'Hapus',
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: sibuk.value ? null : () => ubahKeranjang(keranjang.value.hapus(b.produk.id)),
-                ),
-              ),
-          const SizedBox(height: 8),
-          SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'tabungan', label: Text('Tabungan'), icon: Icon(Icons.account_balance_wallet)),
-              ButtonSegment(value: 'tunai', label: Text('Tunai'), icon: Icon(Icons.payments)),
-            ],
-            selected: {metode.value},
-            onSelectionChanged: sibuk.value
-                ? null
-                : (s) {
+        ),
+        Material(
+          elevation: 8,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (!keranjang.value.kosong)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      keranjang.value.baris.map((b) => '${b.produk.nama} x${b.jumlah}').join(', '),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.bodySmall,
+                    ),
+                  ),
+                const SizedBox(height: 6),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: 'tabungan', label: Text('Kartu Santri'), icon: Icon(Icons.credit_card)),
+                    ButtonSegment(value: 'tunai', label: Text('Tunai'), icon: Icon(Icons.payments)),
+                  ],
+                  selected: {metode.value},
+                  onSelectionChanged: (s) {
                     metode.value = s.first;
                     token.value = null;
-                    galat.value = null;
                   },
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Total', style: context.bodyMedium),
-              Text(_rp(total), style: context.bodyMedium?.copyWith(fontWeight: FontWeight.bold, fontSize: 18)),
-            ],
-          ),
-          if (kurang)
-            _Banner(
-              teks: 'Saldo tidak cukup (kurang ${_rp(total - k.saldo)}). Server akan menolak transaksi ini.',
-              merah: true,
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Total', style: context.bodyMedium),
+                    Text(rp(total), style: context.bodyMedium?.copyWith(fontWeight: FontWeight.bold, fontSize: 20)),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: keranjang.value.kosong
+                        ? null
+                        : () {
+                            galat.value = null;
+                            langkah.value = _Langkah.kartu;
+                          },
+                    icon: const Icon(Icons.nfc),
+                    label: const Text('Lanjut: Tap Kartu Santri'),
+                  ),
+                ),
+                if (!keranjang.value.kosong)
+                  TextButton(onPressed: ulang, child: const Text('Kosongkan keranjang')),
+              ],
             ),
-          const SizedBox(height: 8),
-          FilledButton.icon(
-            onPressed: (sibuk.value || keranjang.value.kosong) ? null : bayar,
-            icon: sibuk.value
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.check_circle),
-            label: Text(sibuk.value ? 'Memproses...' : 'Bayar ${_rp(total)}'),
           ),
-          const SizedBox(height: 24),
-        ],
+        ),
       ],
     );
   }
 }
 
-class _Stepper extends StatelessWidget {
-  const _Stepper({required this.jumlah, required this.bisaTambah, required this.onTambah, required this.onKurang});
-  final int jumlah;
-  final bool bisaTambah;
-  final VoidCallback onTambah;
-  final VoidCallback? onKurang;
+class _RingkasanItem extends StatelessWidget {
+  const _RingkasanItem({required this.keranjang});
+  final Keranjang keranjang;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+    return Column(
       children: [
-        IconButton(
-          tooltip: 'Kurangi',
-          icon: const Icon(Icons.remove_circle_outline),
-          onPressed: jumlah > 0 ? onKurang : null,
-        ),
-        SizedBox(width: 24, child: Text('$jumlah', textAlign: TextAlign.center)),
-        IconButton(
-          tooltip: 'Tambah',
-          icon: Icon(Icons.add_circle, color: bisaTambah ? context.colorPrimary : null),
-          onPressed: bisaTambah ? onTambah : null,
-        ),
+        for (final b in keranjang.baris) BarisNilai('${b.produk.nama} x${b.jumlah}', rp(b.subtotal)),
+        const Divider(),
+        BarisNilai('Total', rp(keranjang.total), tebal: true),
       ],
     );
   }
 }
 
-class _Banner extends StatelessWidget {
-  const _Banner({required this.teks, required this.merah});
-  final String teks;
-  final bool merah;
+class _LangkahKartu extends StatelessWidget {
+  const _LangkahKartu({
+    required this.keranjang,
+    required this.tunai,
+    required this.kartuCtl,
+    required this.fokus,
+    required this.sibuk,
+    required this.galat,
+    required this.onPratinjau,
+    required this.onKembali,
+  });
+  final Keranjang keranjang;
+  final bool tunai;
+  final TextEditingController kartuCtl;
+  final FocusNode fokus;
+  final bool sibuk;
+  final String? galat;
+  final Future<void> Function() onPratinjau;
+  final VoidCallback onKembali;
 
   @override
   Widget build(BuildContext context) {
-    final warna = merah ? Colors.red : context.colorPrimary;
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: warna.withValues(alpha: 0.1),
-        border: Border.all(color: warna.withValues(alpha: 0.5)),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(teks, style: context.bodySmall?.copyWith(color: warna)),
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Text('Total belanja', style: context.bodySmall),
+        Text(rp(keranjang.total), style: context.bodyMedium?.copyWith(fontWeight: FontWeight.bold, fontSize: 28)),
+        const SizedBox(height: 4),
+        _RingkasanItem(keranjang: keranjang),
+        const SizedBox(height: 16),
+        Text('Minta santri men-tap kartunya', style: context.bodyMedium?.copyWith(fontWeight: FontWeight.bold)),
+        if (tunai)
+          const KantinBanner(teks: 'Tunai: kartu tetap di-tap agar pembelian tercatat atas nama santri, saldo santri tidak dipotong.'),
+        const SizedBox(height: 8),
+        TextField(
+          controller: kartuCtl,
+          focusNode: fokus,
+          autofocus: true,
+          enabled: !sibuk,
+          textInputAction: TextInputAction.search,
+          onSubmitted: (_) => onPratinjau(),
+          decoration: InputDecoration(
+            labelText: 'Nomor kartu RFID',
+            hintText: 'Tempelkan kartu pada pembaca atau ketik nomor',
+            prefixIcon: const Icon(Icons.credit_card),
+            border: const OutlineInputBorder(),
+            suffixIcon: IconButton(
+              tooltip: 'Pratinjau',
+              icon: const Icon(Icons.search),
+              onPressed: sibuk ? null : onPratinjau,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        FilledButton.icon(
+          onPressed: sibuk ? null : onPratinjau,
+          icon: sibuk
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Icon(Icons.visibility),
+          label: Text(sibuk ? 'Memeriksa kartu...' : 'Lihat Pratinjau Pembelian'),
+        ),
+        if (galat != null) KantinBanner(teks: galat!, jenis: JenisBanner.merah),
+        const SizedBox(height: 8),
+        TextButton.icon(onPressed: sibuk ? null : onKembali, icon: const Icon(Icons.arrow_back), label: const Text('Ubah barang')),
+      ],
     );
   }
 }
 
-class _NotaView extends StatelessWidget {
-  const _NotaView({required this.nota, required this.onBaru});
+class _LangkahPreview extends StatelessWidget {
+  const _LangkahPreview({
+    required this.preview,
+    required this.sibuk,
+    required this.galat,
+    required this.onKonfirmasi,
+    required this.onBatal,
+    required this.onGantiKartu,
+    required this.onUbahBarang,
+  });
+  final KantinPreview preview;
+  final bool sibuk;
+  final String? galat;
+  final VoidCallback onKonfirmasi;
+  final VoidCallback onBatal;
+  final VoidCallback onGantiKartu;
+  final VoidCallback onUbahBarang;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = preview.siswa;
+    final tunai = preview.metode == 'tunai';
+    final kurang = !tunai && preview.saldoSesudah < 0;
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Text('Konfirmasi pembelian', style: context.bodyMedium?.copyWith(fontWeight: FontWeight.bold, fontSize: 18)),
+        const SizedBox(height: 8),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: SizedBox(
+                    width: 72,
+                    height: 90,
+                    child: s.foto.isEmpty
+                        ? const ColoredBox(color: Color(0xFFE0E0E0), child: Icon(Icons.person, size: 40, color: Colors.grey))
+                        : Image.network(
+                            s.foto,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                                const ColoredBox(color: Color(0xFFE0E0E0), child: Icon(Icons.person, size: 40, color: Colors.grey)),
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(s.nama, style: context.bodyMedium?.copyWith(fontWeight: FontWeight.bold, fontSize: 17)),
+                      const SizedBox(height: 2),
+                      Text('NIS ${s.nis}'),
+                      if (s.kelas.isNotEmpty) Text('Kelas ${s.kelas}'),
+                      if (s.gender.isNotEmpty) Text(s.gender),
+                      Text('Kartu ${s.kartu}', style: context.bodySmall),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        for (final i in preview.items) BarisNilai('${i.nama} x${i.jumlah}', rp(i.subtotal)),
+        const Divider(),
+        BarisNilai('Total belanja', rp(preview.total), tebal: true),
+        const SizedBox(height: 8),
+        if (tunai)
+          const KantinBanner(teks: 'Tunai: saldo santri tidak dipotong. Terima uang sebesar total belanja.')
+        else
+          Card(
+            color: context.colorPrimary.withValues(alpha: 0.06),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                children: [
+                  BarisNilai('Saldo sebelum', rp(preview.saldoSebelum)),
+                  BarisNilai('Saldo sesudah', rp(preview.saldoSesudah), tebal: true, warna: kurang ? Colors.red : null),
+                  if (preview.batasHarian != null && preview.batasHarian! > 0) ...[
+                    const Divider(),
+                    BarisNilai('Batas jajan harian', rp(preview.batasHarian!)),
+                    if (preview.sisaJatahHarian != null) BarisNilai('Sisa jatah hari ini', rp(preview.sisaJatahHarian!)),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        for (final w in preview.peringatan) KantinBanner(teks: w, jenis: JenisBanner.kuning),
+        if (preview.alasanTolak.isNotEmpty) KantinBanner(teks: preview.alasanTolak, jenis: JenisBanner.merah),
+        if (!preview.bisaBayar && preview.alasanTolak.isEmpty)
+          const KantinBanner(teks: 'Transaksi ini tidak dapat dilanjutkan.', jenis: JenisBanner.merah),
+        if (galat != null) KantinBanner(teks: galat!, jenis: JenisBanner.merah),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          onPressed: (sibuk || !preview.bolehKonfirmasi) ? null : onKonfirmasi,
+          icon: sibuk
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Icon(Icons.check_circle),
+          label: Text(sibuk ? 'Memproses...' : (tunai ? 'Konfirmasi & Terima Tunai ${rp(preview.total)}' : 'Konfirmasi & Bayar ${rp(preview.total)}')),
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Expanded(child: OutlinedButton(onPressed: sibuk ? null : onBatal, child: const Text('Batal'))),
+            const SizedBox(width: 8),
+            Expanded(child: OutlinedButton(onPressed: sibuk ? null : onGantiKartu, child: const Text('Ganti kartu'))),
+            const SizedBox(width: 8),
+            Expanded(child: OutlinedButton(onPressed: sibuk ? null : onUbahBarang, child: const Text('Ubah barang'))),
+          ],
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+}
+
+class NotaView extends StatelessWidget {
+  const NotaView({super.key, required this.nota, required this.onBaru});
   final KantinNota nota;
   final VoidCallback onBaru;
 
@@ -325,35 +483,20 @@ class _NotaView extends StatelessWidget {
         const SizedBox(height: 8),
         Center(child: Text('Transaksi berhasil', style: context.bodyMedium?.copyWith(fontWeight: FontWeight.bold))),
         if (nota.duplikat)
-          const _Banner(teks: 'Transaksi ini sudah tersimpan sebelumnya (saldo tidak dipotong dua kali).', merah: false),
+          const KantinBanner(teks: 'Transaksi ini sudah tersimpan sebelumnya (saldo tidak dipotong dua kali).'),
         const SizedBox(height: 12),
         Text('No. nota: ${nota.noNota}'),
         Text('${nota.tanggal} ${nota.jam}'),
-        Text('Santri: ${nota.namaSantri}'),
-        Text('Metode: ${tabungan ? 'Tabungan' : 'Tunai'}'),
+        if (nota.namaSantri.isNotEmpty) Text('Santri: ${nota.namaSantri}'),
+        Text('Metode: ${tabungan ? 'Kartu Santri' : 'Tunai'}'),
         const Divider(height: 24),
-        for (final i in nota.items)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            child: Row(
-              children: [
-                Expanded(child: Text('${i.nama} x${i.jumlah}')),
-                Text(_rp(i.subtotal)),
-              ],
-            ),
-          ),
+        for (final i in nota.items) BarisNilai('${i.nama} x${i.jumlah}', rp(i.subtotal)),
         const Divider(height: 24),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text('Total'),
-            Text(_rp(nota.total), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-          ],
-        ),
+        BarisNilai('Total', rp(nota.total), tebal: true),
         if (tabungan) ...[
           const SizedBox(height: 4),
-          Text('Saldo sebelum: ${_rp(nota.saldoSebelum)}'),
-          Text('Saldo sesudah: ${_rp(nota.saldoSesudah)}'),
+          Text('Saldo sebelum: ${rp(nota.saldoSebelum)}'),
+          Text('Saldo sesudah: ${rp(nota.saldoSesudah)}'),
         ],
         const SizedBox(height: 20),
         FilledButton.icon(onPressed: onBaru, icon: const Icon(Icons.add), label: const Text('Transaksi Baru')),

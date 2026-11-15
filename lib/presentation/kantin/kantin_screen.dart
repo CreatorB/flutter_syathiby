@@ -7,10 +7,14 @@ import 'package:syathiby/models/kantin/kantin_repository.dart';
 import 'package:syathiby/utils/extension/color.dart';
 import 'package:syathiby/utils/extension/typography.dart';
 
+import 'kantin_widgets.dart';
 import 'kasir_tab.dart';
+import 'produk_tab.dart';
+import 'titipan_tab.dart';
 
-/// Modul Kantin di aplikasi: kasir (kartu RFID), katalog produk, riwayat belanja.
-/// Hak akses diputuskan server; vendor & settlement dikelola lewat panel web.
+/// Modul Kantin di aplikasi: Kasir (pilih barang -> tap kartu -> konfirmasi),
+/// Produk, Titipan, Katalog, Riwayat. Hak akses diputuskan server; vendor &
+/// settlement dikelola lewat panel web.
 class KantinScreen extends HookConsumerWidget {
   const KantinScreen({super.key});
 
@@ -18,12 +22,14 @@ class KantinScreen extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final key = '${ref.watch(getCurrentUserProvider)?.key}';
     return DefaultTabController(
-      length: 3,
+      length: 5,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Kantin'),
           bottom: const TabBar(
-            tabs: [Tab(text: 'Kasir'), Tab(text: 'Katalog'), Tab(text: 'Riwayat')],
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            tabs: [Tab(text: 'Kasir'), Tab(text: 'Produk'), Tab(text: 'Titipan'), Tab(text: 'Katalog'), Tab(text: 'Riwayat')],
           ),
         ),
         body: Column(
@@ -47,34 +53,19 @@ class KantinScreen extends HookConsumerWidget {
             ),
             Expanded(
               child: TabBarView(
-                children: [KasirTab(keySesi: key), _KatalogTab(keySesi: key), _RiwayatTab(keySesi: key)],
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  KasirTab(keySesi: key),
+                  ProdukTab(keySesi: key),
+                  TitipanTab(keySesi: key),
+                  _KatalogTab(keySesi: key),
+                  _RiwayatTab(keySesi: key),
+                ],
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _Pesan extends StatelessWidget {
-  const _Pesan({required this.ikon, required this.teks});
-  final IconData ikon;
-  final String teks;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      children: [
-        const SizedBox(height: 96),
-        Icon(ikon, size: 56, color: Colors.grey),
-        const SizedBox(height: 12),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Text(teks, textAlign: TextAlign.center, style: context.bodyMedium),
-        ),
-      ],
     );
   }
 }
@@ -106,7 +97,7 @@ class _KatalogTab extends HookConsumerWidget {
             onRefresh: () => ref.refresh(kantinKatalogProvider(keySesi).future),
             child: data.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => _Pesan(ikon: Icons.lock_outline, teks: kantinPesanError(e)),
+              error: (e, _) => KantinPesan(ikon: Icons.lock_outline, teks: kantinPesanError(e)),
               data: (k) {
                 final daftar = k.produk
                     .where((p) =>
@@ -115,7 +106,7 @@ class _KatalogTab extends HookConsumerWidget {
                         p.kode.toLowerCase().contains(cari.value))
                     .toList();
                 if (daftar.isEmpty) {
-                  return _Pesan(
+                  return KantinPesan(
                     ikon: Icons.inventory_2_outlined,
                     teks: cari.value.isEmpty ? 'Belum ada produk kantin.' : 'Produk tidak ditemukan.',
                   );
@@ -126,19 +117,19 @@ class _KatalogTab extends HookConsumerWidget {
                   separatorBuilder: (_, __) => const Divider(height: 1),
                   itemBuilder: (context, i) {
                     final p = daftar[i];
-                    final harga = ref.watch(formatCurrencyProvider('${p.harga}'));
                     return ListTile(
                       title: Text(p.nama),
                       subtitle: Text([
                         if (p.kategori.isNotEmpty) p.kategori,
                         if (p.kode.isNotEmpty) p.kode,
+                        if (p.titipan) 'titipan',
                         if (!p.aktif) 'nonaktif',
                       ].join(' · ')),
                       trailing: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text(harga, style: context.bodyMedium),
+                          Text(rp(p.harga), style: context.bodyMedium),
                           Text(
                             'Stok ${p.stok} ${p.satuan}',
                             style: context.bodySmall?.copyWith(
@@ -191,12 +182,11 @@ class _RiwayatTab extends HookConsumerWidget {
             onRefresh: () => ref.refresh(kantinRiwayatProvider((key: keySesi, tanggal: tgl)).future),
             child: data.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => _Pesan(ikon: Icons.lock_outline, teks: kantinPesanError(e)),
+              error: (e, _) => KantinPesan(ikon: Icons.lock_outline, teks: kantinPesanError(e)),
               data: (r) {
                 if (r.transaksi.isEmpty) {
-                  return const _Pesan(ikon: Icons.receipt_long_outlined, teks: 'Belum ada transaksi pada tanggal ini.');
+                  return const KantinPesan(ikon: Icons.receipt_long_outlined, teks: 'Belum ada transaksi pada tanggal ini.');
                 }
-                final total = ref.watch(formatCurrencyProvider('${r.total}'));
                 return ListView.builder(
                   physics: const AlwaysScrollableScrollPhysics(),
                   itemCount: r.transaksi.length + 1,
@@ -204,11 +194,10 @@ class _RiwayatTab extends HookConsumerWidget {
                     if (i == 0) {
                       return Padding(
                         padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-                        child: Text('${r.jumlah} transaksi · total $total', style: context.bodyMedium),
+                        child: Text('${r.jumlah} transaksi · total ${rp(r.total)}', style: context.bodyMedium),
                       );
                     }
                     final t = r.transaksi[i - 1];
-                    final jumlah = ref.watch(formatCurrencyProvider('${t.total}'));
                     final ringkas = t.items.map((e) => '${e.nama} x${e.jumlah}').join(', ');
                     return ListTile(
                       title: Text(t.namaSantri.isEmpty ? '-' : t.namaSantri),
@@ -217,7 +206,7 @@ class _RiwayatTab extends HookConsumerWidget {
                         if (t.namaKasir.isNotEmpty) 'kasir ${t.namaKasir}',
                         if (ringkas.isNotEmpty) ringkas,
                       ].join(' · ')),
-                      trailing: Text(jumlah, style: context.bodyMedium),
+                      trailing: Text(rp(t.total), style: context.bodyMedium),
                     );
                   },
                 );
