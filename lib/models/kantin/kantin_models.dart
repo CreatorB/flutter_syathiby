@@ -171,6 +171,9 @@ class KantinKartu {
   final String idCard;
   final int saldo;
 
+  /// Saldo bisa negatif (santri berhutang ke kantin).
+  int get hutang => saldo < 0 ? -saldo : 0;
+
   factory KantinKartu.fromJson(Map<String, dynamic> j) => KantinKartu(
         idSiswa: _int(j['id_siswa']),
         nis: _str(j['nis']),
@@ -221,6 +224,9 @@ class KantinNota {
   final int saldoSesudah;
   final List<KantinNotaItem> items;
   final bool duplikat;
+
+  /// > 0 bila setelah transaksi saldo santri negatif (berhutang).
+  int get hutangSesudah => (metode == 'tabungan' && saldoSesudah < 0) ? -saldoSesudah : 0;
 
   factory KantinNota.fromJson(Map<String, dynamic> j) => KantinNota(
         noNota: _str(j['no_nota']),

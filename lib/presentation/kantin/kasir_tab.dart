@@ -369,7 +369,7 @@ class _LangkahPreview extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = preview.siswa;
     final tunai = preview.metode == 'tunai';
-    final kurang = !tunai && preview.saldoSesudah < 0;
+    final adaPeringatanHutang = preview.peringatan.any((w) => w.toLowerCase().contains('berhutang'));
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -407,6 +407,14 @@ class _LangkahPreview extends StatelessWidget {
                       if (s.kelas.isNotEmpty) Text('Kelas ${s.kelas}'),
                       if (s.gender.isNotEmpty) Text(s.gender),
                       Text('Kartu ${s.kartu}', style: context.bodySmall),
+                      if (!tunai)
+                        Text(
+                          'Saldo: ${labelSaldo(s.saldo)}',
+                          style: context.bodySmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: s.saldo < 0 ? Colors.red : null,
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -428,8 +436,10 @@ class _LangkahPreview extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               child: Column(
                 children: [
-                  BarisNilai('Saldo sebelum', rp(preview.saldoSebelum)),
-                  BarisNilai('Saldo sesudah', rp(preview.saldoSesudah), tebal: true, warna: kurang ? Colors.red : null),
+                  BarisNilai('Saldo sebelum', labelSaldo(preview.saldoSebelum),
+                      warna: preview.saldoSebelum < 0 ? Colors.red : null),
+                  BarisNilai('Saldo sesudah', labelSaldo(preview.saldoSesudah),
+                      tebal: true, warna: preview.saldoSesudah < 0 ? Colors.red : null),
                   if (preview.batasHarian != null && preview.batasHarian! > 0) ...[
                     const Divider(),
                     BarisNilai('Batas jajan harian', rp(preview.batasHarian!)),
@@ -440,6 +450,13 @@ class _LangkahPreview extends StatelessWidget {
             ),
           ),
         for (final w in preview.peringatan) KantinBanner(teks: w, jenis: JenisBanner.kuning),
+        if (!tunai && preview.menjadiHutang && !adaPeringatanHutang)
+          KantinBanner(
+            teks: 'Santri akan berhutang ${rp(preview.hutangSesudah)}'
+                '${preview.batasHutang > 0 ? ' (batas hutang ${rp(preview.batasHutang)}'
+                    '${preview.sisaBatasHutang != null ? ', sisa ${rp(preview.sisaBatasHutang!)}' : ''})' : ''}',
+            jenis: JenisBanner.kuning,
+          ),
         if (preview.alasanTolak.isNotEmpty) KantinBanner(teks: preview.alasanTolak, jenis: JenisBanner.merah),
         if (!preview.bisaBayar && preview.alasanTolak.isEmpty)
           const KantinBanner(teks: 'Transaksi ini tidak dapat dilanjutkan.', jenis: JenisBanner.merah),
@@ -495,8 +512,16 @@ class NotaView extends StatelessWidget {
         BarisNilai('Total', rp(nota.total), tebal: true),
         if (tabungan) ...[
           const SizedBox(height: 4),
-          Text('Saldo sebelum: ${rp(nota.saldoSebelum)}'),
-          Text('Saldo sesudah: ${rp(nota.saldoSesudah)}'),
+          Text('Saldo sebelum: ${labelSaldo(nota.saldoSebelum)}'),
+          Text('Saldo sesudah: ${labelSaldo(nota.saldoSesudah)}'),
+          if (nota.hutangSesudah > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'Hutang sesudah: ${rp(nota.hutangSesudah)}',
+                style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+              ),
+            ),
         ],
         const SizedBox(height: 20),
         FilledButton.icon(onPressed: onBaru, icon: const Icon(Icons.add), label: const Text('Transaksi Baru')),

@@ -8,6 +8,7 @@ import 'package:syathiby/utils/extension/color.dart';
 import 'package:syathiby/utils/extension/typography.dart';
 
 import 'kantin_widgets.dart';
+import 'hutang_tab.dart';
 import 'kasir_tab.dart';
 import 'produk_tab.dart';
 import 'titipan_tab.dart';
@@ -22,14 +23,14 @@ class KantinScreen extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final key = '${ref.watch(getCurrentUserProvider)?.key}';
     return DefaultTabController(
-      length: 5,
+      length: 6,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Kantin'),
           bottom: const TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,
-            tabs: [Tab(text: 'Kasir'), Tab(text: 'Produk'), Tab(text: 'Titipan'), Tab(text: 'Katalog'), Tab(text: 'Riwayat')],
+            tabs: [Tab(text: 'Kasir'), Tab(text: 'Produk'), Tab(text: 'Titipan'), Tab(text: 'Hutang'), Tab(text: 'Katalog'), Tab(text: 'Riwayat')],
           ),
         ),
         body: Column(
@@ -58,6 +59,7 @@ class KantinScreen extends HookConsumerWidget {
                   KasirTab(keySesi: key),
                   ProdukTab(keySesi: key),
                   TitipanTab(keySesi: key),
+                  HutangTab(keySesi: key),
                   _KatalogTab(keySesi: key),
                   _RiwayatTab(keySesi: key),
                 ],

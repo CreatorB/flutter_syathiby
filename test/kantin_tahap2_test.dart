@@ -194,6 +194,82 @@ void main() {
     expect(galatAjuanCair(1, 0), isNotNull);
   });
 
+  test('preview hutang: saldo sesudah negatif, batas, sisa, menjadi_hutang', () {
+    final p = KantinPreview.fromJson({
+      'siswa': {'nama': 'Ahmad', 'saldo': 2000},
+      'total': 8000, 'metode': 'tabungan', 'saldo_sebelum': 2000, 'saldo_sesudah': -6000,
+      'hutang_sebelum': 0, 'hutang_sesudah': 6000, 'batas_hutang': 20000, 'sisa_batas_hutang': 14000,
+      'menjadi_hutang': true, 'bisa_bayar': true, 'alasan_tolak': '',
+      'peringatan': ['Santri akan berhutang Rp 6.000'],
+    });
+    expect(p.saldoSesudah, -6000);
+    expect(p.hutangSesudah, 6000);
+    expect(p.batasHutang, 20000);
+    expect(p.sisaBatasHutang, 14000);
+    expect(p.menjadiHutang, isTrue);
+    expect(p.bolehKonfirmasi, isTrue);
+    expect(labelSaldo(-6000), 'Hutang Rp 6.000');
+    expect(labelSaldo(6000), 'Rp 6.000');
+
+    final lewat = KantinPreview.fromJson({
+      'saldo_sebelum': -15000, 'saldo_sesudah': -25000, 'hutang_sesudah': 25000, 'batas_hutang': 20000,
+      'sisa_batas_hutang': 0, 'menjadi_hutang': true,
+      'bisa_bayar': false, 'alasan_tolak': 'Melebihi batas hutang Rp 20.000',
+    });
+    expect(lewat.bolehKonfirmasi, isFalse);
+    expect(lewat.hutangSebelum, 15000);
+  });
+
+  test('preview hutang: server lama tanpa field baru diturunkan dari saldo', () {
+    final lama = KantinPreview.fromJson({'saldo_sebelum': 1000, 'saldo_sesudah': -3000, 'metode': 'tabungan', 'bisa_bayar': true});
+    expect(lama.hutangSebelum, 0);
+    expect(lama.hutangSesudah, 3000);
+    expect(lama.menjadiHutang, isTrue);
+    expect(lama.batasHutang, 0);
+    expect(lama.sisaBatasHutang, isNull);
+    final tunai = KantinPreview.fromJson({'saldo_sebelum': 1000, 'saldo_sesudah': 1000, 'metode': 'tunai'});
+    expect(tunai.menjadiHutang, isFalse);
+  });
+
+  test('nota & kartu: hutang dari saldo negatif', () {
+    final n = KantinNota.fromJson({'metode': 'tabungan', 'total': 8000, 'saldo_sebelum': 2000, 'saldo_sesudah': -6000});
+    expect(n.hutangSesudah, 6000);
+    expect(KantinNota.fromJson({'metode': 'tabungan', 'saldo_sesudah': 500}).hutangSesudah, 0);
+    expect(KantinNota.fromJson({'metode': 'tunai', 'saldo_sesudah': -500}).hutangSesudah, 0);
+    expect(KantinKartu.fromJson({'saldo': -8000}).hutang, 8000);
+    expect(KantinKartu.fromJson({'saldo': 8000}).hutang, 0);
+  });
+
+  test('hutang.php list: ringkasan, santri, wali; server lama tanpa total', () {
+    final d = KantinHutangDaftar.fromJson({
+      'hutang': [
+        {
+          'id_siswa': '1', 'nama_santri': 'Ahmad', 'nis': '2345', 'kelas': '7A', 'saldo': -8000, 'hutang': 8000,
+          'terakhir_belanja': '2026-11-16', 'wali': [{'nama': 'Pak Budi', 'telepon': '0812'}],
+        },
+        {'id_siswa': 2, 'nama_santri': 'Zaid', 'saldo': '-2000'},
+      ],
+      'total_hutang': 10000, 'jumlah': 2, 'batas_hutang': 20000,
+    });
+    expect(d.jumlah, 2);
+    expect(d.totalHutang, 10000);
+    expect(d.batasHutang, 20000);
+    expect(d.hutang.first.wali.single.telepon, '0812');
+    expect(d.hutang.first.terakhirBelanja, '2026-11-16');
+    expect(d.hutang.last.hutang, 2000); // diturunkan dari saldo
+    expect(d.hutang.last.wali, isEmpty);
+
+    final tanpa = KantinHutangDaftar.fromJson({
+      'hutang': [
+        {'id_siswa': 1, 'saldo': -3000},
+        {'id_siswa': 2, 'saldo': -4000},
+      ],
+    });
+    expect(tanpa.totalHutang, 7000);
+    expect(tanpa.jumlah, 2);
+    expect(KantinHutangDaftar.fromJson({}).hutang, isEmpty);
+  });
+
   test('angkaDari: abaikan pemisah, dukung negatif untuk retur', () {
     expect(angkaDari('Rp 75.000'), 75000);
     expect(angkaDari(''), 0);

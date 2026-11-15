@@ -56,7 +56,21 @@ class KantinPreview {
     required this.bisaBayar,
     required this.alasanTolak,
     required this.peringatan,
+    this.hutangSebelum = 0,
+    this.hutangSesudah = 0,
+    this.batasHutang = 0,
+    this.sisaBatasHutang,
+    this.menjadiHutang = false,
   });
+
+  /// Hutang kantin santri sebelum/sesudah transaksi (>= 0).
+  final int hutangSebelum;
+  final int hutangSesudah;
+
+  /// Batas hutang (0 = tidak boleh berhutang) dan sisanya; null bila server tidak mengirim.
+  final int batasHutang;
+  final int? sisaBatasHutang;
+  final bool menjadiHutang;
 
   final KantinPreviewSiswa siswa;
   final List<KantinNotaItem> items;
@@ -85,6 +99,14 @@ class KantinPreview {
         bisaBayar: _bool(j['bisa_bayar']),
         alasanTolak: _str(j['alasan_tolak']),
         peringatan: (j['peringatan'] is List ? j['peringatan'] as List : const []).map((e) => '$e').toList(),
+        // Server lama tanpa field hutang: turunkan dari saldo (saldo negatif = hutang).
+        hutangSebelum: _intN(j['hutang_sebelum']) ?? (_int(j['saldo_sebelum']) < 0 ? -_int(j['saldo_sebelum']) : 0),
+        hutangSesudah: _intN(j['hutang_sesudah']) ?? (_int(j['saldo_sesudah']) < 0 ? -_int(j['saldo_sesudah']) : 0),
+        batasHutang: _int(j['batas_hutang']),
+        sisaBatasHutang: _intN(j['sisa_batas_hutang']),
+        menjadiHutang: j.containsKey('menjadi_hutang')
+            ? _bool(j['menjadi_hutang'])
+            : (_str(j['metode']) != 'tunai' && _int(j['saldo_sesudah']) < 0),
       );
 }
 
@@ -307,4 +329,60 @@ String? galatAjuanCair(int jumlah, int tersedia) {
   if (jumlah <= 0) return 'Nominal harus lebih dari 0.';
   if (jumlah > tersedia) return 'Nominal melebihi yang tersedia dicairkan.';
   return null;
+}
+
+/// Satu santri berhutang pada `kantin/hutang.php?act=list`.
+class KantinHutangSantri {
+  const KantinHutangSantri({
+    required this.id,
+    required this.nama,
+    required this.nis,
+    required this.kelas,
+    required this.saldo,
+    required this.hutang,
+    required this.terakhirBelanja,
+    required this.wali,
+  });
+
+  final int id;
+  final String nama;
+  final String nis;
+  final String kelas;
+  final int saldo;
+  final int hutang;
+  final String terakhirBelanja;
+  final List<({String nama, String telepon})> wali;
+
+  factory KantinHutangSantri.fromJson(Map<String, dynamic> j) {
+    final saldo = _int(j['saldo']);
+    return KantinHutangSantri(
+      id: _int(j['id_siswa']),
+      nama: _str(j['nama_santri']),
+      nis: _str(j['nis']),
+      kelas: _str(j['kelas']),
+      saldo: saldo,
+      hutang: _intN(j['hutang']) ?? (saldo < 0 ? -saldo : 0),
+      terakhirBelanja: _str(j['terakhir_belanja']),
+      wali: _list(j['wali']).map((w) => (nama: _str(w['nama']), telepon: _str(w['telepon']))).toList(),
+    );
+  }
+}
+
+/// Hasil `kantin/hutang.php?act=list`.
+class KantinHutangDaftar {
+  const KantinHutangDaftar({required this.hutang, required this.totalHutang, required this.jumlah, required this.batasHutang});
+  final List<KantinHutangSantri> hutang;
+  final int totalHutang;
+  final int jumlah;
+  final int batasHutang;
+
+  factory KantinHutangDaftar.fromJson(Map<String, dynamic> j) {
+    final daftar = _list(j['hutang']).map(KantinHutangSantri.fromJson).toList();
+    return KantinHutangDaftar(
+      hutang: daftar,
+      totalHutang: _intN(j['total_hutang']) ?? daftar.fold<int>(0, (a, b) => a + b.hutang),
+      jumlah: _intN(j['jumlah']) ?? daftar.length,
+      batasHutang: _int(j['batas_hutang']),
+    );
+  }
 }

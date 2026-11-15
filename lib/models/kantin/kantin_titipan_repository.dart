@@ -77,6 +77,15 @@ final kantinPencairanProvider =
   return DaftarPencairan.fromJson(_data(res.data));
 });
 
+/// Daftar santri berhutang di kantin. [cari]: nama/NIS (boleh kosong).
+final kantinHutangProvider = FutureProvider.autoDispose.family<KantinHutangDaftar, ({String key, String cari})>((ref, p) async {
+  final res = await ref.watch(dioProvider).get<dynamic>(
+    'kantin/hutang.php',
+    queryParameters: {'key': p.key, 'act': 'list', if (p.cari.isNotEmpty) 'cari': p.cari},
+  );
+  return KantinHutangDaftar.fromJson(_data(res.data));
+});
+
 final kantinPenitipLaporanProvider =
     FutureProvider.autoDispose.family<PenitipLaporan, ({String key, int id, String dari, String sampai})>((ref, p) async {
   final res = await ref.watch(dioProvider).get<dynamic>(

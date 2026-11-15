@@ -12,6 +12,9 @@ int angkaDari(String s, {bool bolehNegatif = false}) {
   return neg ? -n : n;
 }
 
+/// Saldo santri: negatif ditulis sebagai hutang ("Hutang Rp 8.000").
+String labelSaldo(int saldo) => saldo < 0 ? 'Hutang ${rp(-saldo)}' : rp(saldo);
+
 enum JenisBanner { merah, kuning, info }
 
 class KantinBanner extends StatelessWidget {
