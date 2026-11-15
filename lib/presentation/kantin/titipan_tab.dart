@@ -47,7 +47,12 @@ class TitipanTab extends HookConsumerWidget {
                       MaterialPageRoute<void>(builder: (_) => PenitipDetailScreen(keySesi: keySesi, penitip: d)),
                     ),
                     title: Text(d.nama + (d.aktif ? '' : ' (nonaktif)')),
-                    subtitle: Text('${d.jumlahProduk} produk · stok ${d.stokTotal} · terjual ${d.terjualQty}'),
+                    subtitle: Text([
+                      '${d.jumlahProduk} produk · stok ${d.stokTotal} · terjual ${d.terjualQty}',
+                      'tersedia dicairkan ${rp(d.tersediaCair)}',
+                      if (d.pendingCair > 0) 'menunggu pencairan ${rp(d.pendingCair)}',
+                    ].join('\n')),
+                    isThreeLine: true,
                     trailing: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.end,
@@ -168,11 +173,18 @@ class PenitipDetailScreen extends HookConsumerWidget {
     final laporan = ref.watch(kantinPenitipLaporanProvider(param));
     final katalog = ref.watch(kantinKatalogProvider(keySesi));
     final pesan = useState<String?>(null);
+    final ringkasan = ref
+            .watch(kantinPenitipProvider(keySesi))
+            .valueOrNull
+            ?.where((e) => e.id == penitip.id)
+            .firstOrNull ??
+        penitip;
 
     void segarkan() {
       ref.invalidate(kantinPenitipLaporanProvider(param));
       ref.invalidate(kantinPenitipProvider(keySesi));
       ref.invalidate(kantinKatalogProvider(keySesi));
+      ref.invalidate(kantinPencairanProvider);
     }
 
     Future<void> pilihRentang() async {
@@ -341,6 +353,89 @@ class PenitipDetailScreen extends HookConsumerWidget {
       }
     }
 
+    Future<void> ajukanCair() async {
+      final jumlah = TextEditingController(text: ringkasan.tersediaCair > 0 ? '${ringkasan.tersediaCair}' : '');
+      final cat = TextEditingController();
+      String? galat;
+      var sibuk = false;
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (c) => StatefulBuilder(
+          builder: (c, setS) => AlertDialog(
+            title: const Text('Ajukan Pencairan'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Tersedia dicairkan: ${rp(ringkasan.tersediaCair)}'),
+                  const SizedBox(height: 4),
+                  Text('Pengajuan akan diperiksa admin keuangan sebelum dicairkan.', style: context.bodySmall),
+                  TextField(
+                    controller: jumlah,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Nominal pencairan (Rp)'),
+                  ),
+                  TextField(controller: cat, decoration: const InputDecoration(labelText: 'Catatan (opsional)')),
+                  if (galat != null) KantinBanner(teks: galat!, jenis: JenisBanner.merah),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: sibuk ? null : () => Navigator.pop(c, false), child: const Text('Batal')),
+              FilledButton(
+                onPressed: sibuk
+                    ? null
+                    : () async {
+                        final n = angkaDari(jumlah.text);
+                        final g = galatAjuanCair(n, ringkasan.tersediaCair);
+                        if (g != null) {
+                          setS(() => galat = g);
+                          return;
+                        }
+                        final ya = await showDialog<bool>(
+                          context: c,
+                          builder: (d) => AlertDialog(
+                            title: const Text('Konfirmasi pengajuan'),
+                            content: Text('Ajukan pencairan ${rp(n)} untuk ${penitip.nama}?'),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Kembali')),
+                              FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Ajukan')),
+                            ],
+                          ),
+                        );
+                        if (ya != true) return;
+                        setS(() {
+                          sibuk = true;
+                          galat = null;
+                        });
+                        try {
+                          await kantinAksi(ref, 'kantin/penitip.php', {
+                            'key': keySesi,
+                            'act': 'ajukan_cair',
+                            'id_penitip': penitip.id,
+                            'jumlah': n,
+                            'catatan': cat.text.trim(),
+                          });
+                          if (c.mounted) Navigator.pop(c, true);
+                        } catch (e) {
+                          setS(() {
+                            sibuk = false;
+                            galat = kantinPesanError(e);
+                          });
+                        }
+                      },
+                child: const Text('Ajukan'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (ok == true) {
+        pesan.value = 'Pengajuan pencairan terkirim ke admin keuangan.';
+        segarkan();
+      }
+    }
+
     Future<void> ubah() async {
       final ok = await tampilFormPenitip(context, ref, keySesi, penitip);
       if (ok == true) {
@@ -411,6 +506,9 @@ class PenitipDetailScreen extends HookConsumerWidget {
                           BarisNilai('Sudah dibayar', rp(l.dibayar)),
                           const Divider(),
                           BarisNilai('Sisa harus dibayar', rp(l.sisa), tebal: true),
+                          const Divider(),
+                          BarisNilai('Menunggu pencairan', rp(ringkasan.pendingCair)),
+                          BarisNilai('Tersedia dicairkan', rp(ringkasan.tersediaCair), tebal: true),
                         ],
                       ),
                     ),
@@ -435,6 +533,15 @@ class PenitipDetailScreen extends HookConsumerWidget {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: ajukanCair,
+                      icon: const Icon(Icons.request_quote_outlined),
+                      label: const Text('Ajukan Pencairan'),
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   Text('Produk titipan', style: context.bodyMedium?.copyWith(fontWeight: FontWeight.bold)),
                   if (l.produk.isEmpty) const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('Belum ada produk.')),
@@ -457,12 +564,188 @@ class PenitipDetailScreen extends HookConsumerWidget {
                       subtitle: Text([if (s.catatan.isNotEmpty) s.catatan, if (s.operator.isNotEmpty) 'oleh ${s.operator}'].join(' · ')),
                       trailing: Text(rp(s.jumlah), style: context.bodyMedium),
                     ),
+                  const SizedBox(height: 12),
+                  _SeksiPencairan(
+                    keySesi: keySesi,
+                    idPenitip: penitip.id,
+                    onSelesai: (m) {
+                      pesan.value = m;
+                      segarkan();
+                    },
+                  ),
                 ],
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Daftar pengajuan pencairan hasil titipan untuk satu penitip + aksi
+/// Setujui/Tolak. Hak ditentukan server: bila tidak berhak (errCode 03)
+/// pesan server ditampilkan di dialog.
+class _SeksiPencairan extends HookConsumerWidget {
+  const _SeksiPencairan({required this.keySesi, required this.idPenitip, required this.onSelesai});
+  final String keySesi;
+  final int idPenitip;
+  final void Function(String pesan) onSelesai;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final filter = useState('semua');
+    final data = ref.watch(kantinPencairanProvider((key: keySesi, idPenitip: idPenitip, status: filter.value)));
+
+    Future<void> proses(PenitipPencairan p, String aksi) async {
+      final alasan = TextEditingController();
+      String? galat;
+      var sibuk = false;
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (c) => StatefulBuilder(
+          builder: (c, setS) => AlertDialog(
+            title: Text(aksi == 'setuju' ? 'Setujui pencairan?' : 'Tolak pencairan'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('${p.kode} · ${rp(p.jumlah)}'),
+                  const SizedBox(height: 8),
+                  if (aksi == 'setuju')
+                    const Text('Hak penitip berkurang dan tercatat pengeluaran kas sebesar nominal ini.')
+                  else
+                    TextField(controller: alasan, decoration: const InputDecoration(labelText: 'Alasan penolakan (wajib)')),
+                  if (galat != null) KantinBanner(teks: galat!, jenis: JenisBanner.merah),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: sibuk ? null : () => Navigator.pop(c, false), child: const Text('Batal')),
+              FilledButton(
+                onPressed: sibuk
+                    ? null
+                    : () async {
+                        if (aksi == 'tolak' && alasan.text.trim().isEmpty) {
+                          setS(() => galat = 'Alasan penolakan wajib diisi.');
+                          return;
+                        }
+                        setS(() {
+                          sibuk = true;
+                          galat = null;
+                        });
+                        try {
+                          await kantinAksi(ref, 'kantin/penitip.php', {
+                            'key': keySesi,
+                            'act': 'proses_cair',
+                            'id_pencairan': p.id,
+                            'aksi': aksi,
+                            if (aksi == 'tolak') 'alasan': alasan.text.trim(),
+                          });
+                          if (c.mounted) Navigator.pop(c, true);
+                        } catch (e) {
+                          setS(() {
+                            sibuk = false;
+                            galat = kantinPesanError(e);
+                          });
+                        }
+                      },
+                child: Text(aksi == 'setuju' ? 'Setujui' : 'Tolak'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (ok == true) {
+        onSelesai(aksi == 'setuju'
+            ? 'Pencairan ${p.kode} disetujui dan tercatat sebagai pengeluaran.'
+            : 'Pencairan ${p.kode} ditolak.');
+      }
+    }
+
+    Color warna(String st) => switch (st) {
+          'disetujui' => Colors.green.shade700,
+          'ditolak' => Colors.red,
+          _ => Colors.orange.shade800,
+        };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Pengajuan Pencairan', style: context.bodyMedium?.copyWith(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 4),
+        Wrap(
+          spacing: 6,
+          children: [
+            for (final f in const ['semua', 'menunggu', 'disetujui', 'ditolak'])
+              ChoiceChip(
+                label: Text(f[0].toUpperCase() + f.substring(1)),
+                selected: filter.value == f,
+                onSelected: (_) => filter.value = f,
+              ),
+          ],
+        ),
+        data.when(
+          loading: () => const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator())),
+          error: (e, _) => KantinBanner(teks: kantinPesanError(e), jenis: JenisBanner.merah),
+          data: (hasil) {
+            final daftar = hasil.daftar;
+            if (daftar.isEmpty) {
+              return const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('Belum ada pengajuan.'));
+            }
+            return Column(
+              children: [
+                for (final p in daftar)
+                  Card(
+                    margin: const EdgeInsets.only(top: 8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text('${p.kode} · ${rp(p.jumlah)}',
+                                    style: context.bodyMedium?.copyWith(fontWeight: FontWeight.bold)),
+                              ),
+                              Chip(
+                                label: Text(p.status, style: TextStyle(color: warna(p.status), fontSize: 12)),
+                                side: BorderSide(color: warna(p.status)),
+                                backgroundColor: warna(p.status).withValues(alpha: 0.08),
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ],
+                          ),
+                          Text('Diajukan ${p.namaPengaju.isEmpty ? '-' : p.namaPengaju} · ${p.diajukanPada}',
+                              style: context.bodySmall),
+                          if (p.catatan.isNotEmpty) Text(p.catatan, style: context.bodySmall),
+                          if (p.status == 'ditolak' && p.alasanTolak.isNotEmpty)
+                            Text('Ditolak: ${p.alasanTolak}', style: context.bodySmall?.copyWith(color: Colors.red)),
+                          if (p.status == 'disetujui')
+                            Text(
+                              'Disetujui ${p.namaPemroses}${p.noPengeluaran.isEmpty ? '' : ' · pengeluaran ${p.noPengeluaran}'}',
+                              style: context.bodySmall,
+                            ),
+                          if (p.menunggu && hasil.bolehProses)
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                TextButton(onPressed: () => proses(p, 'tolak'), child: const Text('Tolak')),
+                                FilledButton(onPressed: () => proses(p, 'setuju'), child: const Text('Setujui')),
+                              ],
+                            )
+                          else if (p.menunggu)
+                            Text('Menunggu admin keuangan', style: context.bodySmall?.copyWith(fontStyle: FontStyle.italic)),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ],
     );
   }
 }

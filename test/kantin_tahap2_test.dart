@@ -115,6 +115,85 @@ void main() {
     expect(KantinPenitip.daftarDari({'penitip': 'x'}), isEmpty);
   });
 
+  test('pencairan: tersedia_cair & pending_cair dibaca; fallback server lama = sisa - pending', () {
+    final p = KantinPenitip.daftarDari({
+      'penitip': [
+        {'id_penitip': 1, 'nama': 'A', 'sisa_bayar': 16000, 'pending_cair': 6000, 'tersedia_cair': 10000},
+        {'id_penitip': 2, 'nama': 'B', 'sisa_bayar': 9000, 'pending_cair': 4000}, // tanpa tersedia_cair
+        {'id_penitip': 3, 'nama': 'C', 'sisa_bayar': 5000},
+      ],
+    });
+    expect(p[0].pendingCair, 6000);
+    expect(p[0].tersediaCair, 10000);
+    expect(p[1].tersediaCair, 5000);
+    expect(p[2].pendingCair, 0);
+    expect(p[2].tersediaCair, 5000);
+  });
+
+  test('daftar_cair: membaca status, pengaju, alasan tolak, no pengeluaran', () {
+    final d = PenitipPencairan.daftarDari({
+      'pencairan': [
+        {
+          'id_pencairan': '1', 'kode': 'PT-20261116-0001', 'id_penitip': 2, 'nama_penitip': 'Bu Ani', 'jumlah': '10000',
+          'catatan': 'minggu 1', 'status': 'menunggu', 'nama_pengaju': 'Barokah', 'diajukan_pada': '2026-11-16 10:00:00',
+          'diproses_oleh': '', 'nama_pemroses': '', 'diproses_pada': null, 'alasan_tolak': '', 'no_pengeluaran': '',
+        },
+        {
+          'id_pencairan': 2, 'kode': 'PT-20261116-0002', 'jumlah': 5000, 'status': 'ditolak', 'alasan_tolak': 'Nominal salah',
+        },
+        {
+          'id_pencairan': 3, 'kode': 'PT-20261116-0003', 'jumlah': 6000, 'status': 'disetujui', 'nama_pemroses': 'Erlandika',
+          'no_pengeluaran': 'PT-20261116-0003',
+        },
+      ],
+    });
+    expect(d.length, 3);
+    expect(d[0].menunggu, isTrue);
+    expect(d[0].jumlah, 10000);
+    expect(d[0].namaPengaju, 'Barokah');
+    expect(d[0].diprosesPada, '');
+    expect(d[1].menunggu, isFalse);
+    expect(d[1].alasanTolak, 'Nominal salah');
+    expect(d[2].noPengeluaran, 'PT-20261116-0003');
+    expect(PenitipPencairan.daftarDari({'pencairan': 'x'}), isEmpty);
+  });
+
+  test('daftar_cair: boleh_proses di level respons atau per baris; bawaan false', () {
+    final ya = DaftarPencairan.fromJson({
+      'boleh_proses': true,
+      'pencairan': [
+        {'id_pencairan': 1, 'kode': 'PT-1', 'jumlah': 1000, 'status': 'menunggu'},
+      ],
+    });
+    expect(ya.bolehProses, isTrue);
+    expect(ya.daftar.single.menunggu, isTrue);
+    expect(DaftarPencairan.fromJson({'boleh_proses': 1, 'pencairan': []}).bolehProses, isTrue);
+    expect(DaftarPencairan.fromJson({'boleh_proses': false, 'pencairan': []}).bolehProses, isFalse);
+    expect(DaftarPencairan.fromJson({'pencairan': []}).bolehProses, isFalse);
+    final perBaris = DaftarPencairan.fromJson({
+      'pencairan': [
+        {'id_pencairan': 1, 'kode': 'PT-1', 'status': 'menunggu', 'boleh_proses': true},
+      ],
+    });
+    expect(perBaris.bolehProses, isTrue);
+    expect(DaftarPencairan.fromJson({}).daftar, isEmpty);
+  });
+
+  test('laporan memuat riwayat pencairan; validasi nominal ajuan', () {
+    final l = PenitipLaporan.fromJson({
+      'penitip': {'id_penitip': 1, 'nama': 'A', 'sisa_bayar': 16000},
+      'pencairan': [
+        {'id_pencairan': 1, 'kode': 'PT-1', 'jumlah': 6000, 'status': 'menunggu'},
+      ],
+    });
+    expect(l.pencairan.single.kode, 'PT-1');
+    expect(PenitipLaporan.fromJson({}).pencairan, isEmpty);
+    expect(galatAjuanCair(0, 10000), isNotNull);
+    expect(galatAjuanCair(10001, 10000), contains('melebihi'));
+    expect(galatAjuanCair(10000, 10000), isNull);
+    expect(galatAjuanCair(1, 0), isNotNull);
+  });
+
   test('angkaDari: abaikan pemisah, dukung negatif untuk retur', () {
     expect(angkaDari('Rp 75.000'), 75000);
     expect(angkaDari(''), 0);

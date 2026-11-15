@@ -62,6 +62,21 @@ final kantinPenitipProvider = FutureProvider.autoDispose.family<List<KantinPenit
   return KantinPenitip.daftarDari(_data(res.data));
 });
 
+/// Daftar pengajuan pencairan hasil titipan. [status]: menunggu|disetujui|ditolak|semua.
+final kantinPencairanProvider =
+    FutureProvider.autoDispose.family<DaftarPencairan, ({String key, int idPenitip, String status})>((ref, p) async {
+  final res = await ref.watch(dioProvider).get<dynamic>(
+    'kantin/penitip.php',
+    queryParameters: {
+      'key': p.key,
+      'act': 'daftar_cair',
+      'status': p.status,
+      if (p.idPenitip > 0) 'id_penitip': p.idPenitip,
+    },
+  );
+  return DaftarPencairan.fromJson(_data(res.data));
+});
+
 final kantinPenitipLaporanProvider =
     FutureProvider.autoDispose.family<PenitipLaporan, ({String key, int id, String dari, String sampai})>((ref, p) async {
   final res = await ref.watch(dioProvider).get<dynamic>(

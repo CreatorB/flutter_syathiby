@@ -102,7 +102,15 @@ class KantinPenitip {
     required this.hakPenitip,
     required this.dibayar,
     required this.sisaBayar,
+    this.pendingCair = 0,
+    required this.tersediaCair,
   });
+
+  /// Jumlah pengajuan pencairan yang menunggu (rupiah).
+  final int pendingCair;
+
+  /// Batas yang boleh diajukan = sisa_bayar - pending_cair.
+  final int tersediaCair;
 
   final int id;
   final String nama;
@@ -128,6 +136,9 @@ class KantinPenitip {
         hakPenitip: _int(j['hak_penitip']),
         dibayar: _int(j['dibayar']),
         sisaBayar: _int(j['sisa_bayar']),
+        pendingCair: _int(j['pending_cair']),
+        // Server lama tanpa field ini: pakai sisa bayar - pending.
+        tersediaCair: _intN(j['tersedia_cair']) ?? (_int(j['sisa_bayar']) - _int(j['pending_cair'])),
       );
 
   static List<KantinPenitip> daftarDari(Map<String, dynamic> j) =>
@@ -194,8 +205,10 @@ class PenitipLaporan {
     required this.hakTotal,
     required this.dibayar,
     required this.sisa,
+    this.pencairan = const [],
   });
 
+  final List<PenitipPencairan> pencairan;
   final KantinPenitip penitip;
   final List<PenitipProduk> produk;
   final List<PenitipSetoran> setoran;
@@ -212,6 +225,86 @@ class PenitipLaporan {
       hakTotal: _int(r['hak_total']),
       dibayar: _int(r['dibayar']),
       sisa: _int(r['sisa']),
+      pencairan: _list(j['pencairan']).map(PenitipPencairan.fromJson).toList(),
     );
   }
+}
+
+/// Pengajuan pencairan hasil titipan (`penitip.php?act=daftar_cair`).
+class PenitipPencairan {
+  const PenitipPencairan({
+    required this.id,
+    required this.kode,
+    required this.idPenitip,
+    required this.namaPenitip,
+    required this.jumlah,
+    required this.catatan,
+    required this.status,
+    required this.namaPengaju,
+    required this.diajukanPada,
+    required this.namaPemroses,
+    required this.diprosesPada,
+    required this.alasanTolak,
+    required this.noPengeluaran,
+  });
+
+  final int id;
+  final String kode;
+  final int idPenitip;
+  final String namaPenitip;
+  final int jumlah;
+  final String catatan;
+  final String status; // menunggu | disetujui | ditolak
+  final String namaPengaju;
+  final String diajukanPada;
+  final String namaPemroses;
+  final String diprosesPada;
+  final String alasanTolak;
+  final String noPengeluaran;
+
+  bool get menunggu => status == 'menunggu';
+
+  factory PenitipPencairan.fromJson(Map<String, dynamic> j) => PenitipPencairan(
+        id: _int(j['id_pencairan']),
+        kode: _str(j['kode']),
+        idPenitip: _int(j['id_penitip']),
+        namaPenitip: _str(j['nama_penitip']),
+        jumlah: _int(j['jumlah']),
+        catatan: _str(j['catatan']),
+        status: _str(j['status']),
+        namaPengaju: _str(j['nama_pengaju']),
+        diajukanPada: _str(j['diajukan_pada']),
+        namaPemroses: _str(j['nama_pemroses']),
+        diprosesPada: _str(j['diproses_pada']),
+        alasanTolak: _str(j['alasan_tolak']),
+        noPengeluaran: _str(j['no_pengeluaran']),
+      );
+
+  static List<PenitipPencairan> daftarDari(Map<String, dynamic> j) =>
+      _list(j['pencairan']).map(PenitipPencairan.fromJson).toList();
+}
+
+/// Hasil `penitip.php?act=daftar_cair`: daftar + izin memproses.
+/// `boleh_proses` dikirim server di level respons (true hanya untuk admin
+/// keuangan/admin utama); bila ada di tiap baris pun dianggap sama.
+class DaftarPencairan {
+  const DaftarPencairan(this.daftar, this.bolehProses);
+  final List<PenitipPencairan> daftar;
+  final bool bolehProses;
+
+  factory DaftarPencairan.fromJson(Map<String, dynamic> j) {
+    final baris = _list(j['pencairan']);
+    return DaftarPencairan(
+      baris.map(PenitipPencairan.fromJson).toList(),
+      _bool(j['boleh_proses']) || baris.any((b) => _bool(b['boleh_proses'])),
+    );
+  }
+}
+
+/// Validasi nominal pengajuan pencairan di sisi aplikasi (server tetap penentu).
+/// Mengembalikan pesan galat, atau null bila boleh diajukan.
+String? galatAjuanCair(int jumlah, int tersedia) {
+  if (jumlah <= 0) return 'Nominal harus lebih dari 0.';
+  if (jumlah > tersedia) return 'Nominal melebihi yang tersedia dicairkan.';
+  return null;
 }
