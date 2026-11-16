@@ -14,6 +14,7 @@ class PetugasPengajuan with _$PetugasPengajuan {
     @JsonKey(name: 'atasan_nama') String? atasanNama,
     @JsonKey(name: 'atasan_otomatis') int? atasanOtomatis,
     @JsonKey(name: 'tim') List<TimPerbaikan>? tim,
+    @JsonKey(name: 'keuangan') List<TimPerbaikan>? keuangan,
   }) = _PetugasPengajuan;
 
   factory PetugasPengajuan.fromJson(Map<String, dynamic> json) =>

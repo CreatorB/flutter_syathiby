@@ -50,10 +50,17 @@ class AddPengajuanScreen extends HookConsumerWidget {
 
     final petugasPengajuan =
         ref.watch(fetchPetugasPengajuanProvider(key: key)).valueOrNull;
-    final timList = petugasPengajuan?.tim ?? const <TimPerbaikan>[];
-    final pakaiAlurTim = isAlurTim(typeSelected.value?.allocationName);
+    final jenisTerpilih = typeSelected.value?.allocationName;
+    final pakaiAlurTim = isAlurTim(jenisTerpilih);
+    // Perbaikan & jasa: dikerjakan Tim Maintenance, tanpa nominal barang.
+    // Pengadaan: ditugaskan ke Tim Admin Keuangan, ada nominal barang.
+    final tanpaNominal = jenisTanpaNominal(jenisTerpilih);
+    final timList = pakaiAlurTim
+        ? (petugasPengajuan?.tim ?? const <TimPerbaikan>[])
+        : (petugasPengajuan?.keuangan ?? const <TimPerbaikan>[]);
     final timAktif =
         timSelected.value ?? (timList.length == 1 ? timList.first : null);
+    final namaTim = namaTimUntukJenis(jenisTerpilih);
 
     useEffect(() {
       Future.microtask(() async {
@@ -115,28 +122,48 @@ class AddPengajuanScreen extends HookConsumerWidget {
                     context.showErrorMessage('Pilih tim yang mengerjakan');
                     return;
                   }
-                  final adaItemValid = drafts.value.any(
-                    (d) =>
-                        d.nama.trim().isNotEmpty && d.harga > 0 && d.jumlah > 0,
-                  );
+                  if (!pakaiAlurTim && timList.isNotEmpty && timAktif == null) {
+                    context.showErrorMessage('Pilih tim admin keuangan');
+                    return;
+                  }
+                  // Perbaikan: tanpa nominal, cukup keterangan yang perlu
+                  // diperbaiki. Pengadaan: minimal satu barang bernominal.
+                  final adaItemValid = tanpaNominal
+                      ? drafts.value.any(
+                          (d) =>
+                              d.nama.trim().isNotEmpty ||
+                              d.deskripsi.trim().isNotEmpty,
+                        )
+                      : drafts.value.any(
+                          (d) =>
+                              d.nama.trim().isNotEmpty &&
+                              d.harga > 0 &&
+                              d.jumlah > 0,
+                        );
                   if (!adaItemValid) {
                     context.showErrorMessage(
-                      'Isi minimal satu barang: nama, nominal, dan jumlah',
+                      tanpaNominal
+                          ? 'Tuliskan apa yang perlu diperbaiki'
+                          : 'Isi minimal satu barang: nama, nominal, dan jumlah',
                     );
                     return;
                   }
                   final items = drafts.value
                       .where(
-                        (d) =>
-                            d.nama.trim().isNotEmpty &&
-                            d.harga > 0 &&
-                            d.jumlah > 0,
+                        (d) => tanpaNominal
+                            ? d.nama.trim().isNotEmpty ||
+                                d.deskripsi.trim().isNotEmpty
+                            : d.nama.trim().isNotEmpty &&
+                                d.harga > 0 &&
+                                d.jumlah > 0,
                       )
                       .map(
                         (d) => Barang(
-                          namaItem: d.nama.trim(),
-                          amountProduct: d.jumlah,
-                          newPrice: '${d.harga}',
+                          namaItem: d.nama.trim().isEmpty
+                              ? 'Perbaikan'
+                              : d.nama.trim(),
+                          amountProduct: tanpaNominal ? 1 : d.jumlah,
+                          newPrice: tanpaNominal ? '0' : '${d.harga}',
                           notes: d.deskripsi.trim(),
                         ),
                       )
@@ -157,7 +184,7 @@ class AddPengajuanScreen extends HookConsumerWidget {
                           paymentType: 1,
                           totalOrder: total,
                           product: items,
-                          idTim: pakaiAlurTim ? timAktif?.id : null,
+                          idTim: timAktif?.id,
                         ),
                       );
                   if (result == null || !context.mounted) return;
@@ -284,7 +311,7 @@ class AddPengajuanScreen extends HookConsumerWidget {
                       ],
                     ),
                   ),
-                  if (pakaiAlurTim && timList.isNotEmpty)
+                  if (timList.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
@@ -298,18 +325,17 @@ class AddPengajuanScreen extends HookConsumerWidget {
                         popupProps: const PopupProps.menu(
                           showSelectedItems: true,
                         ),
-                        dropdownDecoratorProps:
-                            const DropDownDecoratorProps(
+                        dropdownDecoratorProps: DropDownDecoratorProps(
                           dropdownSearchDecoration: InputDecoration(
-                            hintText: 'Pilih tim yang mengerjakan',
-                            labelText: 'Tim Perbaikan *',
+                            hintText: 'Pilih $namaTim',
+                            labelText: '$namaTim *',
                             border: OutlineInputBorder(),
                             isDense: true,
                             prefixIcon: Icon(Icons.engineering),
                           ),
                         ),
                         validator: (value) =>
-                            value == null ? 'Pilih tim perbaikan' : null,
+                            value == null ? 'Pilih $namaTim' : null,
                         onChanged: (value) {
                           timSelected.value = value;
                         },
@@ -321,11 +347,16 @@ class AddPengajuanScreen extends HookConsumerWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Rincian Barang', style: context.bodyMediumBold),
+                        Text(
+                          tanpaNominal
+                              ? 'Yang Perlu Diperbaiki'
+                              : 'Rincian Barang',
+                          style: context.bodyMediumBold,
+                        ),
                         TextButton.icon(
                           onPressed: tambahItem,
                           icon: const Icon(Icons.add),
-                          label: const Text('Tambah Barang'),
+                          label: Text(tanpaNominal ? 'Tambah' : 'Tambah Barang'),
                         ),
                       ],
                     ),
@@ -334,6 +365,7 @@ class AddPengajuanScreen extends HookConsumerWidget {
                     _ItemRow(
                       key: ValueKey('item-${drafts.value[index].id}'),
                       draft: drafts.value[index],
+                      tanpaNominal: tanpaNominal,
                       formatRupiah: (value) =>
                           ref.read(formatCurrencyProvider('$value')),
                       onChanged: () => drafts.value = [...drafts.value],
@@ -355,11 +387,11 @@ class AddPengajuanScreen extends HookConsumerWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Total Pengajuan',
+                        tanpaNominal ? 'Perbaikan' : 'Total Pengajuan',
                         style: context.bodyMediumBold,
                       ),
                       Text(
-                        totalFormat,
+                        tanpaNominal ? 'Tanpa nominal' : totalFormat,
                         style: context.bodyMediumBold?.copyWith(
                           color: context.colorPrimary,
                         ),
@@ -383,11 +415,16 @@ class AddPengajuanScreen extends HookConsumerWidget {
 
   Widget _buildFlowInfo(BuildContext context, {required bool isAlurTim}) {
     final alurText = isAlurTim
-        ? 'Alur perbaikan/jasa: Diajukan -> ACC Atasan -> Mudir (otomatis) '
-            '-> Dikerjakan Tim Perbaikan -> Klaim selesai -> Anda mengesahkan.'
-        : 'Alur pengadaan: diajukan -> ACC atasan -> Mudir -> ACC & Cairkan '
-            'Dana oleh Keuangan -> menunggu barang datang -> Anda mengesahkan '
-            'selesai.';
+        ? 'Diajukan -> ACC Atasan -> ACC Mudir (otomatis) -> Dikerjakan '
+            '$namaTimMaintenance -> Klaim selesai -> Anda mengesahkan. '
+            'Tanpa nominal barang; yang diperbaiki ditulis bebas. Bisa '
+            'ditolak selama belum dikerjakan.'
+        : 'Diajukan -> ACC Atasan -> ACC Mudir (otomatis) -> ACC & Cairkan Dana '
+            'oleh $namaTimKeuangan -> barang datang -> Anda mengesahkan. '
+            'Bisa ditolak selama belum dicairkan.';
+    final judul = isAlurTim
+        ? 'Permintaan perbaikan ke $namaTimMaintenance'
+        : 'Pengadaan barang ke $namaTimKeuangan';
     return Card(
       margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
       child: Padding(
@@ -395,7 +432,7 @@ class AddPengajuanScreen extends HookConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Isi barang sendiri, tanpa katalog', style: context.bodyMediumBold),
+            Text(judul, style: context.bodyMediumBold),
             const SizedBox(height: 4),
             Text(alurText, style: context.bodySmall),
           ],
@@ -421,12 +458,16 @@ class _ItemRow extends StatefulWidget {
   const _ItemRow({
     super.key,
     required this.draft,
+    required this.tanpaNominal,
     required this.formatRupiah,
     required this.onChanged,
     required this.onRemove,
   });
 
   final _ItemDraft draft;
+
+  /// Perbaikan: nama & deskripsi saja, tanpa nominal dan jumlah.
+  final bool tanpaNominal;
   final String Function(double) formatRupiah;
   final VoidCallback onChanged;
   final VoidCallback onRemove;
@@ -476,15 +517,19 @@ class _ItemRowState extends State<_ItemRow> {
                   child: TextFormField(
                     controller: nama,
                     textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       isDense: true,
-                      border: OutlineInputBorder(),
-                      labelText: 'Nama Barang *',
-                      prefixIcon: Icon(Icons.inventory_2_outlined),
+                      border: const OutlineInputBorder(),
+                      labelText: widget.tanpaNominal
+                          ? 'Barang / Perkara yang perlu diperbaiki *'
+                          : 'Nama Barang *',
+                      prefixIcon: const Icon(Icons.inventory_2_outlined),
                     ),
                     validator: (value) =>
                         (value == null || value.trim().isEmpty)
-                            ? 'Nama barang wajib diisi'
+                            ? (widget.tanpaNominal
+                                ? 'Tuliskan yang perlu diperbaiki'
+                                : 'Nama barang wajib diisi')
                             : null,
                     onChanged: (value) {
                       widget.draft.nama = value;
@@ -499,8 +544,9 @@ class _ItemRowState extends State<_ItemRow> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Row(
+            if (!widget.tanpaNominal) ...[
+              const SizedBox(height: 8),
+              Row(
               children: [
                 Expanded(
                   child: TextFormField(
@@ -568,7 +614,8 @@ class _ItemRowState extends State<_ItemRow> {
                   ),
                 ),
               ],
-            ),
+              ),
+            ],
             const SizedBox(height: 8),
             TextFormField(
               controller: deskripsi,
@@ -584,11 +631,13 @@ class _ItemRowState extends State<_ItemRow> {
                 widget.onChanged();
               },
             ),
-            const SizedBox(height: 6),
-            Text(
-              'Subtotal: $subtotalFormat',
-              style: context.bodySmall?.copyWith(color: context.colorPrimary),
-            ),
+            if (!widget.tanpaNominal) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Subtotal: $subtotalFormat',
+                style: context.bodySmall?.copyWith(color: context.colorPrimary),
+              ),
+            ],
           ],
         ),
       ),

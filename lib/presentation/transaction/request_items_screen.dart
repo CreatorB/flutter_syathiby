@@ -2,15 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:syathiby/di/providers.dart';
-import 'package:syathiby/models/transaction/transaction.dart';
+import 'package:syathiby/presentation/transaction/pengajuan_card.dart';
 import 'package:syathiby/presentation/transaction/transaction_controller.dart';
-import 'package:syathiby/utils/extension/color.dart';
 import 'package:syathiby/utils/extension/typography.dart';
 import 'package:syathiby/utils/extension/ui.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../routing/app_router.dart';
 
+/// Antrean tugas: pengajuan yang perlu tindakan staff ini (ACC atasan, ACC
+/// Mudir, ACC & cairkan dana Tim Admin Keuangan, kerjakan Tim Maintenance,
+/// atau mengesahkan sebagai pemohon).
 class RequestItemsScreen extends HookConsumerWidget {
   const RequestItemsScreen({super.key});
 
@@ -24,13 +26,13 @@ class RequestItemsScreen extends HookConsumerWidget {
         next.showToastOnError(context);
       },
     );
-    final fetchHistoryTransaction = ref.watch(
+    final fetchRequestItems = ref.watch(
       fetchRequestItemsProvider(key: key),
     );
 
-    final itemCount = fetchHistoryTransaction.isLoading
+    final itemCount = fetchRequestItems.isLoading
         ? 10
-        : fetchHistoryTransaction.valueOrNull?.length ?? 0;
+        : fetchRequestItems.valueOrNull?.length ?? 0;
 
     return Scaffold(
       appBar: AppBar(
@@ -40,19 +42,42 @@ class RequestItemsScreen extends HookConsumerWidget {
         onRefresh: () => ref.refresh(
           fetchRequestItemsProvider(key: key).future,
         ),
-        child: Skeletonizer(
-          enabled: fetchHistoryTransaction.isLoading,
+        child: (!fetchRequestItems.isLoading &&
+                (fetchRequestItems.hasError ||
+                    fetchRequestItems.valueOrNull?.isEmpty != false))
+            ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  const SizedBox(height: 120),
+                  Icon(
+                    fetchRequestItems.hasError
+                        ? Icons.error_outline
+                        : Icons.task_alt,
+                    size: 56,
+                    color: Colors.grey,
+                  ),
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Text(
+                      fetchRequestItems.hasError
+                          ? 'Gagal memuat antrean. Tarik ke bawah untuk mencoba lagi.'
+                          : 'Tidak ada pengajuan yang perlu tindakan Anda saat ini.',
+                      textAlign: TextAlign.center,
+                      style: context.bodyMedium,
+                    ),
+                  ),
+                ],
+              )
+            : Skeletonizer(
+          enabled: fetchRequestItems.isLoading,
           child: ListView.builder(
             itemCount: itemCount,
             itemBuilder: (context, index) {
               final history =
-                  fetchHistoryTransaction.valueOrNull?.elementAtOrNull(index);
-              final status = history?.status;
-              final isStatusProcess = status == "pengajuan";
-              final isStatusRejected = status == "ditolak";
-              final isStatusAccepted = status == "diselesaikan";
-
-              return ListTile(
+                  fetchRequestItems.valueOrNull?.elementAtOrNull(index);
+              return PengajuanCard(
+                history: history,
                 onTap: () {
                   context.goNamed(
                     AppRoute.detailRequestTransaction.name,
@@ -62,61 +87,6 @@ class RequestItemsScreen extends HookConsumerWidget {
                     },
                   );
                 },
-                title: Text(
-                  '${history?.noInvoice}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.titleMediumBold,
-                ),
-                subtitle: Text(
-                  _subtitle(history),
-                  style: context.bodyMedium,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                trailing: Transform.translate(
-                  offset: const Offset(12, 0),
-                  child: Chip(
-                    label: Text(
-                      '$status',
-                      style: context.bodySmall?.copyWith(
-                        color: isStatusAccepted
-                            ? context.colorOnPrimary
-                            : isStatusRejected
-                                ? context.colorOnError
-                                : context.colorOnSurfaceVariant,
-                      ),
-                    ),
-                    shape: const StadiumBorder(
-                      side: BorderSide(),
-                    ),
-                    backgroundColor: isStatusAccepted
-                        ? context.colorPrimary
-                        : isStatusRejected
-                            ? context.colorError
-                            : context.colorSurfaceVariant,
-                    side: BorderSide(
-                      color: isStatusAccepted
-                          ? context.colorPrimary
-                          : isStatusRejected
-                              ? context.colorError
-                              : context.colorOnSurfaceVariant,
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                  ),
-                ),
-                leading: FloatingActionButton(
-                  onPressed: null,
-                  elevation: 0,
-                  shape: const CircleBorder(),
-                  heroTag: '${history?.noInvoice}',
-                  child: Icon(
-                    _isPerbaikan(history)
-                        ? Icons.build
-                        : Icons.medical_information,
-                    color: context.colorPrimary,
-                  ),
-                ),
               );
             },
           ),
@@ -125,16 +95,3 @@ class RequestItemsScreen extends HookConsumerWidget {
     );
   }
 }
-
-/// Baris kedua: jenis pengajuan dan pemohon (field opsional dari server baru).
-String _subtitle(Transaction? history) {
-  final info = [history?.jenisKegiatan, history?.pemohon]
-      .whereType<String>()
-      .where((e) => e.trim().isNotEmpty)
-      .join(' - ');
-  final bidang = history?.nameTable ?? '';
-  return info.isEmpty ? bidang : '$bidang\n$info';
-}
-
-bool _isPerbaikan(Transaction? history) =>
-    history?.jenisKegiatan?.trim().toLowerCase() == 'perbaikan';
