@@ -62,7 +62,13 @@ def main() -> int:
             if baru == file_path.name:
                 continue
 
-            file_path.rename(file_path.with_name(baru))
+            target = file_path.with_name(baru)
+            if target.exists():
+                # Nama versi lama masih ada (build sebelumnya tidak dibersihkan).
+                # Isinya sama persis karena nama berisi md5 isi file.
+                file_path.unlink()
+            else:
+                file_path.rename(target)
             font['asset'] = str(Path(asset).with_name(baru))
 
             key_lama = 'assets/' + asset

@@ -24,10 +24,10 @@ const _actionLabels = <String, String>{
   'reject_manager': 'Tolak (Atasan)',
   'aprove_mudir': 'Mudir Setuju',
   'reject_mudir': 'Mudir Menolak',
-  'aprove_keuangan': 'ACC Keuangan & Cairkan Dana',
-  'reject_keuangan': 'Keuangan Menolak',
-  'confirm_maintenance': 'Terima & Kerjakan (Tim Perbaikan)',
-  'selesai_maintenance': 'Klaim Selesai (Tim Perbaikan)',
+  'aprove_keuangan': 'ACC & Cairkan Dana (Tim Admin Keuangan)',
+  'reject_keuangan': 'Tim Admin Keuangan Menolak',
+  'confirm_maintenance': 'Terima & Kerjakan (Tim Maintenance)',
+  'selesai_maintenance': 'Klaim Selesai (Tim Maintenance)',
   'finish_user': 'Barang Datang - Selesai (Pemohon)',
 };
 
@@ -65,8 +65,10 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
     final formatDate = ref.watch(
       formatDateProvider('${invoice?.date}', format: 'EEEE, dd MMMM yyyy'),
     );
-    final totalRequest =
-        ref.watch(formatCurrencyProvider('${invoice?.totalOrder}'));
+    final tanpaNominal = jenisTanpaNominal(invoice?.jenisKegiatan);
+    final totalRequest = tanpaNominal
+        ? 'Tanpa nominal'
+        : ref.watch(formatCurrencyProvider('${invoice?.totalOrder}'));
     final pakaiAlurTim = isAlurTim(invoice?.jenisKegiatan);
     final aksi = invoice?.aksi;
     // aksi null = server lama, tampilkan semua aksi seperti sebelumnya.
@@ -293,15 +295,15 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
                         ],
                       ),
                     ],
-                    if (pakaiAlurTim) ...[
+                    ...[
                       const SizedBox(height: 10),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Tim Perbaikan',
-                            style: TextStyle(
+                          Text(
+                            namaTimUntukJenis(invoice?.jenisKegiatan),
+                            style: const TextStyle(
                               fontSize: 14,
                             ),
                           ),
@@ -340,7 +342,7 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
                           ),
                         ),
                         Text(
-                          invoice?.status?.toUpperCase() ?? status ?? '',
+                          labelStatus(invoice?.status ?? status),
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
@@ -348,6 +350,8 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 8),
+                    _ProgressAlur(jenis: invoice?.jenisKegiatan, status: invoice?.status ?? status),
                   ],
                 ),
               ),
@@ -857,6 +861,41 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+
+/// Progress bar alur pengajuan (ACC Atasan -> Mudir -> Tim -> Selesai).
+class _ProgressAlur extends StatelessWidget {
+  const _ProgressAlur({required this.jenis, required this.status});
+
+  final String? jenis;
+  final String? status;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = progressAlur(jenis, status);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: progress.nilai,
+            minHeight: 6,
+            backgroundColor: context.colorSurfaceVariant,
+            color: progress.ditolak ? context.colorError : context.colorPrimary,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          progress.ditolak
+              ? 'Ditolak'
+              : '${progress.ringkas} · ${progress.label}',
+          style: context.bodySmall,
+        ),
+      ],
     );
   }
 }
