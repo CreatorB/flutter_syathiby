@@ -24,8 +24,19 @@ class Transaction with _$Transaction {
     @JsonKey(name: 'jeniskegiatan') String? jenisKegiatan,
     @JsonKey(name: 'name_kegiatan') String? nameKegiatan,
     @JsonKey(name: 'pemohon') String? pemohon,
+    @JsonKey(name: 'tujuan') String? tujuan,
+    @JsonKey(name: 'nama_tim') String? namaTim,
+    @JsonKey(name: 'id_tim') int? idTim,
+    @JsonKey(name: 'totalprice', fromJson: _parseNominal) double? totalPrice,
   }) = _Transaction;
 
   factory Transaction.fromJson(Map<String, dynamic> json) =>
       _$TransactionFromJson(json);
+}
+
+/// Server bisa mengirim nominal sebagai angka ("30000") maupun teks ("30000.00").
+double? _parseNominal(dynamic value) {
+  if (value == null) return null;
+  if (value is num) return value.toDouble();
+  return double.tryParse(value.toString().replaceAll(',', '.'));
 }

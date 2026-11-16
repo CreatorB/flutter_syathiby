@@ -4,15 +4,17 @@ import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:syathiby/di/providers.dart';
+import 'package:syathiby/models/transaction/history_transaction.dart';
 import 'package:syathiby/models/transaction/transaction.dart';
 import 'package:syathiby/presentation/transaction/transaction_controller.dart';
-import 'package:syathiby/utils/extension/color.dart';
+import 'package:syathiby/presentation/transaction/pengajuan_card.dart';
 import 'package:syathiby/utils/extension/typography.dart';
 import 'package:syathiby/utils/extension/ui.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../routing/app_router.dart';
 
+/// Riwayat pengajuan (pengadaan + perbaikan) dengan status & progres alur.
 class HistoryTransactionScreen extends HookConsumerWidget {
   const HistoryTransactionScreen({super.key});
 
@@ -22,9 +24,11 @@ class HistoryTransactionScreen extends HookConsumerWidget {
     final key = '${currentUser?.key}';
     final initialDate = DateTime.now();
     final startDate = useState<DateTime>(
-      initialDate.subtract(const Duration(days: 7)),
+      initialDate.subtract(const Duration(days: 30)),
     );
     final endDate = useState<DateTime>(initialDate);
+    // Filter jenis: '' = semua, selain itu nama jenis kegiatannya.
+    final filterJenis = useState<String>('');
     final startDateFormat = DateFormat('yyyy-MM-dd').format(startDate.value);
     final endDateFormat = DateFormat('yyyy-MM-dd').format(endDate.value);
     ref.listen(
@@ -46,16 +50,37 @@ class HistoryTransactionScreen extends HookConsumerWidget {
         status: '',
       ),
     );
-    final filterHistoryTransaction = fetchHistoryTransaction.valueOrNull
-        ?.where(
-          (element) => element.detail?.isNotEmpty == true,
-        )
+    final semua =
+        fetchHistoryTransaction.valueOrNull ?? const <HistoryTransaction>[];
+    final filterHistoryTransaction = semua
+        .where((element) => element.detail?.isNotEmpty == true)
         .toList()
         .reversed;
+    final jenisTersedia = <String>{
+      for (final harian in filterHistoryTransaction)
+        for (final item in harian.detail ?? const <Transaction>[])
+          if ((item.jenisKegiatan ?? '').trim().isNotEmpty)
+            item.jenisKegiatan!.trim(),
+    }.toList()
+      ..sort();
+    final daftarTersaring = filterHistoryTransaction
+        .map(
+          (harian) => harian.copyWith(
+            detail: (harian.detail ?? const <Transaction>[])
+                .where(
+                  (item) => filterJenis.value.isEmpty ||
+                      (item.jenisKegiatan ?? '').trim() ==
+                          filterJenis.value,
+                )
+                .toList(),
+          ),
+        )
+        .where((harian) => harian.detail?.isNotEmpty == true)
+        .toList();
 
     final itemCount = fetchHistoryTransaction.isLoading
         ? 10
-        : filterHistoryTransaction?.length ?? 0;
+        : daftarTersaring.length;
 
     return Scaffold(
       appBar: AppBar(
@@ -98,7 +123,7 @@ class HistoryTransactionScreen extends HookConsumerWidget {
         ),
         child: (!fetchHistoryTransaction.isLoading &&
                 (fetchHistoryTransaction.hasError ||
-                    filterHistoryTransaction?.isEmpty != false))
+                    daftarTersaring.isEmpty))
             ? ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
@@ -126,18 +151,21 @@ class HistoryTransactionScreen extends HookConsumerWidget {
             : Skeletonizer(
           enabled: fetchHistoryTransaction.isLoading,
           child: ListView.builder(
-            itemCount: itemCount,
+            itemCount: itemCount + 1,
             itemBuilder: (context, index) {
-              final historyTransaction =
-                  filterHistoryTransaction?.elementAtOrNull(index);
+              if (index == 0) {
+                return _FilterJenis(
+                  jenisTersedia: jenisTersedia,
+                  terpilih: filterJenis.value,
+                  onPilih: (nilai) => filterJenis.value = nilai,
+                );
+              }
+              final harian = daftarTersaring.elementAtOrNull(index - 1);
               final dateFormat = ref.watch(
-                formatDateProvider('${historyTransaction?.date}',
+                formatDateProvider('${harian?.date}',
                     format: 'EEE, dd MMMM yyyy'),
               );
-              final items = historyTransaction?.detail?.reversed ?? [];
-              final total = ref.watch(
-                formatCurrencyProvider('${historyTransaction?.totalorderall}'),
-              );
+              final items = harian?.detail?.reversed ?? [];
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -150,7 +178,10 @@ class HistoryTransactionScreen extends HookConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text('$dateFormat'),
-                        Text(total),
+                        Text(
+                          '${items.length} pengajuan',
+                          style: context.bodySmall,
+                        ),
                       ],
                     ),
                   ),
@@ -158,14 +189,10 @@ class HistoryTransactionScreen extends HookConsumerWidget {
                     physics: const NeverScrollableScrollPhysics(),
                     shrinkWrap: true,
                     itemCount: items.length,
-                    itemBuilder: (context, index) {
-                      final history = items.elementAtOrNull(index);
-                      final status = history?.status;
-                      final isStatusProcess = status == "pengajuan";
-                      final isStatusRejected = status == "ditolak";
-                      final isStatusAccepted = status == "diselesaikan";
-
-                      return ListTile(
+                    itemBuilder: (context, itemIndex) {
+                      final history = items.elementAtOrNull(itemIndex);
+                      return PengajuanCard(
+                        history: history,
                         onTap: () {
                           context.goNamed(
                             AppRoute.detailRequestTransaction.name,
@@ -175,61 +202,6 @@ class HistoryTransactionScreen extends HookConsumerWidget {
                             },
                           );
                         },
-                        title: Text(
-                          '${history?.noInvoice}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.titleMediumBold,
-                        ),
-                        subtitle: Text(
-                          _subtitle(history),
-                          style: context.bodyMedium,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        trailing: Transform.translate(
-                          offset: const Offset(12, 0),
-                          child: Chip(
-                            label: Text(
-                              '$status',
-                              style: context.bodySmall?.copyWith(
-                                color: isStatusAccepted
-                                    ? context.colorOnPrimary
-                                    : isStatusRejected
-                                        ? context.colorOnError
-                                        : context.colorOnSurfaceVariant,
-                              ),
-                            ),
-                            shape: const StadiumBorder(
-                              side: BorderSide(),
-                            ),
-                            backgroundColor: isStatusAccepted
-                                ? context.colorPrimary
-                                : isStatusRejected
-                                    ? context.colorError
-                                    : context.colorSurfaceVariant,
-                            side: BorderSide(
-                              color: isStatusAccepted
-                                  ? context.colorPrimary
-                                  : isStatusRejected
-                                      ? context.colorError
-                                      : context.colorOnSurfaceVariant,
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                          ),
-                        ),
-                        leading: FloatingActionButton(
-                          onPressed: null,
-                          elevation: 0,
-                          shape: const CircleBorder(),
-                          heroTag: '${history?.noInvoice}',
-                          child: Icon(
-                            _isPerbaikan(history)
-                                ? Icons.build
-                                : Icons.medical_information,
-                            color: context.colorPrimary,
-                          ),
-                        ),
                       );
                     },
                   ),
@@ -241,8 +213,7 @@ class HistoryTransactionScreen extends HookConsumerWidget {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          // Form pengajuan bebas: pemohon isi sendiri nama barang, nominal,
-          // jumlah, dan deskripsi (katalog tidak dipakai lagi).
+          // Form pengajuan: perbaikan tanpa nominal, pengadaan dengan nominal.
           context.goNamed(AppRoute.addPengajuan.name);
         },
         label: const Text('Tambah'),
@@ -252,15 +223,40 @@ class HistoryTransactionScreen extends HookConsumerWidget {
   }
 }
 
-/// Baris kedua: jenis pengajuan dan pemohon (field opsional dari server baru).
-String _subtitle(Transaction? history) {
-  final info = [history?.jenisKegiatan, history?.pemohon]
-      .whereType<String>()
-      .where((e) => e.trim().isNotEmpty)
-      .join(' - ');
-  final bidang = history?.nameTable ?? '';
-  return info.isEmpty ? bidang : '$bidang\n$info';
+/// Filter jenis pengajuan (Semua / Pengadaan / Perbaikan / Jasa).
+class _FilterJenis extends StatelessWidget {
+  const _FilterJenis({
+    required this.jenisTersedia,
+    required this.terpilih,
+    required this.onPilih,
+  });
+
+  final List<String> jenisTersedia;
+  final String terpilih;
+  final ValueChanged<String> onPilih;
+
+  @override
+  Widget build(BuildContext context) {
+    if (jenisTersedia.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Wrap(
+        spacing: 8,
+        children: [
+          ChoiceChip(
+            label: const Text('Semua'),
+            selected: terpilih.isEmpty,
+            onSelected: (_) => onPilih(''),
+          ),
+          for (final jenis in jenisTersedia)
+            ChoiceChip(
+              label: Text(jenis),
+              selected: terpilih == jenis,
+              onSelected: (_) => onPilih(jenis),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
-bool _isPerbaikan(Transaction? history) =>
-    history?.jenisKegiatan?.trim().toLowerCase() == 'perbaikan';
