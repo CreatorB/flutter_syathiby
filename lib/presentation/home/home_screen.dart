@@ -1008,20 +1008,6 @@ return Scaffold(
                     iconData: Icons.history_edu,
                     goToRouteName: AppRoute.activityPresence.name,
                   ),
-                  if (presenceData?.menuPengadaan != 0)
-                    MenuGrid(
-                      title: 'Pengadaan',
-                      iconData: Icons.inventory_2_outlined,
-                      goToRouteName: AppRoute.addPengajuan.name,
-                      queryParameters: {'jenis': 'Pengadaan Barang'},
-                    ),
-                  if (presenceData?.menuPerbaikan != 0)
-                    MenuGrid(
-                      title: 'Perbaikan',
-                      iconData: Icons.build_outlined,
-                      goToRouteName: AppRoute.addPengajuan.name,
-                      queryParameters: {'jenis': 'Perbaikan'},
-                    ),
                   if (presenceData?.menuKantin == 1 ||
                       presenceData?.adminUtama == 1)
                     MenuGrid(
@@ -1032,13 +1018,29 @@ return Scaffold(
                 ],
               ),
               buildListMenu(
-                title: 'Permohonan Barang/Dana',
-                // Semua staff boleh mengajukan dan memantau status pengajuan.
+                title: 'Pengadaan & Perbaikan',
+                // Satu modul: 2 form pengajuan + 2 daftar (semua pengajuan dan
+                // antrean tugas). Menu sebelumnya.scatter di "Menu Lainnya" dan
+                // "Permohonan Barang/Dana" sehingga terlihat seperti dua modul.
                 enabled: currentUser != null,
                 menus: [
+                  if (presenceData?.menuPengadaan != 0)
+                    MenuGrid(
+                      title: 'Ajukan Pengadaan',
+                      iconData: Icons.inventory_2,
+                      goToRouteName: AppRoute.addPengajuan.name,
+                      queryParameters: {'jenis': 'Pengadaan Barang'},
+                    ),
+                  if (presenceData?.menuPerbaikan != 0)
+                    MenuGrid(
+                      title: 'Ajukan Perbaikan',
+                      iconData: Icons.handyman,
+                      goToRouteName: AppRoute.addPengajuan.name,
+                      queryParameters: {'jenis': 'Perbaikan'},
+                    ),
                   MenuGrid(
-                    title: 'Permohonan',
-                    iconData: Icons.monetization_on,
+                    title: 'Semua Pengajuan',
+                    iconData: Icons.receipt_long,
                     goToRouteName: AppRoute.historyTransaction.name,
                     queryParameters: {
                       'level': safeLevel
@@ -1046,7 +1048,7 @@ return Scaffold(
                   ),
                   MenuGrid(
                     title: 'Antrean Tugas',
-                    iconData: Icons.pending_actions_outlined,
+                    iconData: Icons.pending_actions,
                     goToRouteName: AppRoute.requestItems.name,
                   ),
                 ],
