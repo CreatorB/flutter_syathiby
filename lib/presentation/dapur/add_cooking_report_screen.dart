@@ -86,6 +86,7 @@ class AddCokingReportScreen extends HookConsumerWidget {
                 ref.invalidate(fetchReportCookingProvider);
                 context.pop();
               },
+              style: TextButton.styleFrom(foregroundColor: Colors.white),
               child: const Text('Simpan'),
             )
           ],

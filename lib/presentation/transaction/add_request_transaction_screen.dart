@@ -151,6 +151,7 @@ class AddRequestTransactionScreen extends HookConsumerWidget {
                   ref.invalidate(fetchHistoryTransactionProvider);
                   context.goNamed(AppRoute.historyTransaction.name);
                 },
+                style: TextButton.styleFrom(foregroundColor: Colors.white),
                 child: const Text('Simpan'),
               )
             ],

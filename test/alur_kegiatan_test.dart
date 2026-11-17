@@ -31,6 +31,7 @@ void main() {
       expect(labelStatus('pengajuan'), 'Menunggu ACC Atasan');
       expect(labelStatus('dikerjakan maintenance'), 'Dikerjakan Tim Maintenance');
       expect(labelStatus('diselesaikan'), 'Selesai');
+      expect(labelStatus('diterima'), 'Selesai');
       expect(labelStatus('ditolak'), 'Ditolak');
     });
 
@@ -60,9 +61,12 @@ void main() {
     });
 
     test('status terakhir berarti selesai', () {
-      final selesai = progressAlur('Pengadaan Barang', 'diselesaikan');
-      expect(selesai.selesai, isTrue);
-      expect(selesai.index, langkahAlur('Pengadaan Barang').length - 1);
+      // Status akhir dari server adalah 'diterima' ('diselesaikan' untuk data lama).
+      for (final status in ['diterima', 'diselesaikan']) {
+        final selesai = progressAlur('Pengadaan Barang', status);
+        expect(selesai.selesai, isTrue, reason: status);
+        expect(selesai.index, langkahAlur('Pengadaan Barang').length - 1);
+      }
     });
 
     test('status ditolak ditandai khusus', () {

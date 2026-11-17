@@ -19,17 +19,23 @@ import '../../utils/custom_avatar_widget.dart';
 
 /// Nilai `value` untuk `pengadaan/confirm.php` beserta labelnya, urut sesuai
 /// alur. Server baru mengirim `struk.aksi` berisi subset nilai ini.
-const _actionLabels = <String, String>{
-  'aprove_manager': 'ACC Atasan',
-  'reject_manager': 'Tolak (Atasan)',
-  'aprove_mudir': 'Mudir Setuju',
-  'reject_mudir': 'Mudir Menolak',
-  'aprove_keuangan': 'ACC & Cairkan Dana (Tim Admin Keuangan)',
-  'reject_keuangan': 'Tim Admin Keuangan Menolak',
-  'confirm_maintenance': 'Terima & Kerjakan (Tim Maintenance)',
-  'selesai_maintenance': 'Klaim Selesai (Tim Maintenance)',
-  'finish_user': 'Barang Datang - Selesai (Pemohon)',
-};
+/// Label aksi. Alur perbaikan (Tim Maintenance) dan alur pengadaan (Tim Admin
+/// Keuangan) memakai nilai aksi yang sama, tapi kalimat untuk pemohon berbeda:
+/// pada perbaikan pemohon mengesahkan pekerjaan yang selesai, bukan barang
+/// yang datang.
+Map<String, String> _actionLabels(bool alurTim) => <String, String>{
+      'aprove_manager': 'ACC Atasan',
+      'reject_manager': 'Tolak (Atasan)',
+      'aprove_mudir': 'Mudir Setuju',
+      'reject_mudir': 'Mudir Menolak',
+      'aprove_keuangan': 'ACC & Cairkan Dana (Tim Admin Keuangan)',
+      'reject_keuangan': 'Tim Admin Keuangan Menolak',
+      'confirm_maintenance': 'Terima & Kerjakan (Tim Maintenance)',
+      'selesai_maintenance': 'Klaim Selesai (Tim Maintenance)',
+      'finish_user': alurTim
+          ? 'Pekerjaan Selesai - Disesahkan (Pemohon)'
+          : 'Barang Datang - Selesai (Pemohon)',
+    };
 
 class DetailRequestTransactionScreen extends HookConsumerWidget {
   final String? invoiceId;
@@ -72,9 +78,10 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
     final pakaiAlurTim = isAlurTim(invoice?.jenisKegiatan);
     final aksi = invoice?.aksi;
     // aksi null = server lama, tampilkan semua aksi seperti sebelumnya.
+    final labelAksi = _actionLabels(pakaiAlurTim);
     final actions = aksi == null
-        ? _actionLabels.keys.toList()
-        : aksi.where(_actionLabels.containsKey).toList();
+        ? labelAksi.keys.toList()
+        : aksi.where(labelAksi.containsKey).toList();
     final showActions = !fetchDetailRequest.isLoading && actions.isNotEmpty;
     final atasanNama = invoice?.atasanNama ?? '';
     final timNama = invoice?.tim?.trim() ?? '';
@@ -512,7 +519,7 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
                     ? statusSelected.value
                     : null,
                 items: actions,
-                itemAsString: (value) => _actionLabels[value] ?? value,
+                itemAsString: (value) => labelAksi[value] ?? value,
                 dropdownDecoratorProps: const DropDownDecoratorProps(
                   dropdownSearchDecoration: InputDecoration(
                     hintText: 'Ubah Status Permohonan',

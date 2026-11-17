@@ -15,7 +15,7 @@ class Transaction with _$Transaction {
     @JsonKey(name: 'date') String? date,
     @JsonKey(name: 'payment') String? payment,
     @JsonKey(name: 'totalorder') String? totalOrder,
-    @JsonKey(name: 'totalpay') int? totalPay,
+    @JsonKey(name: 'totalpay', fromJson: _parseNominalBulat) int? totalPay,
     @JsonKey(name: 'nominal') String? nominal,
     @JsonKey(name: 'by') String? by,
     @JsonKey(name: 'status') String? status,
@@ -39,4 +39,11 @@ double? _parseNominal(dynamic value) {
   if (value == null) return null;
   if (value is num) return value.toDouble();
   return double.tryParse(value.toString().replaceAll(',', '.'));
+}
+
+/// Nilai bulat bisa datang sebagai angka atau teks (server lama mengirim "").
+int? _parseNominalBulat(dynamic value) {
+  if (value == null) return null;
+  if (value is num) return value.toInt();
+  return int.tryParse(value.toString());
 }

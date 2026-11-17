@@ -45,4 +45,21 @@ void main() {
     expect(item.totalPrice, 30000);
     expect(item.idTim, 42);
   });
+
+  test('totalpay diterima sebagai angka maupun teks kosong', () {
+    final angka = Transaction.fromJson(const {
+      'no_invoice': 'UP-0001',
+      'status': 'pengajuan',
+      'totalpay': 0,
+    });
+    expect(angka.totalPay, 0);
+
+    // Server lama mengirim "" (teks kosong) -> harus tetap terparse.
+    final teks = Transaction.fromJson(const {
+      'no_invoice': 'UP-0002',
+      'status': 'pengajuan',
+      'totalpay': '',
+    });
+    expect(teks.totalPay, isNull);
+  });
 }
