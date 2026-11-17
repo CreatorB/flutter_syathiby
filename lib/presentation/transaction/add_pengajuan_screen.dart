@@ -194,6 +194,7 @@ class AddPengajuanScreen extends HookConsumerWidget {
                   ref.invalidate(fetchHistoryTransactionProvider);
                   context.goNamed(AppRoute.historyTransaction.name);
                 },
+                style: TextButton.styleFrom(foregroundColor: Colors.white),
                 child: const Text('Simpan'),
               )
             ],
@@ -274,6 +275,8 @@ class AddPengajuanScreen extends HookConsumerWidget {
                               : null,
                           onChanged: (item) {
                             typeSelected.value = item;
+                            // Tim ikut jenis: pilihan lama tidak berlaku lagi.
+                            timSelected.value = null;
                           },
                         ),
                         const SizedBox(height: 8),
@@ -318,6 +321,13 @@ class AddPengajuanScreen extends HookConsumerWidget {
                         vertical: 4,
                       ),
                       child: DropdownSearch<TimPerbaikan>(
+                        // Key ikut daftar tim: kalau jenis kegiatan diganti,
+                        // widget harus dibangun ulang supaya pilihan otomatis
+                        // (satu tim) ikut terisi, bukan tampil kosong.
+                        key: ValueKey(
+                          'tim-${pakaiAlurTim ? 'maintenance' : 'keuangan'}-'
+                          '${timList.map((e) => e.id).join('-')}',
+                        ),
                         items: timList,
                         selectedItem: timAktif,
                         compareFn: (a, b) => a.id == b.id,

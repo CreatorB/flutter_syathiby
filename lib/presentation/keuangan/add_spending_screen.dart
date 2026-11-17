@@ -83,6 +83,7 @@ class AddSpendingScreen extends HookConsumerWidget {
               ref.invalidate(fetchAllSpendingProvider);
               context.pop();
             },
+            style: TextButton.styleFrom(foregroundColor: Colors.white),
             child: const Text('Simpan'),
           )
         ],

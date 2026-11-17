@@ -75,6 +75,7 @@ class OrderRawMaterialScreen extends HookConsumerWidget {
                 ref.invalidate(fetchAllSpendingProvider);
                 context.goNamed(AppRoute.spending.name);
               },
+              style: TextButton.styleFrom(foregroundColor: Colors.white),
               child: const Text('Simpan'),
             )
           ],

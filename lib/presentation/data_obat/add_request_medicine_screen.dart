@@ -81,6 +81,7 @@ class AddRequestMedicineScreen extends HookConsumerWidget {
                 ref.invalidate(historyMedicineRequestProvider);
                 context.goNamed(AppRoute.medicineRequest.name);
               },
+              style: TextButton.styleFrom(foregroundColor: Colors.white),
               child: const Text('Simpan'),
             )
           ],
