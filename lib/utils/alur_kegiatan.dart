@@ -63,6 +63,7 @@ String labelStatus(String? status) {
     'dikerjakan maintenance': 'Dikerjakan Tim Maintenance',
     'diklaim selesai': 'Diklaim Selesai Tim Maintenance',
     'diselesaikan': 'Selesai',
+    'diterima': 'Selesai',
     'ditolak': 'Ditolak',
   };
   final s = status?.trim() ?? '';
@@ -87,7 +88,7 @@ List<LangkahAlur> langkahAlur(String? jenis) {
       LangkahAlur('disetujui mudir', 'ACC Mudir (otomatis)'),
       LangkahAlur('dikerjakan maintenance', 'Dikerjakan Tim Maintenance'),
       LangkahAlur('diklaim selesai', 'Klaim Selesai'),
-      LangkahAlur('diselesaikan', 'Disesahkan Pemohon'),
+      LangkahAlur('diterima', 'Disesahkan Pemohon'),
     ];
   }
   return const [
@@ -95,7 +96,7 @@ List<LangkahAlur> langkahAlur(String? jenis) {
     LangkahAlur('disetujui', 'ACC Atasan'),
     LangkahAlur('disetujui mudir', 'ACC Mudir (otomatis)'),
     LangkahAlur('dicairkan', 'ACC & Cairkan Dana (Tim Admin Keuangan)'),
-    LangkahAlur('diselesaikan', 'Barang Datang & Disesahkan Pemohon'),
+    LangkahAlur('diterima', 'Barang Datang & Disesahkan Pemohon'),
   ];
 }
 
@@ -145,7 +146,10 @@ ProgressAlur progressAlur(String? jenis, String? status) {
       ditolak: true,
     );
   }
-  final index = langkah.indexWhere((e) => e.status == s);
+  // 'diselesaikan' = status akhir versi lama; server sekarang memakai
+  // 'diterima' untuk langkah terakhir.
+  final posisi = s == 'diselesaikan' ? 'diterima' : s;
+  final index = langkah.indexWhere((e) => e.status == posisi);
   if (index < 0) {
     return ProgressAlur(
       index: 0,
@@ -159,7 +163,7 @@ ProgressAlur progressAlur(String? jenis, String? status) {
     index: index,
     total: langkah.length,
     label: langkah[index].label,
-    selesai: s == 'diselesaikan',
+    selesai: s == 'diterima' || s == 'diselesaikan',
     ditolak: false,
   );
 }
