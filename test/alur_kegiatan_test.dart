@@ -26,6 +26,19 @@ void main() {
     });
   });
 
+  group('jenis dari menu', () {
+    test('jenis pengajuan ditentukan menu yang dipakai', () {
+      expect(jenisDariMenu('Pengadaan Barang'), 'Pengadaan Barang');
+      expect(jenisDariMenu('Perbaikan'), 'Perbaikan');
+      expect(jenisDariMenu('perbaikan'), 'Perbaikan');
+      // 'Jasa' ikut alur Tim Maintenance, ditampilkan sebagai Perbaikan.
+      expect(jenisDariMenu('Jasa'), 'Perbaikan');
+      // Tanpa parameter = default Pengadaan.
+      expect(jenisDariMenu(null), 'Pengadaan Barang');
+      expect(jenisDariMenu(''), 'Pengadaan Barang');
+    });
+  });
+
   group('label status', () {
     test('status alur tim punya label sendiri', () {
       expect(labelStatus('pengajuan'), 'Menunggu ACC Atasan');

@@ -39,6 +39,8 @@ class RequestTransaction with _$RequestTransaction {
     @JsonKey(name: 'jeniskegiatan') String? jenisKegiatan,
     // Tujuan pengajuan (dipakai mode bebas, tanpa katalog barang).
     @JsonKey(name: 'tujuan') String? tujuan,
+    // Lokasi ditulis pemohon sendiri (bukan memilih unit dari daftar).
+    @JsonKey(name: 'location') String? location,
     // Tim perbaikan yang dipilih, hanya dipakai bila jenis = Perbaikan.
     @JsonKey(name: 'id_tim') int? idTim,
   }) = _RequestTransaction;
