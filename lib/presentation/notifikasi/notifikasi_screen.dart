@@ -1,18 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:syathiby/di/providers.dart';
 import 'package:syathiby/models/notifikasi/notifikasi.dart';
 import 'package:syathiby/presentation/notifikasi/notifikasi_controller.dart';
+import 'package:syathiby/routing/app_router.dart';
 import 'package:syathiby/utils/extension/color.dart';
 import 'package:syathiby/utils/extension/typography.dart';
+import 'package:syathiby/utils/waktu_notifikasi.dart';
 
 /// Kotak masuk notifikasi staff.
 ///
 /// Isinya dibaca dari tabel `notifikasi` (server), jadi notifikasi tetap ada
-/// walau push FCM tidak sampai. Notifikasi ditandai sudah dibaca begitu
-/// layar ini dibuka.
+/// walau push FCM tidak sampai. Setiap staff hanya melihat notifikasinya
+/// sendiri -- identitas diambil dari `key` sesi di server, bukan dari pilihan
+/// di layar.
+///
+/// Notifikasi yang diklik ditandai terbaca lebih dulu, lalu dibuka halamannya.
+/// Tombol di pojok kanan atas menandai semua notifikasi yang belum dibaca.
 class NotifikasiScreen extends HookConsumerWidget {
   const NotifikasiScreen({super.key});
 
@@ -20,81 +26,146 @@ class NotifikasiScreen extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentUser = ref.watch(getCurrentUserProvider);
     final key = '${currentUser?.key}';
-    final notifikasi = ref.watch(fetchNotifikasiProvider(key: key));
-    final list = notifikasi.valueOrNull ?? const <Notifikasi>[];
+    final list = ref.watch(notifikasiListProvider);
+    // Notifier SELALU diambil lewat ref.read, tidak disimpan di useRef.
+    // Provider-nya auto-dispose: kalau notifier disimpan di ref, saat
+    // provider di-create ulang notifier yang disimpan bisa sudah dibuang --
+    // hasil fetch-nya masuk ke provider yang tidak lagi dipakai, dan daftar
+    // tampil kosong padahal server sudah mengirim data.
+    void muatAwal() => ref.read(notifikasiListProvider.notifier).muatAwal(key);
+    void muatLagi() => ref.read(notifikasiListProvider.notifier).muatLagi(key);
+    void tandaiTerbaca(int id) =>
+        ref.read(notifikasiListProvider.notifier).tandaiTerbacaDiDaftar(id);
+    final scroll = useMemoized(() => ScrollController(), []);
 
-    // Sudah dibaca begitu dibuka.
+    // Muat halaman pertama saat layar dibuka.
     useEffect(() {
       if (key.isEmpty || key == 'null') return null;
-      Future.microtask(
-        () => ref.read(notifikasiReadProvider.notifier).tandaiDibaca(key: key),
-      );
+      Future.microtask(muatAwal);
       return null;
     }, [key]);
+
+    // Muat halaman berikutnya saat nearing akhir daftar.
+    useEffect(() {
+      void onScroll() {
+        if (!scroll.hasClients) return;
+        if (scroll.position.pixels >= scroll.position.maxScrollExtent - 300) {
+          muatLagi();
+        }
+      }
+
+      scroll.addListener(onScroll);
+      return () => scroll.removeListener(onScroll);
+    }, [key, list.page]);
+
+    final items = list.items;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Notifikasi'),
+        actions: [
+          if (list.unread > 0)
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: Center(
+                child: Text(
+                  '${list.unread} baru',
+                  style: context.bodySmall?.copyWith(
+                    color: context.colorPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          IconButton(
+            tooltip: 'Tandai semua terbaca',
+            onPressed: list.unread == 0
+                ? null
+                : () async {
+                    ref
+                        .read(notifikasiListProvider.notifier)
+                        .tandaiSemuaTerbacaDiDaftar();
+                    await ref
+                        .read(notifikasiReadProvider.notifier)
+                        .tandaiDibaca(key: key);
+                  },
+            icon: const Icon(Icons.done_all),
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(fetchNotifikasiProvider);
+          await ref.read(notifikasiListProvider.notifier).muatAwal(key);
           ref.invalidate(fetchNotifikasiUnreadProvider);
-          await ref.read(fetchNotifikasiProvider(key: key).future);
         },
-        child: notifikasi.isLoading && list.isEmpty
+        child: list.loading && items.isEmpty
             ? const Center(child: CircularProgressIndicator())
-            : list.isEmpty
-                ? ListView(
-                    children: [
-                      const SizedBox(height: 160),
-                      Icon(
-                        Icons.notifications_none,
-                        size: 56,
-                        color: context.colorOutline,
-                      ),
-                      const SizedBox(height: 12),
-                      Center(
-                        child: Text(
-                          'Belum ada notifikasi',
-                          style: context.bodyMedium,
-                        ),
-                      ),
-                    ],
-                  )
-                : ListView.separated(
+            : items.isEmpty
+                ? _kosong(context)
+                : ListView.builder(
+                    controller: scroll,
                     physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: list.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    padding: const EdgeInsets.only(bottom: 24),
+                    itemCount: items.length + (list.hasMore ? 1 : 0),
                     itemBuilder: (context, index) {
-                      final n = list[index];
-                      final belum = (n.status ?? 'baru') == 'baru';
-                      return ListTile(
-                        leading: Icon(
-                          belum
-                              ? Icons.notifications_active
-                              : Icons.notifications_none,
-                          color: belum ? context.colorPrimary : context.colorOutline,
-                        ),
-                        title: Text(
-                          '${n.judul ?? '-'}',
-                          style: context.bodyMediumBold,
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if ((n.pesan ?? '').isNotEmpty)
-                              Text('${n.pesan}', style: context.bodySmall),
-                            const SizedBox(height: 2),
-                            Text(
-                              _waktu(n.createdAt),
-                              style: context.bodySmall?.copyWith(
-                                color: context.colorOutline,
+                      if (index >= items.length) {
+                        return const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Center(
+                            child: SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        );
+                      }
+                      final n = items[index];
+                      final tampilKelompok = index == 0 ||
+                          WaktuNotifikasi.kelompokTanggal(
+                                items[index - 1].createdAt,
+                              ) !=
+                              WaktuNotifikasi.kelompokTanggal(n.createdAt);
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (tampilKelompok)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+                              child: Text(
+                                WaktuNotifikasi.kelompokTanggal(n.createdAt),
+                                style: context.bodySmall?.copyWith(
+                                  color: context.colorOutline,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                          ],
-                        ),
-                        isThreeLine: (n.pesan ?? '').isNotEmpty,
+                          _BarisNotifikasi(
+                            notifikasi: n,
+                            onTap: () {
+                              final id = n.id ?? 0;
+                              if (id > 0) {
+                                // Tandai terbaca dulu supaya badge turun
+                                // seketika, baru buka halamannya.
+                                tandaiTerbaca(id);
+                                ref
+                                    .read(notifikasiReadProvider.notifier)
+                                    .tandaiDibaca(key: key, id: id);
+                              }
+                              // goNamed (bukan pushNamed): di web, pushNamed
+                              // ke route anak tidak memperbarui URL browser,
+                              // jadi halaman detail tidak bisa di-refresh atau
+                              // di-share. Route detail memang anak dari
+                              // 'notifikasi', jadi daftar tetap ada di bawah
+                              // dan tombol kembali kembali ke daftar.
+                              context.goNamed(
+                                AppRoute.notifikasiDetail.name,
+                                pathParameters: {'id': '$id'},
+                              );
+                            },
+                          ),
+                          const Divider(height: 1),
+                        ],
                       );
                     },
                   ),
@@ -102,16 +173,107 @@ class NotifikasiScreen extends HookConsumerWidget {
     );
   }
 
-  /// Ubah 'Y-m-d H:i:s' jadi 'd MMM yyyy, HH:mm'; kalau gagal, tampilkan
-  /// apa adanya.
-  String _waktu(String? mentah) {
-    final teks = (mentah ?? '').trim();
-    if (teks.isEmpty) return '-';
-    try {
-      final dt = DateTime.parse(teks);
-      return DateFormat('d MMM yyyy, HH:mm').format(dt);
-    } catch (_) {
-      return teks;
-    }
+  Widget _kosong(BuildContext context) {
+    return ListView(
+      children: [
+        const SizedBox(height: 160),
+        Icon(
+          Icons.notifications_none,
+          size: 56,
+          color: context.colorOutline,
+        ),
+        const SizedBox(height: 12),
+        Center(
+          child: Text('Belum ada notifikasi', style: context.bodyMedium),
+        ),
+        const SizedBox(height: 6),
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Text(
+              'Notifikasi pengajuan, izin, dan tugas lain akan muncul di sini.',
+              textAlign: TextAlign.center,
+              style: context.bodySmall?.copyWith(color: context.colorOutline),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Satu baris notifikasi di daftar.
+class _BarisNotifikasi extends StatelessWidget {
+  const _BarisNotifikasi({required this.notifikasi, required this.onTap});
+
+  final Notifikasi notifikasi;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final belum = (notifikasi.status ?? 'baru') == 'baru';
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        color: belum
+            ? context.colorPrimary.withOpacity(0.06)
+            : Colors.transparent,
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              belum
+                  ? Icons.notifications_active
+                  : Icons.notifications_none,
+              color: belum ? context.colorPrimary : context.colorOutline,
+              size: 22,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    notifikasi.judul ?? '-',
+                    style: context.bodyMediumBold?.copyWith(
+                      fontWeight:
+                          belum ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                  if ((notifikasi.pesan ?? '').isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      '${notifikasi.pesan}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.bodySmall,
+                    ),
+                  ],
+                  const SizedBox(height: 4),
+                  Text(
+                    WaktuNotifikasi.relatif(notifikasi.createdAt),
+                    style: context.bodySmall?.copyWith(
+                      color: context.colorOutline,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (belum)
+              Container(
+                margin: const EdgeInsets.only(left: 8, top: 6),
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: context.colorError,
+                  shape: BoxShape.circle,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }
