@@ -41,6 +41,7 @@ import 'package:syathiby/presentation/guest/guest_shell.dart';
 import 'package:syathiby/presentation/guest/guest_user_screen.dart';
 import 'package:syathiby/presentation/home/home_screen.dart';
 import 'package:syathiby/presentation/notifikasi/notifikasi_screen.dart';
+import 'package:syathiby/presentation/notifikasi/notifikasi_detail_screen.dart';
 import 'package:syathiby/presentation/jadwal/class_journal_screen.dart';
 import 'package:syathiby/presentation/jadwal/classroom_screen.dart';
 import 'package:syathiby/presentation/jadwal/teaching_schedule_screen.dart';
@@ -380,6 +381,7 @@ enum AppRoute {
   dataPresence,
   attendanceRecapMonth,
   notifikasi,
+  notifikasiDetail,
 }
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -614,6 +616,18 @@ GoRouter goRouter(GoRouterRef ref) {
                     path: 'notifikasi',
                     name: AppRoute.notifikasi.name,
                     builder: (context, state) => const NotifikasiScreen(),
+                    routes: [
+                      GoRoute(
+                        path: ':id',
+                        name: AppRoute.notifikasiDetail.name,
+                        builder: (context, state) => NotifikasiDetailScreen(
+                          id: int.tryParse(
+                                state.pathParameters['id'] ?? '0',
+                              ) ??
+                              0,
+                        ),
+                      ),
+                    ],
                   ),
                   GoRoute(
                     path: 'presence',
