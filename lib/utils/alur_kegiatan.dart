@@ -47,6 +47,17 @@ bool isAlurPengadaan(String? jenis) => !isAlurTim(jenis);
 String namaTimUntukJenis(String? jenis) =>
     isAlurTim(jenis) ? namaTimMaintenance : namaTimKeuangan;
 
+/// Jenis pengajuan dari menu yang dipakai (19 Nov 2026).
+///
+/// Layar pengajuan tidak lagi menanyakan jenis kegiatan: menu "Ajukan
+/// Pengadaan" sudah berarti Pengadaan Barang, menu "Ajukan Perbaikan" berarti
+/// Perbaikan. Caller mengirim nama jenis sebagai query parameter `jenis`.
+String jenisDariMenu(String? jenisMenu) {
+  final diminta = (jenisMenu ?? '').trim().toLowerCase();
+  if (diminta == 'perbaikan' || diminta == 'jasa') return 'Perbaikan';
+  return 'Pengadaan Barang';
+}
+
 /// Pengajuan perbaikan tidak memakai nominal barang.
 bool jenisTanpaNominal(String? jenis) => isAlurTim(jenis);
 

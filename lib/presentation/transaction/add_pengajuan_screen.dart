@@ -4,7 +4,6 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:syathiby/di/providers.dart';
-import 'package:syathiby/models/allocation/allocation.dart';
 import 'package:syathiby/models/transaction/petugas_pengajuan.dart';
 import 'package:syathiby/models/transaction/request_transaction.dart';
 import 'package:syathiby/presentation/transaction/transaction_controller.dart';
@@ -40,19 +39,23 @@ class AddPengajuanScreen extends HookConsumerWidget {
     final key = '${currentUser?.key}';
 
     final activityName = useTextEditingController();
+    final lokasi = useTextEditingController();
     final tujuan = useTextEditingController();
     final keterangan = useTextEditingController();
 
-    final locationSelected = useState<Allocation?>(null);
-    final typeSelected = useState<Allocation?>(null);
     final timSelected = useState<TimPerbaikan?>(null);
     final drafts = useState<List<_ItemDraft>>([_ItemDraft(id: 1)]);
 
     final petugasPengajuan =
         ref.watch(fetchPetugasPengajuanProvider(key: key)).valueOrNull;
-    final jenisTerpilih = typeSelected.value?.allocationName;
+    // Jenis pengajuan TIDAK lagi dipilih di layar (permintaan owner 19 Nov
+    // 2026: "kenapa harus ada jenis kegiatan? kalau pengadaan ya fokus di
+    // pengadaan, kalau perbaikan fokus di perbaikan"). Jenisnya sudah
+    // ditentukan menu yang dipakai: "Ajukan Pengadaan" -> Pengadaan Barang,
+    // "Ajukan Perbaikan" -> Perbaikan.
+    final jenisTerpilih = jenisDariMenu(jenisAwal);
     final pakaiAlurTim = isAlurTim(jenisTerpilih);
-    // Perbaikan & jasa: dikerjakan Tim Maintenance, tanpa nominal barang.
+    // Perbaikan: dikerjakan Tim Maintenance, tanpa nominal barang.
     // Pengadaan: ditugaskan ke Tim Admin Keuangan, ada nominal barang.
     final tanpaNominal = jenisTanpaNominal(jenisTerpilih);
     final timList = pakaiAlurTim
@@ -61,26 +64,6 @@ class AddPengajuanScreen extends HookConsumerWidget {
     final timAktif =
         timSelected.value ?? (timList.length == 1 ? timList.first : null);
     final namaTim = namaTimUntukJenis(jenisTerpilih);
-
-    useEffect(() {
-      Future.microtask(() async {
-        final types =
-            await ref.read(fetchAllTransactionTypeProvider(key: key).future);
-        final diminta = jenisAwal?.trim().toLowerCase();
-        final terpilih = jenisAwal == null
-            ? types.where((e) => isJenisPerbaikan(e.allocationName)).firstOrNull
-            : types
-                .where(
-                  (e) =>
-                      (e.allocationName?.trim().toLowerCase() ?? '') == diminta,
-                )
-                .firstOrNull;
-        if (terpilih != null && typeSelected.value == null) {
-          typeSelected.value = terpilih;
-        }
-      });
-      return null;
-    }, const []);
 
     final total = drafts.value.fold<double>(
       0,
@@ -111,7 +94,7 @@ class AddPengajuanScreen extends HookConsumerWidget {
         key: formKey,
         child: Scaffold(
           appBar: AppBar(
-            title: const Text('Pengajuan'),
+            title: Text(pakaiAlurTim ? 'Ajukan Perbaikan' : 'Ajukan Pengadaan'),
             actions: [
               TextButton(
                 onPressed: () async {
@@ -174,9 +157,11 @@ class AddPengajuanScreen extends HookConsumerWidget {
                       .addOrderTransaction(
                         requestTransaction: RequestTransaction(
                           key: key,
-                          id: '${locationSelected.value?.allocationId}',
-                          jenisKegiatan:
-                              '${typeSelected.value?.allocationName}',
+                          // Lokasi agora diketik pemohon (lihat kolom Lokasi),
+                          // jadi tidak ada lagi id unit yang dikirim.
+                          id: '',
+                          location: lokasi.text.trim(),
+                          jenisKegiatan: jenisTerpilih,
                           note: keterangan.text.trim(),
                           tujuan: tujuan.text.trim(),
                           nameKegiatan: activityName.text.trim(),
@@ -221,63 +206,37 @@ class AddPengajuanScreen extends HookConsumerWidget {
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8.0),
                             ),
-                            labelText: 'Nama Kegiatan *',
+                            labelText: 'Nama *',
+                            hintText: tanpaNominal
+                                ? 'Contoh: Lampu kelas 1 rusak'
+                                : 'Contoh: Alat tulis kantor',
                             prefixIcon: const Icon(Icons.local_activity),
                           ),
                           validator: (value) =>
                               (value == null || value.trim().isEmpty)
-                                  ? 'Nama kegiatan wajib diisi'
+                                  ? 'Nama wajib diisi'
                                   : null,
                         ),
                         const SizedBox(height: 8),
-                        DropdownSearch<Allocation>(
-                          selectedItem: locationSelected.value,
-                          asyncItems: (String filter) {
-                            return ref.watch(
-                              fetchAllAllocationProvider(key: key).future,
-                            );
-                          },
-                          itemAsString: (item) => '${item.allocationName}',
-                          dropdownDecoratorProps: const DropDownDecoratorProps(
-                            dropdownSearchDecoration: InputDecoration(
-                              isDense: true,
-                              border: OutlineInputBorder(),
-                              labelText: 'Lokasi Kegiatan *',
-                              prefixIcon: Icon(Icons.location_on),
+                        // Lokasi diketik sendiri, bukan pilih dari daftar unit:
+                        // pengajuan bisa berupa barang, jadi unit/gedung yang
+                        // dibutuhkan tidak selalu salah satu dari daftar tetap.
+                        TextFormField(
+                          controller: lokasi,
+                          textInputAction: TextInputAction.next,
+                          decoration: InputDecoration(
+                            isDense: true,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8.0),
                             ),
+                            labelText: 'Lokasi *',
+                            hintText: 'Contoh: UKP / Asrama / Madrasah MSW',
+                            prefixIcon: const Icon(Icons.location_on),
                           ),
-                          validator: (value) => value == null
-                              ? 'Lokasi kegiatan wajib diisi'
-                              : null,
-                          onChanged: (item) {
-                            locationSelected.value = item;
-                          },
-                        ),
-                        const SizedBox(height: 8),
-                        DropdownSearch<Allocation>(
-                          selectedItem: typeSelected.value,
-                          asyncItems: (String filter) {
-                            return ref.watch(
-                              fetchAllTransactionTypeProvider(key: key).future,
-                            );
-                          },
-                          itemAsString: (item) => '${item.allocationName}',
-                          dropdownDecoratorProps: const DropDownDecoratorProps(
-                            dropdownSearchDecoration: InputDecoration(
-                              isDense: true,
-                              border: OutlineInputBorder(),
-                              labelText: 'Jenis Kegiatan *',
-                              prefixIcon: Icon(Icons.ad_units),
-                            ),
-                          ),
-                          validator: (value) => value == null
-                              ? 'Jenis kegiatan wajib diisi'
-                              : null,
-                          onChanged: (item) {
-                            typeSelected.value = item;
-                            // Tim ikut jenis: pilihan lama tidak berlaku lagi.
-                            timSelected.value = null;
-                          },
+                          validator: (value) =>
+                              (value == null || value.trim().isEmpty)
+                                  ? 'Lokasi wajib diisi'
+                                  : null,
                         ),
                         const SizedBox(height: 8),
                         TextFormField(

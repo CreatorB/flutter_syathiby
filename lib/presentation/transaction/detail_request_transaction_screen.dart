@@ -188,7 +188,7 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          'Nama Kegiatan',
+                          'Nama',
                           style: TextStyle(
                             fontSize: 14,
                           ),
@@ -206,7 +206,7 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          'Lokasi Kegiatan',
+                          'Lokasi',
                           style: TextStyle(
                             fontSize: 14,
                           ),
