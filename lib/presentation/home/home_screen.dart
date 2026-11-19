@@ -16,6 +16,7 @@ import 'package:syathiby/utils/update_checker.dart';
 import 'package:syathiby/models/slip/absent.dart';
 import 'package:syathiby/models/user/request_logout.dart';
 import 'package:syathiby/presentation/home/fetch_presence_controller.dart';
+import 'package:syathiby/presentation/notifikasi/notifikasi_controller.dart';
 import 'package:syathiby/presentation/report/bottomsheet_staff_month_picker.dart';
 import 'package:syathiby/presentation/setting/account_controller.dart';
 import 'package:syathiby/res/strings.dart';
@@ -204,6 +205,61 @@ class HomeScreen extends HookConsumerWidget {
       );
     }
 
+    /// Lonceng notifikasi di pojok kanan atas.
+    ///
+    /// Push FCM tidak selalu sampai (token hilang, browser tanpa izin), jadi
+    /// jumlah notifikasi yang belum dibaca diambil dari server. Angka di
+    /// lonceng = notifikasi baru yang belum dibuka.
+    Widget buildLoncengNotifikasi() {
+      final belum = ref.watch(fetchNotifikasiUnreadProvider(key: key));
+      final jumlah = belum.valueOrNull ?? 0;
+
+      // Angka lonceng disegarkan tiap menit supaya notifikasi baru langsung
+      // terlihat tanpa harus menutup aplikasi.
+      useEffect(() {
+        if (key.isEmpty || key == 'null') return null;
+        final timer = Timer.periodic(const Duration(seconds: 60), (_) {
+          ref.invalidate(fetchNotifikasiUnreadProvider);
+        });
+        return timer.cancel;
+      }, [key]);
+
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          IconButton(
+            tooltip: 'Notifikasi',
+            icon: Icon(
+              Icons.notifications_none,
+              color: context.colorOnPrimary,
+              size: 26,
+            ),
+            onPressed: () => context.goNamed(AppRoute.notifikasi.name),
+          ),
+          if (jumlah > 0)
+            Positioned(
+              right: 4,
+              top: 4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: context.colorError,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  jumlah > 99 ? '99+' : '$jumlah',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      );
+    }
+
     Widget buildHeader() {
       return Container(
         padding: const EdgeInsets.all(16),
@@ -252,7 +308,11 @@ class HomeScreen extends HookConsumerWidget {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.only(left: 16, right: 8.0),
+                  padding: const EdgeInsets.only(left: 8),
+                  child: buildLoncengNotifikasi(),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, right: 8.0),
                   child: CustomAvatar(
                     size: 50,
                     imageUrl: safeUserImage,

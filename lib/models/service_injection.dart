@@ -11,6 +11,7 @@ import 'package:syathiby/models/health/health_service.dart';
 import 'package:syathiby/models/hostel/hostel_service.dart';
 import 'package:syathiby/models/job/job_service.dart';
 import 'package:syathiby/models/meeting/meeting_service.dart';
+import 'package:syathiby/models/notifikasi/notifikasi_service.dart';
 import 'package:syathiby/models/news/news_service.dart';
 import 'package:syathiby/models/permit/permit_service.dart';
 import 'package:syathiby/models/pickup/pickup_service.dart';
@@ -202,6 +203,11 @@ PenjemputanRestInterface pickupService(PickupServiceRef ref) {
 @Riverpod(keepAlive: true)
 TransactionService transactionService(TransactionServiceRef ref) {
   return TransactionService(ref.watch(dioProvider));
+}
+
+@Riverpod(keepAlive: true)
+NotifikasiService notifikasiService(NotifikasiServiceRef ref) {
+  return NotifikasiService(ref.watch(dioProvider));
 }
 
 @Riverpod(keepAlive: true)
