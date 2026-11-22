@@ -72,6 +72,10 @@ class Assets {
   static const $AssetsFontsGen fonts = $AssetsFontsGen();
   static const $AssetsImagesGen images = $AssetsImagesGen();
   static const $AssetsJsonGen json = $AssetsJsonGen();
+  static const String version = 'assets/version.json';
+
+  /// List of all assets
+  static List<String> get values => [version];
 }
 
 class AssetGenImage {

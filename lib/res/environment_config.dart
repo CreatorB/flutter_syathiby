@@ -35,8 +35,20 @@ class EnvironmentConfig {
     return false;
   }
 
+  /// True kalau aplikasi memakai server staging (aplikasidev.syathiby.id).
+  /// dipakai untuk menampilkan debug banner Flutter di build staging.
+  static bool get isStagingEnvironment {
+    final normalizedUrl = baseUrl.toLowerCase();
+    final host = Uri.tryParse(normalizedUrl)?.host ?? normalizedUrl;
+    return host.startsWith('aplikasidev.');
+  }
+
   /// Get environment label for display
-  static String get environmentLabel => isLocalEnvironment ? 'LOCAL' : 'PROD';
+  static String get environmentLabel {
+    if (isLocalEnvironment) return 'LOCAL';
+    if (isStagingEnvironment) return 'STAGING';
+    return 'PROD';
+  }
 
   /// Get current flavor name
   static String get flavorName => FlavorConfig.flavorName;
