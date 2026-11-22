@@ -22,7 +22,8 @@ import 'package:web/web.dart' as web;
 ///    jadi ia merepresentasikan bundle yang SEDANG BERJALAN.
 /// 2. `version.json` di server berisi build terbaru (dibaca tanpa cache).
 /// 3. Kalau `buildStamp`-nya beda, cache service worker dibersihkan, service
-///    worker di-unregister, lalu halaman di-reload satu kali. Setelah reload,
+///    worker di-unregister, entri cache HTTP berkas entry point ditulis ulang
+///    dari jaringan, lalu halaman di-reload satu kali. Setelah reload,
 ///    bundle baru yang jalan dan stamp-nya sudah sama, jadi tidak ada reload
 ///    beruntun.
 ///
@@ -64,6 +65,7 @@ class WebBundleRefresh {
         '($running) -> bersihkan cache lalu reload.',
       );
       await _clearServiceWorker();
+      await _refreshBundleFiles();
       web.window.location.reload();
     } catch (e) {
       debugPrint('[WebBundleRefresh] gagal: $e');
@@ -100,10 +102,31 @@ class WebBundleRefresh {
     }
   }
 
+  /// Paksa browser mengambil ulang berkas entry point dari jaringan dan
+  /// memperbarui entri cache HTTP-nya.
+  ///
+  /// Tanpa langkah ini, browser yang sudah menyimpan `main.dart.js` dengan
+  /// `max-age` panjang (dulu 10 tahun dari `expires max` nginx) tetap memakai
+  /// berkas lama walaupun Cache Storage sudah dibersihkan -- browser tidak
+  /// pernah menanyakan ke server. Mode cache `reload` memaksa permintaan ke
+  /// jaringan dan mengganti entri cache lama dengan berkas terbaru.
+  static Future<void> _refreshBundleFiles() async {
+    for (final path in const [
+      'main.dart.js',
+      'flutter_bootstrap.js',
+      'flutter_service_worker.js',
+    ]) {
+      try {
+        await web.window
+            .fetch(path.toJS, web.RequestInit(cache: 'reload'))
+            .toDart;
+      } catch (_) {}
+    }
+  }
+
   /// Hapus Cache Storage + unregister service worker supaya aset diambil dari
   /// jaringan, bukan dari cache lama.
-  static Future<void> _clearServiceWorker() async {
-    try {
+  static Future<void> _clearServiceWorker() async {    try {
       final keys = (await web.window.caches.keys().toDart).toDart;
       for (final key in keys) {
         await web.window.caches.delete(key.toDart).toDart;
