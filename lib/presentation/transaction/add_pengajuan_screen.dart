@@ -189,7 +189,6 @@ class AddPengajuanScreen extends HookConsumerWidget {
               ListView(
                 padding: const EdgeInsets.only(bottom: 140),
                 children: [
-                  _buildFlowInfo(context, isAlurTim: pakaiAlurTim),
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -377,34 +376,6 @@ class AddPengajuanScreen extends HookConsumerWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFlowInfo(BuildContext context, {required bool isAlurTim}) {
-    final alurText = isAlurTim
-        ? 'Diajukan -> ACC Atasan -> ACC Mudir (otomatis) -> Dikerjakan '
-            '$namaTimMaintenance -> Klaim selesai -> Anda mengesahkan. '
-            'Tanpa nominal barang; yang diperbaiki ditulis bebas. Bisa '
-            'ditolak selama belum dikerjakan.'
-        : 'Diajukan -> ACC Atasan -> ACC Mudir (otomatis) -> ACC & Cairkan Dana '
-            'oleh $namaTimKeuangan -> barang datang -> Anda mengesahkan. '
-            'Bisa ditolak selama belum dicairkan.';
-    final judul = isAlurTim
-        ? 'Permintaan perbaikan ke $namaTimMaintenance'
-        : 'Pengadaan barang ke $namaTimKeuangan';
-    return Card(
-      margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(judul, style: context.bodyMediumBold),
-            const SizedBox(height: 4),
-            Text(alurText, style: context.bodySmall),
-          ],
         ),
       ),
     );

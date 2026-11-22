@@ -1,8 +1,9 @@
 {
   "version": "1.0.12",
   "buildNumber": "12",
-  "buildDate": "2026-11-19",
+  "buildDate": "2026-11-22",
   "features": [
+    "Layar pengajuan di aplikasi staff kini lebih ringkas: kartu penjelasan alur (Diajukan, ACC Atasan, ACC Mudir, dst) tidak lagi ditampilkan supaya tidak makan space; di layar Permohonan Barang/Dana yang tersisa hanya info siapa atasan yang menyetujui",
     "Kotak masuk notifikasi di aplikasi staff kini punya halaman detail: setiap notifikasi bisa dibuka untuk melihat isi lengkapnya dan langsung membuka pengajuan yang terkait",
     "Notifikasi sudah dibaca bisa ditandai satu per satu saat diklik, atau semuanya sekaligus lewat tombol \"Tandai semua terbaca\" di halaman notifikasi",
     "Daftar notifikasi dikelompokkan per tanggal (Hari ini, Kemarin, atau tanggal lengkap) dan menampilkan waktu relatif seperti \"12 jam lalu\"",
