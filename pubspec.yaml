@@ -188,6 +188,9 @@ flutter:
     - assets/fonts/
     - assets/images/
     - assets/json/
+    # Salinan web/version.json saat build (lihat tool/set_build_stamp.py).
+    # Dipakai aplikasi web untuk mengecek apakah server sudah punya build baru.
+    - assets/version.json
 
   fonts:
     - family: Uthmanic

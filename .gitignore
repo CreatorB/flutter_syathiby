@@ -116,3 +116,6 @@ Thumbs.db
 
 # Temporary build output files
 android/gradle_output.txt
+
+# Salinan web/version.json saat build (lihat tool/set_build_stamp.py)
+assets/version.json

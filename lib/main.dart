@@ -15,6 +15,7 @@ import 'package:syathiby/app.dart';
 
 import 'di/providers.dart';
 import 'firebase_options.dart';
+import 'utils/web_bundle_refresh.dart';
 import 'utils/web_splash_utility.dart';
 
 // FIX: Removed top-level FlutterLocalNotificationsPlugin instantiation to prevent Safari crash.
@@ -116,6 +117,11 @@ Future<void> main() async {
     // 3. Initialize services in PostFrameCallback to avoid blocking startup
     WidgetsBinding.instance.addPostFrameCallback((_) {
         _initServices();
+        // Web: kalau server sudah punya build lebih baru, bersihkan cache
+        // service worker lalu reload supaya user tidak melihat tampilan lama.
+        if (kIsWeb) {
+            WebBundleRefresh.ensureFreshBundle();
+        }
     });
 
         if (kDebugMode) print('Running app...');
