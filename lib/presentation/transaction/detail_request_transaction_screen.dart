@@ -8,6 +8,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:syathiby/di/providers.dart';
 import 'package:syathiby/models/job/job_detail.dart';
+import 'package:syathiby/models/transaction/petugas_pengajuan.dart';
 import 'package:syathiby/presentation/transaction/transaction_controller.dart';
 import 'package:syathiby/utils/alur_kegiatan.dart';
 import 'package:syathiby/utils/extension/color.dart';
@@ -89,6 +90,12 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
         .map((e) => e.nama ?? e.telp ?? '')
         .where((e) => e.isNotEmpty)
         .join(', ');
+    // Daftar staff untuk dipilih sebagai penerima dana di form pencairan.
+    final petugasPengajuan =
+        ref.watch(fetchPetugasPengajuanProvider(key: key)).valueOrNull;
+    final daftarStaff = petugasPengajuan?.staff ?? const <Petugas>[];
+    // Nama pemohon (pengaju) = default penerima dana.
+    final namaPemohon = invoice?.operator ?? '';
     return Scaffold(
       appBar: AppBar(
         title: const Text('Detail Permohonan'),
@@ -537,6 +544,8 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
                     context,
                     status,
                     isAlurTim: pakaiAlurTim,
+                    daftarStaff: daftarStaff,
+                    namaPemohon: namaPemohon,
                   );
                   final value = dialog.$1;
                   final reason = dialog.$2;
@@ -576,6 +585,8 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
     BuildContext context,
     String status, {
     bool isAlurTim = false,
+    List<Petugas> daftarStaff = const [],
+    String namaPemohon = '',
   }) async {
     String message = '';
     String? value;
@@ -670,42 +681,17 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
     }
     if (isCairkan) {
       // Pencairan butuh dua hal: nominal yang dicairkan dan siapa yang
-      // menerimanya. Keduanya jadi parameter terpisah di endpoint
-      // `pengadaan/confirm.php`.
-      final input = await showTextInputDialog(
-        context: context,
-        title: 'Pencairan Dana',
+      // menerimanya. Nama penerima boleh dikosongkan (server memakai nama
+      // pemohon), bisa dipilih dari daftar staff, atau diketik sendiri.
+      final input = await _showDialogCairkanDana(
+        context,
         message: message,
-        textFields: [
-          DialogTextField(
-            hintText: 'Nominal pencairan (kosong = total pengajuan)',
-            keyboardType: TextInputType.number,
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) return null;
-              final angka = double.tryParse(
-                value.replaceAll(RegExp(r'[^0-9]'), ''),
-              );
-              if (angka == null || angka <= 0) return 'nominal tidak valid';
-              return null;
-            },
-            autocorrect: false,
-          ),
-          DialogTextField(
-            hintText: 'Nama penerima dana',
-            keyboardType: TextInputType.text,
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'tidak boleh kosong';
-              }
-              return null;
-            },
-            autocorrect: true,
-          ),
-        ],
+        daftarStaff: daftarStaff,
+        namaPemohon: namaPemohon,
       );
       if (input == null) return (null, null, null, null);
-      nominal = input.elementAtOrNull(0);
-      penerima = input.elementAtOrNull(1);
+      nominal = input.$1;
+      penerima = input.$2;
       reason = 'Pencairan dana oleh bagian keuangan';
       return (value, reason, nominal, penerima);
     }
@@ -739,6 +725,141 @@ class DetailRequestTransactionScreen extends HookConsumerWidget {
       if (result == OkCancelResult.cancel) return (null, null, null, null);
     }
     return (value, reason, nominal, penerima);
+  }
+
+  /// Dialog pencairan dana: nominal + nama penerima.
+  ///
+  /// Nama penerima diisi awal dengan nama pemohon (pengaju). Kalau dikosongkan
+  /// sendiri, server memakai nama pemohon juga. Bisa diganti dengan nama
+  /// staff lain lewat tombol dropdown, atau diketik sendiri.
+  Future<(String?, String?)?> _showDialogCairkanDana(
+    BuildContext context, {
+    required String message,
+    required List<Petugas> daftarStaff,
+    required String namaPemohon,
+  }) async {
+    final nominalCtl = TextEditingController();
+    final penerimaCtl = TextEditingController(text: namaPemohon);
+    final formKey = GlobalKey<FormState>();
+
+    final hasil = await showDialog<(String?, String?)>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setState) {
+            return AlertDialog(
+              title: const Text('Pencairan Dana'),
+              content: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(message),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: nominalCtl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Nominal pencairan',
+                          hintText: 'Kosong = total pengajuan',
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return null;
+                          }
+                          final angka = double.tryParse(
+                            value.replaceAll(RegExp(r'[^0-9]'), ''),
+                          );
+                          if (angka == null || angka <= 0) {
+                            return 'nominal tidak valid';
+                          }
+                          return null;
+                        },
+                        autocorrect: false,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: penerimaCtl,
+                        keyboardType: TextInputType.text,
+                        decoration: InputDecoration(
+                          labelText: 'Nama penerima dana',
+                          hintText: 'Kosong = nama pemohon',
+                          suffixIcon: IconButton(
+                            icon: const Icon(Icons.arrow_drop_down),
+                            tooltip: 'Pilih dari daftar staff',
+                            onPressed: () async {
+                              final nama = await _pilihStaff(
+                                ctx,
+                                daftarStaff,
+                              );
+                              if (nama != null && ctx.mounted) {
+                                setState(() => penerimaCtl.text = nama);
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    if (formKey.currentState?.validate() != true) return;
+                    Navigator.of(ctx).pop(
+                      (nominalCtl.text, penerimaCtl.text),
+                    );
+                  },
+                  child: const Text('OK'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    nominalCtl.dispose();
+    penerimaCtl.dispose();
+    if (hasil == null) return null;
+    return (hasil.$1, hasil.$2);
+  }
+
+  /// Pilih nama staff dari daftar pondok.
+  Future<String?> _pilihStaff(
+    BuildContext context,
+    List<Petugas> daftarStaff,
+  ) {
+    if (daftarStaff.isEmpty) {
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Daftar Staff'),
+          content: const Text(
+            'Daftar staff belum tersedia. Tulis nama penerima secara manual.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return Future.value(null);
+    }
+    return showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => _PilihStaffSheet(staff: daftarStaff),
+    );
   }
 
   Widget _buildItemProgress(
@@ -903,6 +1024,71 @@ class _ProgressAlur extends StatelessWidget {
           style: context.bodySmall,
         ),
       ],
+    );
+  }
+}
+
+
+/// Daftar staff pondok yang bisa dicari, untuk dipilih sebagai penerima dana.
+class _PilihStaffSheet extends StatefulWidget {
+  const _PilihStaffSheet({required this.staff});
+
+  final List<Petugas> staff;
+
+  @override
+  State<_PilihStaffSheet> createState() => _PilihStaffSheetState();
+}
+
+class _PilihStaffSheetState extends State<_PilihStaffSheet> {
+  String filter = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final kata = filter.trim().toLowerCase();
+    final daftar = widget.staff
+        .where((s) => (s.nama ?? '').toLowerCase().contains(kata))
+        .toList();
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+                child: TextField(
+                  autofocus: true,
+                  onChanged: (value) => setState(() => filter = value),
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.search),
+                    hintText: 'Cari nama staff',
+                    isDense: true,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: daftar.isEmpty
+                    ? const Center(child: Text('Staff tidak ditemukan'))
+                    : ListView.builder(
+                        itemCount: daftar.length,
+                        itemBuilder: (context, index) {
+                          final s = daftar[index];
+                          return ListTile(
+                            title: Text('${s.nama ?? ''}'),
+                            subtitle: Text('${s.telp ?? ''}'),
+                            onTap: () => Navigator.of(context).pop(s.nama ?? ''),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

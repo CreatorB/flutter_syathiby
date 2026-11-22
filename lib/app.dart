@@ -1,6 +1,7 @@
 import 'package:adaptive_theme/adaptive_theme.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -46,20 +47,35 @@ class MyApp extends HookConsumerWidget {
         routerConfig: goRouter,
         theme: light,
         darkTheme: dark,
-        debugShowCheckedModeBanner: false,
+        debugShowCheckedModeBanner: kDebugMode,
         builder: (context, child) {
           final appChild = child ?? const SizedBox.shrink();
-          // Show banner only for LOCAL environment (development)
-          // For PROD, no banner (clean production UI)
-          if (!isLocalEnv) {
-            return appChild;
+          // Banner environment: LOCAL (dev) dan STAGING (server uji).
+          // Build release tidak bisa memakai banner debug bawaan Flutter
+          // (CheckedModeBanner hanya hidup di mode debug), jadi banner
+          // digambar sendiri dengan tampilan yang sama (22 Nov 2026).
+          if (isLocalEnv) {
+            return Banner(
+              message: environmentLabel,
+              location: BannerLocation.topEnd,
+              color: environmentColor,
+              child: appChild,
+            );
           }
-          return Banner(
-            message: environmentLabel,
-            location: BannerLocation.topEnd,
-            color: environmentColor,
-            child: appChild,
-          );
+          if (EnvironmentConfig.isStagingEnvironment) {
+            return Banner(
+              message: 'STAGING',
+              location: BannerLocation.topEnd,
+              color: const Color(0xFFFFC107),
+              textStyle: const TextStyle(
+                color: Color(0xFF000000),
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+              child: appChild,
+            );
+          }
+          return appChild;
         },
       ),
     );
