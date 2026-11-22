@@ -160,9 +160,8 @@ class AddRequestTransactionScreen extends HookConsumerWidget {
             children: [
               ListView(
                 children: [
-                  _buildFlowInfo(
+                  _buildInfoAtasan(
                     context,
-                    isAlurTim: pakaiAlurTim,
                     petugasPengajuan: petugasPengajuan,
                   ),
                   if (pakaiAlurTim && timList.isNotEmpty)
@@ -445,9 +444,13 @@ class AddRequestTransactionScreen extends HookConsumerWidget {
     );
   }
 
-  Widget _buildFlowInfo(
+  /// Kartu satu baris: siapa atasan yang akan menyetujui.
+  ///
+  /// Penjelasan alur (ACC atasan -> ACC mudir -> ...) TIDAK ditampilkan:
+  /// owner meminta alur panjang tidak dimunculkan di layar karena makan
+  /// space (22 Nov 2026). Yang perlu hanya tahu siapa yang menyetujui.
+  Widget _buildInfoAtasan(
     BuildContext context, {
-    required bool isAlurTim,
     required PetugasPengajuan? petugasPengajuan,
   }) {
     final atasanNama = petugasPengajuan?.atasanNama ?? '';
@@ -456,12 +459,6 @@ class AddRequestTransactionScreen extends HookConsumerWidget {
     final atasanText = atasanOtomatis
         ? 'Atasan yang menyetujui: $namaTampil (otomatis)'
         : 'Atasan yang menyetujui: $namaTampil';
-    final alurText = isAlurTim
-        ? 'Alur perbaikan/jasa: Diajukan -> ACC Atasan -> Mudir (otomatis) '
-            '-> Dikerjakan Tim Perbaikan -> Klaim selesai -> Anda mengesahkan. '
-            'Mudir masih bisa menolak selama pekerjaan belum dimulai.'
-        : 'Alur pengadaan: diajukan -> ACC atasan -> Mudir -> Keuangan '
-            '-> pencairan -> logistik -> selesai -> Anda konfirmasi diterima.';
     return Card(
       margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
       child: Padding(
@@ -470,8 +467,6 @@ class AddRequestTransactionScreen extends HookConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(atasanText, style: context.bodyMediumBold),
-            const SizedBox(height: 4),
-            Text(alurText, style: context.bodySmall),
           ],
         ),
       ),
