@@ -346,33 +346,36 @@ class AddPengajuanScreen extends HookConsumerWidget {
                   ],
                 ],
               ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  color: context.colorSurface,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        tanpaNominal ? 'Perbaikan' : 'Total Pengajuan',
-                        style: context.bodyMediumBold,
-                      ),
-                      Text(
-                        tanpaNominal ? 'Tanpa nominal' : totalFormat,
-                        style: context.bodyMediumBold?.copyWith(
-                          color: context.colorPrimary,
+              // Perbaikan/jasa: tanpa nominal, jadi baris rekap bawah tidak
+              // perlu tampil -- layar fokus ke isi pengajuan saja.
+              if (!tanpaNominal)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    color: context.colorSurface,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Total Pengajuan',
+                          style: context.bodyMediumBold,
                         ),
-                      ),
-                    ],
+                        Text(
+                          totalFormat,
+                          style: context.bodyMediumBold?.copyWith(
+                            color: context.colorPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
               Visibility(
                 visible: ref.watch(transactionControllerProvider).isLoading,
                 child: const Center(
