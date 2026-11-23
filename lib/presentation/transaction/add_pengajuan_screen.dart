@@ -248,7 +248,9 @@ class AddPengajuanScreen extends HookConsumerWidget {
                               borderRadius: BorderRadius.circular(8.0),
                             ),
                             labelText: 'Tujuan Pengajuan *',
-                            hintText: 'Contoh: kebutuhan kegiatan belajar',
+                            hintText: tanpaNominal
+                                ? 'Contoh: perbaikan AC server di ruang kelas'
+                                : 'Contoh: kebutuhan kegiatan belajar',
                             prefixIcon: const Icon(Icons.flag_outlined),
                           ),
                           validator: (value) =>
