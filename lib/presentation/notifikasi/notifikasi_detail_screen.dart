@@ -168,6 +168,12 @@ class NotifikasiDetailScreen extends HookConsumerWidget {
         return 'Izin santri';
       case 'get_izin':
         return 'Izin santri';
+      case 'kantin_topup_admin':
+        return 'Top-up saldo';
+      case 'kantin_pencairan':
+        return 'Pencairan titipan';
+      case 'kantin_stok':
+        return 'Stok kantin menipis';
       case '':
         return '-';
       default:
