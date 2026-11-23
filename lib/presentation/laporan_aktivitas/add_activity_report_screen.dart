@@ -4,7 +4,6 @@ import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_advanced_avatar/flutter_advanced_avatar.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
@@ -18,6 +17,7 @@ import 'package:syathiby/presentation/laporan_aktivitas/activity_report_controll
 import 'package:syathiby/presentation/pelanggaran/violation_controller.dart';
 import 'package:syathiby/utils/extension/color.dart';
 import 'package:syathiby/utils/extension/ui.dart';
+import 'package:syathiby/utils/kompres_gambar.dart';
 
 class AddActivityReportScreen extends HookConsumerWidget {
   final String? type;
@@ -211,9 +211,8 @@ class AddActivityReportScreen extends HookConsumerWidget {
     final ImagePicker picker = ImagePicker();
     XFile? image = await picker.pickImage(source: ImageSource.camera);
     if (image == null) return null;
-    final imageCompressed = await FlutterImageCompress.compressWithList(
+    final imageCompressed = await kompresGambarUntukUnggah(
       await image.readAsBytes(),
-      quality: 10,
     );
     final tempDir = await getTemporaryDirectory();
     File file = await File('${tempDir.path}/${DateTime.timestamp()}').create();
