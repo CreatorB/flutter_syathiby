@@ -109,48 +109,48 @@ class AddPengajuanScreen extends HookConsumerWidget {
                     context.showErrorMessage('Pilih tim admin keuangan');
                     return;
                   }
-                  // Perbaikan: tanpa nominal, cukup keterangan yang perlu
-                  // diperbaiki. Pengadaan: minimal satu barang bernominal.
-                  final adaItemValid = tanpaNominal
-                      ? drafts.value.any(
-                          (d) =>
-                              d.nama.trim().isNotEmpty ||
-                              d.deskripsi.trim().isNotEmpty,
-                        )
-                      : drafts.value.any(
-                          (d) =>
-                              d.nama.trim().isNotEmpty &&
-                              d.harga > 0 &&
-                              d.jumlah > 0,
-                        );
-                  if (!adaItemValid) {
+                  // Pengadaan: minimal satu barang bernominal.
+                  final adaItemValid = drafts.value.any(
+                    (d) =>
+                        d.nama.trim().isNotEmpty &&
+                        d.harga > 0 &&
+                        d.jumlah > 0,
+                  );
+                  if (!tanpaNominal && !adaItemValid) {
                     context.showErrorMessage(
-                      tanpaNominal
-                          ? 'Tuliskan apa yang perlu diperbaiki'
-                          : 'Isi minimal satu barang: nama, nominal, dan jumlah',
+                      'Isi minimal satu barang: nama, nominal, dan jumlah',
                     );
                     return;
                   }
-                  final items = drafts.value
-                      .where(
-                        (d) => tanpaNominal
-                            ? d.nama.trim().isNotEmpty ||
-                                d.deskripsi.trim().isNotEmpty
-                            : d.nama.trim().isNotEmpty &&
+                  // Perbaikan/jasa: satu baris otomatis dari Tujuan Pengajuan
+                  // + Keterangan Tambahan (formnya tidak punya daftar item).
+                  final items = tanpaNominal
+                      ? [
+                          Barang(
+                            namaItem: tujuan.text.trim().isEmpty
+                                ? 'Perbaikan'
+                                : tujuan.text.trim(),
+                            amountProduct: 1,
+                            newPrice: '0',
+                            notes: keterangan.text.trim(),
+                          ),
+                        ]
+                      : drafts.value
+                          .where(
+                            (d) =>
+                                d.nama.trim().isNotEmpty &&
                                 d.harga > 0 &&
                                 d.jumlah > 0,
-                      )
-                      .map(
-                        (d) => Barang(
-                          namaItem: d.nama.trim().isEmpty
-                              ? 'Perbaikan'
-                              : d.nama.trim(),
-                          amountProduct: tanpaNominal ? 1 : d.jumlah,
-                          newPrice: tanpaNominal ? '0' : '${d.harga}',
-                          notes: d.deskripsi.trim(),
-                        ),
-                      )
-                      .toList();
+                          )
+                          .map(
+                            (d) => Barang(
+                              namaItem: d.nama.trim(),
+                              amountProduct: d.jumlah,
+                              newPrice: '${d.harga}',
+                              notes: d.deskripsi.trim(),
+                            ),
+                          )
+                          .toList();
 
                   final result = await ref
                       .read(transactionControllerProvider.notifier)
@@ -310,35 +310,38 @@ class AddPengajuanScreen extends HookConsumerWidget {
                       ),
                     ),
                   const Divider(),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          tanpaNominal
-                              ? 'Yang Perlu Diperbaiki'
-                              : 'Rincian Barang',
-                          style: context.bodyMediumBold,
-                        ),
-                        TextButton.icon(
-                          onPressed: tambahItem,
-                          icon: const Icon(Icons.add),
-                          label: Text(tanpaNominal ? 'Tambah' : 'Tambah Barang'),
-                        ),
-                      ],
+                  // Perbaikan/jasa: tidak ada daftar barang. Yang perlu
+                  // diperbaiki sudah ditulis di kolom Tujuan Pengajuan,
+                  // jadi daftar item hanya mengulang isi yang sama.
+                  if (!tanpaNominal) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Rincian Barang',
+                            style: context.bodyMediumBold,
+                          ),
+                          TextButton.icon(
+                            onPressed: tambahItem,
+                            icon: const Icon(Icons.add),
+                            label: const Text('Tambah Barang'),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  for (var index = 0; index < drafts.value.length; index++)
-                    _ItemRow(
-                      key: ValueKey('item-${drafts.value[index].id}'),
-                      draft: drafts.value[index],
-                      tanpaNominal: tanpaNominal,
-                      formatRupiah: (value) =>
-                          ref.read(formatCurrencyProvider('$value')),
-                      onChanged: () => drafts.value = [...drafts.value],
-                      onRemove: () => hapusItem(index),
-                    ),
+                    for (var index = 0; index < drafts.value.length; index++)
+                      _ItemRow(
+                        key: ValueKey('item-${drafts.value[index].id}'),
+                        draft: drafts.value[index],
+                        tanpaNominal: tanpaNominal,
+                        formatRupiah: (value) =>
+                            ref.read(formatCurrencyProvider('$value')),
+                        onChanged: () => drafts.value = [...drafts.value],
+                        onRemove: () => hapusItem(index),
+                      ),
+                  ],
                 ],
               ),
               Positioned(
