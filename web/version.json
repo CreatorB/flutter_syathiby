@@ -15,7 +15,8 @@
     "Semua staff bisa melihat status pengajuan beserta timeline prosesnya",
     "Notifikasi diperbaiki: token perangkat kembali dikirim ke server setelah login dan saat aplikasi dibuka",
     "Manager dan Mudir bisa menolak pengajuan dengan alasan; alasan Manager saat menyetujui ikut tersimpan di riwayat proses",
-    "Panel web kini punya modul tapping kantin: layar kasir dengan reader RFID, katalog produk beserta stok, shift kasir, dan rekap transaksi per Santri, per Kasir, dan produk terlaris"
+    "Panel web kini punya modul tapping kantin: layar kasir dengan reader RFID, katalog produk beserta stok, shift kasir, dan rekap transaksi per Santri, per Kasir, dan produk terlaris",
+    "Tim keuangan sekarang bisa memverifikasi top-up saldo dari aplikasi: daftar pengajuan yang menunggu, bukti transfer, lalu tombol Setujui atau Tolak. Kasir kantin tidak punya menu ini -- tugasnya menjaga aktivitas keseharian di lapangan"
   ],
-  "buildStamp": "20261123-2250"
+  "buildStamp": "20261124-0841"
 }
