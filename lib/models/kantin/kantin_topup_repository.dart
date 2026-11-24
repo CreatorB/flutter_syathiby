@@ -3,6 +3,19 @@ import 'package:syathiby/di/providers.dart';
 import 'package:syathiby/models/kantin/kantin_topup_models.dart';
 import 'package:syathiby/res/flavor_config.dart';
 
+/// Isi balasan server.
+///
+/// `ResponseInterceptor` sudah melepas satu lapis `data` jadi `res.data` sudah
+/// berisi isi -- tapi tetap-tolerant kalau someday belum dilepas.
+Map<String, dynamic> _isi(dynamic body) {
+  if (body is Map<String, dynamic>) {
+    return body.containsKey('data') && body['data'] is Map<String, dynamic>
+        ? body['data'] as Map<String, dynamic>
+        : body;
+  }
+  return <String, dynamic>{};
+}
+
 /// Boleh verifikasi top-up atau tidak (hanya tim keuangan).
 ///
 /// Dipakai supaya menu verifikasi disembunyikan dari kasir -- kasir menjaga
@@ -17,15 +30,9 @@ final kantinTopupBolehProvider = FutureProvider<bool>((ref) async {
       'kantin/topup.php',
       queryParameters: {'key': key, 'act': 'boleh'},
     );
-    final body = res.data is Map<String, dynamic>
-        ? res.data as Map<String, dynamic>
-        : <String, dynamic>{};
-    final data = body['data'];
-    if (data is Map<String, dynamic>) {
-      final n = data['boleh'];
-      return n is num ? n.toInt() == 1 : false;
-    }
-    return false;
+    final data = _isi(res.data);
+    final n = data['boleh'];
+    return n is num ? n.toInt() == 1 : false;
   } catch (_) {
     return false;
   }
@@ -43,13 +50,7 @@ final kantinTopupProvider =
       'kantin/topup.php',
       queryParameters: {'key': p.key, 'act': 'list', 'status': p.status},
     );
-    final body = res.data is Map<String, dynamic>
-        ? res.data as Map<String, dynamic>
-        : <String, dynamic>{};
-    final data = body['data'];
-    return TopupDaftar.fromJson(
-      data is Map<String, dynamic> ? data : <String, dynamic>{},
-    );
+    return TopupDaftar.fromJson(_isi(res.data));
   },
 );
 

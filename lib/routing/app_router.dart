@@ -1629,7 +1629,16 @@ GoRouter goRouter(GoRouterRef ref) {
                       GoRoute(
                         path: 'kantin',
                         name: AppRoute.kantin.name,
-                        builder: (context, state) => const KantinScreen(),
+                        builder: (context, state) => KantinScreen(
+                          tabAwal: switch (state.uri.queryParameters['tab']) {
+                            'produk' => 1,
+                            'titipan' => 2,
+                            'hutang' => 3,
+                            'katalog' => 4,
+                            'riwayat' => 5,
+                            _ => 0,
+                          },
+                        ),
                       ),
                       GoRoute(
                         path: 'topup-verifikasi',

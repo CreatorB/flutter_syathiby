@@ -18,7 +18,13 @@ import 'titipan_tab.dart';
 /// Modul Kantin di aplikasi: Kasir (pilih barang -> tap kartu -> konfirmasi),
 /// Produk, Titipan, Katalog, Riwayat. Hak akses diputuskan server.
 class KantinScreen extends HookConsumerWidget {
-  const KantinScreen({super.key});
+  /// Tab yang dibuka pertama (0 = Kasir, 2 = Titipan, dst).
+  ///
+  /// Dipakai menu "Admin Kantin" supaya kasir/keuangan bisa langsung masuk
+  /// ke tab yang dibutuhkan, bukan selalu ke tab Kasir.
+  const KantinScreen({super.key, this.tabAwal = 0});
+
+  final int tabAwal;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -27,6 +33,7 @@ class KantinScreen extends HookConsumerWidget {
     final bolehVerifikasi = ref.watch(kantinTopupBolehProvider).valueOrNull ?? false;
     return DefaultTabController(
       length: 6,
+      initialIndex: tabAwal,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Kantin'),
