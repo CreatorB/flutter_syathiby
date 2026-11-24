@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:syathiby/models/wordpress/wp_post.dart';
+import 'package:syathiby/presentation/widgets/gambar_zoom.dart';
 import 'package:syathiby/utils/extension/color.dart';
 import 'package:intl/intl.dart';
 
@@ -34,76 +35,81 @@ class WpPostListItem extends HookConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Featured Image
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: imageUrl != null && imageUrl.isNotEmpty
-              ? SizedBox(
-                  width: double.infinity,
-                  height: 200,
-                  child: Image.network(
-                    imageUrl,
+        GestureDetector(
+          onTap: (imageUrl != null && imageUrl.isNotEmpty)
+              ? () => showGambarZoom(context, url: imageUrl, judul: post!.plainTitle)
+              : null,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: imageUrl != null && imageUrl.isNotEmpty
+                ? SizedBox(
                     width: double.infinity,
                     height: 200,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Container(
-                        height: 200,
-                        color: context.colorOnSurface.withOpacity(0.1),
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            value: loadingProgress.expectedTotalBytes != null
-                                ? loadingProgress.cumulativeBytesLoaded /
-                                    loadingProgress.expectedTotalBytes!
-                                : null,
+                    child: Image.network(
+                      imageUrl,
+                      width: double.infinity,
+                      height: 200,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Container(
+                          height: 200,
+                          color: context.colorOnSurface.withOpacity(0.1),
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded /
+                                      loadingProgress.expectedTotalBytes!
+                                  : null,
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                    errorBuilder: (context, error, stackTrace) {
-                      debugPrint('❌ Image load error for ${post!.id}: $error');
-                      debugPrint('Stack: $stackTrace');
-                      return Container(
-                        height: 200,
-                        color: context.colorOnSurface.withOpacity(0.1),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.image_outlined,
-                              size: 80,
-                              color: Colors.grey,
-                            ),
-                            const SizedBox(height: 8),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              child: Text(
-                                'Error: $error',
-                                style: const TextStyle(fontSize: 10, color: Colors.red),
-                                textAlign: TextAlign.center,
-                                maxLines: 3,
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        debugPrint('❌ Image load error for ${post!.id}: $error');
+                        debugPrint('Stack: $stackTrace');
+                        return Container(
+                          height: 200,
+                          color: context.colorOnSurface.withOpacity(0.1),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.image_outlined,
+                                size: 80,
+                                color: Colors.grey,
                               ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                )
-              : Container(
-                  height: 200,
-                  decoration: BoxDecoration(
-                    color: context.colorOnSurface.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.article_outlined,
-                      size: 80,
-                      color: Colors.grey,
+                              const SizedBox(height: 8),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                child: Text(
+                                  'Error: $error',
+                                  style: const TextStyle(fontSize: 10, color: Colors.red),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  )
+                : Container(
+                    height: 200,
+                    decoration: BoxDecoration(
+                      color: context.colorOnSurface.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Center(
+                      child: Icon(
+                        Icons.article_outlined,
+                        size: 80,
+                        color: Colors.grey,
+                      ),
                     ),
                   ),
-                ),
+          ),
         ),
         const SizedBox(height: 16),
 
