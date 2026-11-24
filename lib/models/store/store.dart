@@ -69,6 +69,7 @@ class Store with _$Store {
     @JsonKey(name: 'menu_pengadaan') int? menuPengadaan,
     @JsonKey(name: 'menu_perbaikan') int? menuPerbaikan,
     @JsonKey(name: 'menu_kantin') int? menuKantin,
+    @JsonKey(name: 'admin_kantin') int? adminKantin,
     @JsonKey(name: 'tanpa_absen') int? tanpaAbsen,
   }) = _Store;
 
