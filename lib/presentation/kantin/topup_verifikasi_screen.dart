@@ -5,6 +5,7 @@ import 'package:syathiby/models/kantin/kantin_repository.dart';
 import 'package:syathiby/models/kantin/kantin_topup_models.dart';
 import 'package:syathiby/models/kantin/kantin_topup_repository.dart';
 import 'package:syathiby/presentation/kantin/kantin_widgets.dart';
+import 'package:syathiby/presentation/widgets/gambar_zoom.dart';
 import 'package:syathiby/utils/extension/color.dart';
 import 'package:syathiby/utils/extension/typography.dart';
 
@@ -232,22 +233,34 @@ class _KartuTopupState extends State<_KartuTopup> {
               Text('Bukti transfer tidak diunggah.', style: context.bodySmall),
             if (_bukaBukti && t.adaBukti) ...[
               const SizedBox(height: 6),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  kantinTopupBuktiUrl(widget.keySesi, t.id),
-                  fit: BoxFit.contain,
-                  loadingBuilder: (ctx, child, progres) => progres == null
-                      ? child
-                      : const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Center(child: CircularProgressIndicator()),
-                        ),
-                  errorBuilder: (ctx, e, _) => Text(
-                    'Bukti tidak bisa dimuat.',
-                    style: context.bodySmall?.copyWith(color: context.colorError),
+              GestureDetector(
+                onTap: () => showGambarZoom(
+                  context,
+                  url: kantinTopupBuktiUrl(widget.keySesi, t.id),
+                  judul: 'Bukti ${t.kode}',
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    kantinTopupBuktiUrl(widget.keySesi, t.id),
+                    fit: BoxFit.contain,
+                    loadingBuilder: (ctx, child, progres) => progres == null
+                        ? child
+                        : const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Center(child: CircularProgressIndicator()),
+                          ),
+                    errorBuilder: (ctx, e, _) => Text(
+                      'Bukti tidak bisa dimuat.',
+                      style: context.bodySmall?.copyWith(color: context.colorError),
+                    ),
                   ),
                 ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Ketuk gambar untuk melihat penuh dan memperbesar.',
+                style: context.bodySmall?.copyWith(color: context.colorOutline),
               ),
             ],
             if (t.menunggu) ...[

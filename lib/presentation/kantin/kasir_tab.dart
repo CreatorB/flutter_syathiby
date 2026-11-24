@@ -5,6 +5,7 @@ import 'package:syathiby/models/kantin/kantin_models.dart';
 import 'package:syathiby/models/kantin/kantin_repository.dart';
 import 'package:syathiby/models/kantin/kantin_titipan_models.dart';
 import 'package:syathiby/models/kantin/kantin_titipan_repository.dart';
+import 'package:syathiby/presentation/widgets/gambar_zoom.dart';
 import 'package:syathiby/utils/extension/color.dart';
 import 'package:syathiby/utils/extension/typography.dart';
 
@@ -381,19 +382,24 @@ class _LangkahPreview extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: SizedBox(
-                    width: 72,
-                    height: 90,
-                    child: s.foto.isEmpty
-                        ? const ColoredBox(color: Color(0xFFE0E0E0), child: Icon(Icons.person, size: 40, color: Colors.grey))
-                        : Image.network(
-                            s.foto,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) =>
-                                const ColoredBox(color: Color(0xFFE0E0E0), child: Icon(Icons.person, size: 40, color: Colors.grey)),
-                          ),
+                GestureDetector(
+                  onTap: s.foto.isEmpty
+                      ? null
+                      : () => showGambarZoom(context, url: s.foto, judul: s.nama),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: SizedBox(
+                      width: 72,
+                      height: 90,
+                      child: s.foto.isEmpty
+                          ? const ColoredBox(color: Color(0xFFE0E0E0), child: Icon(Icons.person, size: 40, color: Colors.grey))
+                          : Image.network(
+                              s.foto,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  const ColoredBox(color: Color(0xFFE0E0E0), child: Icon(Icons.person, size: 40, color: Colors.grey)),
+                            ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
