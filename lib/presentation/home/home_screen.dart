@@ -1077,6 +1077,31 @@ return Scaffold(
                     ),
                 ],
               ),
+              // Menu ACC uang: hanya tim keuangan (atau akses penuh). Kasir
+              // kantin menjaga aktivitas keseharian di lapangan, jadi menu ini
+              // tidak muncul baginya.
+              buildListMenu(
+                title: 'Admin Kantin',
+                enabled: presenceData?.adminKantin == 1 ||
+                    presenceData?.adminUtama == 1,
+                menus: [
+                  if (presenceData?.adminKantin == 1 ||
+                      presenceData?.adminUtama == 1)
+                    MenuGrid(
+                      title: 'Verifikasi Top-up Saldo',
+                      iconData: Icons.request_quote_outlined,
+                      goToRouteName: AppRoute.topupVerifikasi.name,
+                    ),
+                  if (presenceData?.adminKantin == 1 ||
+                      presenceData?.adminUtama == 1)
+                    MenuGrid(
+                      title: 'Pencairan Titipan',
+                      iconData: Icons.payments_outlined,
+                      goToRouteName: AppRoute.kantin.name,
+                      queryParameters: {'tab': 'titipan'},
+                    ),
+                ],
+              ),
               buildListMenu(
                 title: 'Pengadaan & Perbaikan',
                 // Satu modul: 2 form pengajuan + 2 daftar (semua pengajuan dan
