@@ -7,6 +7,14 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [1.0.12] - 2026-11-09
 
+### Ditambahkan
+- **Gambar Bisa Dibuka Layar Penuh dan Diperbesar**
+  - Bukti transfer di layar Verifikasi Top-up Saldo, foto Santri pada konfirmasi pembelian kasir, dan gambar berita kini bisa dibuka layar penuh: ketuk gambarnya, lalu perbesar dengan cubit dua jari, klik ganda, tombol +/- , atau roda mouse di versi web
+  - **File yang Dimodifikasi**: `lib/presentation/widgets/gambar_zoom.dart`, `lib/presentation/kantin/topup_verifikasi_screen.dart`, `lib/presentation/kantin/kasir_tab.dart`, `lib/presentation/wordpress/wp_post_list_item.dart`
+- **Lonceng Notifikasi di Panel Web**
+  - Panel web kini punya lonceng notifikasi di navbar atas: lencana merah jumlah belum dibaca, daftar notifikasi per akun (masing-masing staff hanya melihat notifikasinya sendiri), dan klik notifikasi langsung membuka halaman yang terkait
+  - **File yang Dimodifikasi**: `userpanel/application/theme/b2b_v3/action/notifikasi.php`, `userpanel/application/theme/b2b_v3/layout.php`
+
 ### Diubah
 - **Alur Pengajuan Barang dan Perbaikan Dipisah**
   - Semua pengajuan harus di-ACC atasan lebih dahulu (otomatis bila pemohon sendiri pimpinan), lalu persetujuan Mudir berjalan otomatis. Mudir tetap bisa menolak selama proses belum berjalan
