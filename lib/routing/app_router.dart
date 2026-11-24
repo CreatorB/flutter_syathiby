@@ -167,6 +167,7 @@ import '../presentation/rekap/add_manual_attendance_screen.dart';
 import '../presentation/rekap/data_presence_screen.dart';
 import '../presentation/report/attendance_report_screen.dart';
 import '../presentation/kantin/kantin_screen.dart';
+import '../presentation/kantin/topup_verifikasi_screen.dart';
 import '../presentation/report/student_fasting_screen.dart';
 import '../presentation/setting/face_preview_screen.dart';
 import '../presentation/setting/fingerprint_screen.dart';
@@ -377,6 +378,7 @@ enum AppRoute {
   addItem,
   addPengajuan,
   kantin,
+  topupVerifikasi,
   scanQr,
   dataPresence,
   attendanceRecapMonth,
@@ -1628,6 +1630,11 @@ GoRouter goRouter(GoRouterRef ref) {
                         path: 'kantin',
                         name: AppRoute.kantin.name,
                         builder: (context, state) => const KantinScreen(),
+                      ),
+                      GoRoute(
+                        path: 'topup-verifikasi',
+                        name: AppRoute.topupVerifikasi.name,
+                        builder: (context, state) => const TopupVerifikasiScreen(),
                       ),
                     ],
                   ),

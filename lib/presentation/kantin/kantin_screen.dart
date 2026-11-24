@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:syathiby/di/providers.dart';
 import 'package:syathiby/models/kantin/kantin_repository.dart';
-import 'package:syathiby/utils/extension/color.dart';
+import 'package:syathiby/models/kantin/kantin_topup_repository.dart';
+import 'package:syathiby/routing/app_router.dart';
 import 'package:syathiby/utils/extension/typography.dart';
 
 import 'kantin_widgets.dart';
@@ -14,57 +16,47 @@ import 'produk_tab.dart';
 import 'titipan_tab.dart';
 
 /// Modul Kantin di aplikasi: Kasir (pilih barang -> tap kartu -> konfirmasi),
-/// Produk, Titipan, Katalog, Riwayat. Hak akses diputuskan server; vendor &
-/// settlement dikelola lewat panel web.
+/// Produk, Titipan, Katalog, Riwayat. Hak akses diputuskan server.
 class KantinScreen extends HookConsumerWidget {
   const KantinScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final key = '${ref.watch(getCurrentUserProvider)?.key}';
+    // Hanya tim keuangan yang punya tombol verifikasi top-up.
+    final bolehVerifikasi = ref.watch(kantinTopupBolehProvider).valueOrNull ?? false;
     return DefaultTabController(
       length: 6,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Kantin'),
+          // Verifikasi top-up saldo hanya untuk tim keuangan; kasir kantin
+          // menjaga aktivitas keseharian di lapangan, bukan ACC uang.
+          actions: [
+            if (bolehVerifikasi)
+              IconButton(
+                tooltip: 'Verifikasi top-up saldo',
+                icon: const Icon(Icons.request_quote_outlined),
+                onPressed: () => context.goNamed(AppRoute.topupVerifikasi.name),
+              ),
+          ],
           bottom: const TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,
             tabs: [Tab(text: 'Kasir'), Tab(text: 'Produk'), Tab(text: 'Titipan'), Tab(text: 'Hutang'), Tab(text: 'Katalog'), Tab(text: 'Riwayat')],
           ),
         ),
-        body: Column(
+        // Isi tab menempel langsung di bawah deretan tab -- tidak ada pita
+        // informasi atau jarak kosong di antaranya.
+        body: TabBarView(
+          physics: const NeverScrollableScrollPhysics(),
           children: [
-            Container(
-              width: double.infinity,
-              color: context.colorPrimary.withValues(alpha: 0.08),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, size: 18, color: context.colorPrimary),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Vendor & settlement dikelola lewat panel web.',
-                      style: context.bodySmall,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: TabBarView(
-                physics: const NeverScrollableScrollPhysics(),
-                children: [
-                  KasirTab(keySesi: key),
-                  ProdukTab(keySesi: key),
-                  TitipanTab(keySesi: key),
-                  HutangTab(keySesi: key),
-                  _KatalogTab(keySesi: key),
-                  _RiwayatTab(keySesi: key),
-                ],
-              ),
-            ),
+            KasirTab(keySesi: key),
+            ProdukTab(keySesi: key),
+            TitipanTab(keySesi: key),
+            HutangTab(keySesi: key),
+            _KatalogTab(keySesi: key),
+            _RiwayatTab(keySesi: key),
           ],
         ),
       ),
