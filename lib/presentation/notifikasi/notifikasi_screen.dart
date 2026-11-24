@@ -17,6 +17,11 @@ import 'package:syathiby/utils/waktu_notifikasi.dart';
 /// sendiri -- identitas diambil dari `key` sesi di server, bukan dari pilihan
 /// di layar.
 ///
+/// Daftar dimuat per MINGGU: minggu berjalan dulu, lalu minggu-minggu
+/// sebelumnya saat layar di-scroll ke bawah. Judul minggu dikirim server
+/// ("Pekan ini", "Pekan lalu"), jadi daftar di aplikasi dan di panel web
+/// selalu menunjukkan batas minggu yang sama.
+///
 /// Notifikasi yang diklik ditandai terbaca lebih dulu, lalu dibuka halamannya.
 /// Tombol di pojok kanan atas menandai semua notifikasi yang belum dibaca.
 class NotifikasiScreen extends HookConsumerWidget {
@@ -33,32 +38,39 @@ class NotifikasiScreen extends HookConsumerWidget {
     // hasil fetch-nya masuk ke provider yang tidak lagi dipakai, dan daftar
     // tampil kosong padahal server sudah mengirim data.
     void muatAwal() => ref.read(notifikasiListProvider.notifier).muatAwal(key);
-    void muatLagi() => ref.read(notifikasiListProvider.notifier).muatLagi(key);
+    void muatMingguBerikutnya() =>
+        ref.read(notifikasiListProvider.notifier).muatMingguBerikutnya(key);
     void tandaiTerbaca(int id) =>
         ref.read(notifikasiListProvider.notifier).tandaiTerbacaDiDaftar(id);
     final scroll = useMemoized(() => ScrollController(), []);
 
-    // Muat halaman pertama saat layar dibuka.
+    // Muat minggu pertama saat layar dibuka.
     useEffect(() {
       if (key.isEmpty || key == 'null') return null;
       Future.microtask(muatAwal);
       return null;
     }, [key]);
 
-    // Muat halaman berikutnya saat nearing akhir daftar.
+    // Muat minggu berikutnya saat nearing akhir daftar.
     useEffect(() {
       void onScroll() {
         if (!scroll.hasClients) return;
         if (scroll.position.pixels >= scroll.position.maxScrollExtent - 300) {
-          muatLagi();
+          muatMingguBerikutnya();
         }
       }
 
       scroll.addListener(onScroll);
       return () => scroll.removeListener(onScroll);
-    }, [key, list.page]);
+    }, [key, list.blok.length]);
 
-    final items = list.items;
+    // Daftar yang diratakan jadi satu daftar datar: header minggu + item.
+    final entries = <Object>[];
+    for (final blok in list.blok) {
+      entries.add(blok);
+      entries.addAll(blok.items);
+    }
+    final items = list.jumlahItem;
 
     return Scaffold(
       appBar: AppBar(
@@ -98,17 +110,17 @@ class NotifikasiScreen extends HookConsumerWidget {
           await ref.read(notifikasiListProvider.notifier).muatAwal(key);
           ref.invalidate(fetchNotifikasiUnreadProvider);
         },
-        child: list.loading && items.isEmpty
+        child: list.loading && items == 0
             ? const Center(child: CircularProgressIndicator())
-            : items.isEmpty
+            : items == 0
                 ? _kosong(context)
                 : ListView.builder(
                     controller: scroll,
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.only(bottom: 24),
-                    itemCount: items.length + (list.hasMore ? 1 : 0),
+                    itemCount: entries.length + (list.adaLagi ? 1 : 0),
                     itemBuilder: (context, index) {
-                      if (index >= items.length) {
+                      if (index >= entries.length) {
                         return const Padding(
                           padding: EdgeInsets.all(16),
                           child: Center(
@@ -120,52 +132,34 @@ class NotifikasiScreen extends HookConsumerWidget {
                           ),
                         );
                       }
-                      final n = items[index];
-                      final tampilKelompok = index == 0 ||
-                          WaktuNotifikasi.kelompokTanggal(
-                                items[index - 1].createdAt,
-                              ) !=
-                              WaktuNotifikasi.kelompokTanggal(n.createdAt);
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (tampilKelompok)
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
-                              child: Text(
-                                WaktuNotifikasi.kelompokTanggal(n.createdAt),
-                                style: context.bodySmall?.copyWith(
-                                  color: context.colorOutline,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          _BarisNotifikasi(
-                            notifikasi: n,
-                            onTap: () {
-                              final id = n.id ?? 0;
-                              if (id > 0) {
-                                // Tandai terbaca dulu supaya badge turun
-                                // seketika, baru buka halamannya.
-                                tandaiTerbaca(id);
-                                ref
-                                    .read(notifikasiReadProvider.notifier)
-                                    .tandaiDibaca(key: key, id: id);
-                              }
-                              // goNamed (bukan pushNamed): di web, pushNamed
-                              // ke route anak tidak memperbarui URL browser,
-                              // jadi halaman detail tidak bisa di-refresh atau
-                              // di-share. Route detail memang anak dari
-                              // 'notifikasi', jadi daftar tetap ada di bawah
-                              // dan tombol kembali kembali ke daftar.
-                              context.goNamed(
-                                AppRoute.notifikasiDetail.name,
-                                pathParameters: {'id': '$id'},
-                              );
-                            },
-                          ),
-                          const Divider(height: 1),
-                        ],
+                      final entri = entries[index];
+                      if (entri is BlokMinggu) {
+                        return _HeaderMinggu(label: entri.label);
+                      }
+                      final n = entri as Notifikasi;
+                      return _BarisNotifikasi(
+                        notifikasi: n,
+                        onTap: () {
+                          final id = n.id ?? 0;
+                          if (id > 0) {
+                            // Tandai terbaca dulu supaya badge turun
+                            // seketika, baru buka halamannya.
+                            tandaiTerbaca(id);
+                            ref
+                                .read(notifikasiReadProvider.notifier)
+                                .tandaiDibaca(key: key, id: id);
+                          }
+                          // goNamed (bukan pushNamed): di web, pushNamed
+                          // ke route anak tidak memperbarui URL browser,
+                          // jadi halaman detail tidak bisa di-refresh atau
+                          // di-share. Route detail memang anak dari
+                          // 'notifikasi', jadi daftar tetap ada di bawah
+                          // dan tombol kembali kembali ke daftar.
+                          context.goNamed(
+                            AppRoute.notifikasiDetail.name,
+                            pathParameters: {'id': '$id'},
+                          );
+                        },
                       );
                     },
                   ),
@@ -198,6 +192,34 @@ class NotifikasiScreen extends HookConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Judul kelompok minggu: 'Pekan ini', 'Pekan lalu', dst.
+class _HeaderMinggu extends StatelessWidget {
+  const _HeaderMinggu({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label.toUpperCase(),
+              style: context.bodySmall?.copyWith(
+                color: context.colorOutline,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

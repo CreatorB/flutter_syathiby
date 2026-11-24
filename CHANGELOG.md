@@ -11,6 +11,10 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - **Gambar Bisa Dibuka Layar Penuh dan Diperbesar**
   - Bukti transfer di layar Verifikasi Top-up Saldo, foto Santri pada konfirmasi pembelian kasir, dan gambar berita kini bisa dibuka layar penuh: ketuk gambarnya, lalu perbesar dengan cubit dua jari, klik ganda, tombol +/- , atau roda mouse di versi web
   - **File yang Dimodifikasi**: `lib/presentation/widgets/gambar_zoom.dart`, `lib/presentation/kantin/topup_verifikasi_screen.dart`, `lib/presentation/kantin/kasir_tab.dart`, `lib/presentation/wordpress/wp_post_list_item.dart`
+- **Notifikasi Di Dolan per Minggu**
+  - Dropdown lonceng di panel web sekarang ringkas: semua notifikasi yang belum dibaca, ditambah maksimal 3 yang sudah dibaca. Tombol muat ulang pindah ke pojok kanan atas (ikon refresh), dan bagian bawah dropdown berubah menjadi "Lihat semua"
+  - Tombol "Lihat semua" membuka halaman Notifikasi: daftar lengkap dikelompokkan per minggu ("Pekan ini", "Pekan lalu", dan seterusnya), dan minggu berikutnya ikut termuat otomatis saat daftar digulir ke bawah -- sama di aplikasi staff dan aplikasi Walsan
+  - Jam notifikasi di aplikasi kini sesuai waktu setempat. Sebelumnya meleset 7 jam karena waktu server (UTC) dibaca seolah-olah waktu lokal
 - **Lonceng Notifikasi di Panel Web**
   - Panel web kini punya lonceng notifikasi di navbar atas: lencana merah jumlah belum dibaca, daftar notifikasi per akun (masing-masing staff hanya melihat notifikasinya sendiri), dan klik notifikasi langsung membuka halaman yang terkait
   - **File yang Dimodifikasi**: `userpanel/application/theme/b2b_v3/action/notifikasi.php`, `userpanel/application/theme/b2b_v3/layout.php`
