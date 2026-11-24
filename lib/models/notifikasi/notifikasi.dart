@@ -36,3 +36,23 @@ class NotifikasiUnread with _$NotifikasiUnread {
   factory NotifikasiUnread.fromJson(Map<String, dynamic> json) =>
       _$NotifikasiUnreadFromJson(json);
 }
+
+/// Satu minggu notifikasi (hasil satu permintaan ke server).
+///
+/// Server memuat notifikasi per MINGGU: `week` 0 = minggu berjalan, 1 =
+/// minggu lalu, dst. `label` (mis. "Pekan ini") dikirim server supaya judul
+/// di layar selalu sama dengan batas minggu yang dipakai saat mengambil data.
+@freezed
+class NotifikasiMinggu with _$NotifikasiMinggu {
+  const factory NotifikasiMinggu({
+    @JsonKey(name: 'notifikasi') List<Notifikasi>? notifikasi,
+    int? total,
+    int? unread,
+    int? week,
+    String? label,
+    @JsonKey(name: 'ada_lagi') bool? adaLagi,
+  }) = _NotifikasiMinggu;
+
+  factory NotifikasiMinggu.fromJson(Map<String, dynamic> json) =>
+      _$NotifikasiMingguFromJson(json);
+}

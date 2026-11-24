@@ -8,46 +8,73 @@ import 'package:syathiby/models/service_injection.dart';
 
 part 'notifikasi_controller.g.dart';
 
-/// Keadaan daftar notifikasi (dipaginasi).
+/// Satu blok notifikasi: satu MINGGU (server yang menentukan batasnya).
+class BlokMinggu {
+  const BlokMinggu({
+    required this.week,
+    required this.label,
+    required this.items,
+  });
+
+  final int week;
+  final String label;
+  final List<Notifikasi> items;
+}
+
+/// Keadaan daftar notifikasi (dimuat per minggu).
 ///
 /// Dipakai sebagai state agar setiap perubahan memicu rebuild widget yang
 /// berbeda -- bukan menyimpan daftar di dalam notifier.
 class NotifikasiListState {
   const NotifikasiListState({
-    this.items = const <Notifikasi>[],
-    this.page = 1,
-    this.hasMore = true,
+    this.blok = const <BlokMinggu>[],
+    this.adaLagi = true,
     this.loading = false,
+    this.unread = 0,
+    this.total = 0,
   });
 
-  final List<Notifikasi> items;
-  final int page;
-  final bool hasMore;
+  /// Notifikasi yang sudah dimuat, dikelompokkan per minggu.
+  final List<BlokMinggu> blok;
+
+  /// Masih ada minggu yang lebih lama belum dimuat?
+  final bool adaLagi;
   final bool loading;
 
-  int get unread => items.where((n) => (n.status ?? 'baru') == 'baru').length;
+  /// Jumlah belum dibaca (dari server, bukan dihitung dari daftar yang
+  /// sudah dimuat -- daftar hanya berisi sebagian minggu).
+  final int unread;
+
+  /// Jumlah seluruh notifikasi.
+  final int total;
+
+  int get jumlahItem =>
+      blok.fold(0, (total, b) => total + b.items.length);
 
   NotifikasiListState copyWith({
-    List<Notifikasi>? items,
-    int? page,
-    bool? hasMore,
+    List<BlokMinggu>? blok,
+    bool? adaLagi,
     bool? loading,
+    int? unread,
+    int? total,
   }) {
     return NotifikasiListState(
-      items: items ?? this.items,
-      page: page ?? this.page,
-      hasMore: hasMore ?? this.hasMore,
+      blok: blok ?? this.blok,
+      adaLagi: adaLagi ?? this.adaLagi,
       loading: loading ?? this.loading,
+      unread: unread ?? this.unread,
+      total: total ?? this.total,
     );
   }
 }
 
-/// Daftar notifikasi staff dengan pagination (muat halaman berikutnya saat
-/// layar di-scroll ke bawah).
+/// Daftar notifikasi staff dengan pagination per MINGGU.
+///
+/// Minggu berikutnya dimuat saat layar di-scroll ke bawah. Judul minggu
+/// ("Pekan ini", "Pekan lalu") dikirim server, jadi daftar di aplikasi dan
+/// di panel web selalu menunjukkan batas minggu yang sama.
 @riverpod
 class NotifikasiList extends _$NotifikasiList {
-  static const int perHalaman = 20;
-
   @override
   NotifikasiListState build() => const NotifikasiListState();
 
@@ -56,14 +83,22 @@ class NotifikasiList extends _$NotifikasiList {
     if (key.isEmpty || key == 'null') return;
     state = state.copyWith(loading: true);
     try {
-      final data = await ref
+      final hasil = await ref
           .read(notifikasiServiceProvider)
-          .getNotifikasi(key, 1);
+          .getNotifikasi(key, 0);
+      final items = hasil.notifikasi ?? const <Notifikasi>[];
       state = NotifikasiListState(
-        items: data,
-        page: 1,
-        hasMore: data.length >= perHalaman,
+        blok: <BlokMinggu>[
+          BlokMinggu(
+            week: hasil.week ?? 0,
+            label: hasil.label ?? 'Pekan ini',
+            items: items,
+          ),
+        ],
+        adaLagi: hasil.adaLagi ?? false,
         loading: false,
+        unread: hasil.unread ?? 0,
+        total: hasil.total ?? 0,
       );
     } catch (e) {
       debugPrint('Gagal memuat daftar notifikasi: $e');
@@ -71,54 +106,78 @@ class NotifikasiList extends _$NotifikasiList {
     }
   }
 
-  /// Muat halaman berikutnya (dipanggil saat nearing akhir daftar).
-  Future<void> muatLagi(String key) async {
+  /// Muat minggu berikutnya (dipanggil saat nearing akhir daftar).
+  Future<void> muatMingguBerikutnya(String key) async {
     if (key.isEmpty || key == 'null') return;
-    if (state.loading || !state.hasMore) return;
-    final next = state.page + 1;
+    if (state.loading || !state.adaLagi) return;
+    final next = (state.blok.isEmpty ? 0 : state.blok.last.week) + 1;
     state = state.copyWith(loading: true);
     try {
-      final data = await ref
+      final hasil = await ref
           .read(notifikasiServiceProvider)
           .getNotifikasi(key, next);
+      final items = hasil.notifikasi ?? const <Notifikasi>[];
+      final blok = <BlokMinggu>[
+        ...state.blok,
+        BlokMinggu(
+          week: hasil.week ?? next,
+          label: hasil.label ?? 'Minggu ${hasil.week ?? next}',
+          items: items,
+        ),
+      ];
       state = state.copyWith(
-        items: [...state.items, ...data],
-        page: next,
-        hasMore: data.length >= perHalaman,
+        blok: blok,
+        adaLagi: hasil.adaLagi ?? false,
         loading: false,
+        unread: hasil.unread ?? state.unread,
+        total: hasil.total ?? state.total,
       );
     } catch (e) {
-      debugPrint('Gagal memuat halaman notifikasi berikutnya: $e');
+      debugPrint('Gagal memuat minggu notifikasi berikutnya: $e');
       state = state.copyWith(loading: false);
     }
   }
 
   /// Tandai semua notifikasi di daftar sebagai terbaca (perubahan lokal).
   void tandaiSemuaTerbacaDiDaftar() {
-    if (state.items.isEmpty) return;
-    final baru = state.items
-        .map(
-          (n) => (n.status ?? 'baru') == 'dibaca'
-              ? n
-              : n.copyWith(status: 'dibaca', readAt: DateTime.now().toString()),
-        )
-        .toList();
-    state = state.copyWith(items: baru);
+    if (state.blok.isEmpty) return;
+    final blok = state.blok.map((b) {
+      return BlokMinggu(
+        week: b.week,
+        label: b.label,
+        items: b.items
+            .map(
+              (n) => (n.status ?? 'baru') == 'dibaca'
+                  ? n
+                  : n.copyWith(
+                      status: 'dibaca',
+                      readAt: DateTime.now().toString(),
+                    ),
+            )
+            .toList(),
+      );
+    }).toList();
+    state = state.copyWith(blok: blok, unread: 0);
   }
 
   /// Tandai satu notifikasi terbaca di daftar (tanpa menambah ulang).
   void tandaiTerbacaDiDaftar(int id) {
-    if (state.items.isEmpty) return;
+    if (state.blok.isEmpty) return;
     var adaUbah = false;
-    final baru = state.items.map((n) {
-      if ((n.id ?? 0) == id && (n.status ?? 'baru') != 'dibaca') {
-        adaUbah = true;
-        return n.copyWith(status: 'dibaca', readAt: DateTime.now().toString());
-      }
-      return n;
+    var belumTersisa = 0;
+    final blok = state.blok.map((b) {
+      final items = b.items.map((n) {
+        if ((n.id ?? 0) == id && (n.status ?? 'baru') != 'dibaca') {
+          adaUbah = true;
+          return n.copyWith(status: 'dibaca', readAt: DateTime.now().toString());
+        }
+        return n;
+      }).toList();
+      belumTersisa += items.where((n) => (n.status ?? 'baru') == 'baru').length;
+      return BlokMinggu(week: b.week, label: b.label, items: items);
     }).toList();
     if (adaUbah) {
-      state = state.copyWith(items: baru);
+      state = state.copyWith(blok: blok, unread: belumTersisa);
     }
   }
 }

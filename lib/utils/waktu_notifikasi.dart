@@ -1,8 +1,9 @@
 /// Format waktu untuk daftar & detail notifikasi.
 ///
 /// Server mengirim waktu dalam format MySQL ('Y-m-d H:i:s') dalam zona waktu
-/// Asia/Jakarta (WIB). Tuple waktu dari `DateTime.parse` tanpa suffix zona
-/// dibaca sebagai waktu lokal, jadi nilainya langsung bisa ditampilkan.
+/// SERVER, yaitu UTC (`@@system_time_zone` = UTC di VPS Syathiby). Jadi
+/// string itu dibaca sebagai UTC lalu dikonversi ke waktu lokal perangkat
+/// sebelum ditampilkan -- kalau tidak, jamnya meleset 7 jam di WIB.
 ///
 /// Format ditulis manual (bukan `package:intl`) supaya nama bulan dan hari
 /// selalu berbahasa Indonesia tanpa perlu inisialisasi data locale.
@@ -52,7 +53,7 @@ class WaktuNotifikasi {
   static String lengkap(String? mentah, {DateTime? now}) {
     final dt = parse(mentah);
     if (dt == null) return (mentah ?? '').trim().isEmpty ? '-' : '$mentah';
-    return _format(dt);
+    return _format(dt.toLocal());
   }
 
   static String _format(DateTime dt) =>
@@ -62,14 +63,17 @@ class WaktuNotifikasi {
   static String kelompokTanggal(String? mentah, {DateTime? now}) {
     final dt = parse(mentah);
     if (dt == null) return 'Lainnya';
+    final lokal = dt.toLocal();
     final hariIni = now ?? DateTime.now();
     final hariIniTanggal = DateTime(hariIni.year, hariIni.month, hariIni.day);
-    final tanggal = DateTime(dt.year, dt.month, dt.day);
+    final tanggal = DateTime(lokal.year, lokal.month, lokal.day);
     final beda = hariIniTanggal.difference(tanggal).inDays;
     if (beda == 0) return 'Hari ini';
     if (beda == 1) return 'Kemarin';
-    if (beda < 7) return '${_hari[dt.weekday - 1]}, ${_formatTanggal(dt)}';
-    return _formatTanggal(dt);
+    if (beda < 7) {
+      return '${_hari[lokal.weekday - 1]}, ${_formatTanggal(lokal)}';
+    }
+    return _formatTanggal(lokal);
   }
 
   static String _formatTanggal(DateTime dt) =>
@@ -80,10 +84,13 @@ class WaktuNotifikasi {
 
   static String _duaDigit(int n) => n.toString().padLeft(2, '0');
 
-  /// Tanggal '2026-11-19 08:17:00' -> DateTime; null kalau tidak bisa dibaca.
+  /// Tanggal '2026-11-19 08:17:00' (UTC, zona waktu server) -> DateTime UTC.
+  ///
+  /// Suffix 'Z' dipakai karena waktu server disimpan dalam UTC. Tanpa itu
+  /// string itu dibaca sebagai waktu lokal dan jamnya meleset 7 jam di WIB.
   static DateTime? parse(String? mentah) {
     final teks = (mentah ?? '').trim();
     if (teks.isEmpty) return null;
-    return DateTime.tryParse(teks.replaceFirst(' ', 'T'));
+    return DateTime.tryParse('${teks.replaceFirst(' ', 'T')}Z');
   }
 }
