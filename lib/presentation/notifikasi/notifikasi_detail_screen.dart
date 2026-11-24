@@ -185,6 +185,11 @@ class NotifikasiDetailScreen extends HookConsumerWidget {
   String? _tujuanUrl(Notifikasi n) {
     final source = (n.source ?? '').toLowerCase();
     final refId = (n.refId ?? '').trim();
+    // Top-up saldo: tujuannya daftar verifikasi (tim keuangan), tidak perlu
+    // acuan karena daftar menampilkan semua pengajuan yang menunggu.
+    if (source == 'kantin_topup_admin') {
+      return AppRoute.topupVerifikasi.name;
+    }
     if (refId.isEmpty) return null;
     if (source == 'get_pengadaan') {
       return '${AppRoute.detailRequestTransaction.name}?invoiceId=$refId&status=pengajuan';
@@ -195,12 +200,17 @@ class NotifikasiDetailScreen extends HookConsumerWidget {
   String _labelTombol(Notifikasi n) {
     final source = (n.source ?? '').toLowerCase();
     if (source == 'get_pengadaan') return 'Buka pengajuan';
+    if (source == 'kantin_topup_admin') return 'Verifikasi top-up saldo';
     return 'Buka detail';
   }
 
   void _bukaTujuan(BuildContext context, Notifikasi n) {
     final source = (n.source ?? '').toLowerCase();
     final refId = (n.refId ?? '').trim();
+    if (source == 'kantin_topup_admin') {
+      context.goNamed(AppRoute.topupVerifikasi.name);
+      return;
+    }
     if (source == 'get_pengadaan' && refId.isNotEmpty) {
       context.goNamed(
         AppRoute.detailRequestTransaction.name,
