@@ -30,6 +30,10 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   - Status dan timeline proses pengajuan kini terlihat oleh seluruh staff, sedangkan tombol aksi hanya muncul untuk yang berhak
 
 ### Diperbaiki
+- **Notifikasi Pencairan Titipan Punya Tombol Aksi**
+  - Notifikasi "Pengajuan pencairan titipan" di aplikasi staff sekarang punya tombol **"Buka pencairan titipan"** yang langsung membuka Kantin › Titipan — tempat pengajuan disetujui atau ditolak. Sebelumnya notifikasi itu hanya menampilkan teks, tanpa ada jalan keluar
+  - Notifikasi ini dikirim ke admin keuangan (peran `pengadaan_keuangan`), yaitu pihak yang memang berwenang memproses pengajuan, sehingga tombolnya tidak mengarah ke halaman yang salah
+  - **File yang Dimodifikasi**: `lib/presentation/notifikasi/notifikasi_detail_screen.dart`
 - **Nomor Kartu RFID Tidak Lagi Sambung dan Terlalu Panjang**
   - Pembaca RFID USB mengirim UID 20 digit (mis. 00010827600008825421), sedangkan nomor kartu yang tersimpan di database 10 digit. Angka yang ditekan ke kolom kartu dulu MENYAMBUNG dengan nomor lama, jadi yang tersimpan gabungan dua nomor dan kartu tidak ketemu saat tapping
   - Di aplikasi kasir, UID dari pembaca dipangkas ke 10 digit terakhir sebelum dikirim ke server. Server juga menerima UID 20 digit apa adanya, jadi tapping tetap jalan untuk pembaca yang berbeda konfigurasi
