@@ -190,6 +190,11 @@ class NotifikasiDetailScreen extends HookConsumerWidget {
     if (source == 'kantin_topup_admin') {
       return AppRoute.topupVerifikasi.name;
     }
+    // Pencairan hasil titipan: tujannya tab Titipan, tempat pengajuannya
+    // disetujui atau ditolak (hanya admin keuangan yang boleh).
+    if (source == 'kantin_pencairan') {
+      return '${AppRoute.kantin.name}?tab=titipan';
+    }
     if (refId.isEmpty) return null;
     if (source == 'get_pengadaan') {
       return '${AppRoute.detailRequestTransaction.name}?invoiceId=$refId&status=pengajuan';
@@ -201,6 +206,7 @@ class NotifikasiDetailScreen extends HookConsumerWidget {
     final source = (n.source ?? '').toLowerCase();
     if (source == 'get_pengadaan') return 'Buka pengajuan';
     if (source == 'kantin_topup_admin') return 'Verifikasi top-up saldo';
+    if (source == 'kantin_pencairan') return 'Buka pencairan titipan';
     return 'Buka detail';
   }
 
@@ -209,6 +215,10 @@ class NotifikasiDetailScreen extends HookConsumerWidget {
     final refId = (n.refId ?? '').trim();
     if (source == 'kantin_topup_admin') {
       context.goNamed(AppRoute.topupVerifikasi.name);
+      return;
+    }
+    if (source == 'kantin_pencairan') {
+      context.goNamed(AppRoute.kantin.name, queryParameters: {'tab': 'titipan'});
       return;
     }
     if (source == 'get_pengadaan' && refId.isNotEmpty) {
