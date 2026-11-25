@@ -30,6 +30,10 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   - Status dan timeline proses pengajuan kini terlihat oleh seluruh staff, sedangkan tombol aksi hanya muncul untuk yang berhak
 
 ### Diperbaiki
+- **Nomor Kartu RFID Tidak Lagi Sambung dan Terlalu Panjang**
+  - Pembaca RFID USB mengirim UID 20 digit (mis. 00010827600008825421), sedangkan nomor kartu yang tersimpan di database 10 digit. Angka yang ditekan ke kolom kartu dulu MENYAMBUNG dengan nomor lama, jadi yang tersimpan gabungan dua nomor dan kartu tidak ketemu saat tapping
+  - Di aplikasi kasir, UID dari pembaca dipangkas ke 10 digit terakhir sebelum dikirim ke server. Server juga menerima UID 20 digit apa adanya, jadi tapping tetap jalan untuk pembaca yang berbeda konfigurasi
+  - **File yang Dimodifikasi**: `lib/presentation/kantin/kasir_tab.dart`
 - **Notifikasi Kembali Sampai ke Perangkat**
   - **Penyebab**: Sejak Juni 2026 aplikasi tidak pernah lagi mengirim token notifikasi perangkat ke server, sehingga notifikasi pengajuan tidak sampai
   - **Solusi**: Token dikirim ke server setelah login, sekali setiap aplikasi dibuka, dan setiap kali token diperbarui

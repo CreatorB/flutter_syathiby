@@ -13,6 +13,21 @@ import 'kantin_widgets.dart';
 
 enum _Langkah { pilih, kartu, preview, nota }
 
+/// Pembaca RFID USB/OTG mengirim UID 20 digit (mis. 00010827600008825421),
+/// sedangkan nomor kartu yang tersimpan di database 10 digit -- 10 digit
+/// terakhir UID itu. Tanpa pemangkasan, kartu tidak ketemu saat tapping.
+///
+/// Isi 20 digit atau lebih dianggap UID; nomor yang diketik manual dengan
+/// panjang wajar (10 digit) dipakai apa adanya.
+String normalisasiNomorKartu(String mentah) {
+  final s = mentah.trim();
+  if (s.length > 10 && RegExp(r'^\d+$').hasMatch(s)) {
+    final uid = s.length >= 20 ? s.substring(s.length - 20) : s;
+    return uid.substring(uid.length - 10);
+  }
+  return s;
+}
+
 /// Kasir kantin: (1) pilih barang (banyak sekaligus, total langsung tampil)
 /// -> (2) tap kartu santri -> (3) pratinjau konfirmasi (detail santri, item,
 /// saldo sebelum/sesudah, jatah harian) -> (4) konfirmasi & bayar -> (5) nota.
@@ -64,8 +79,10 @@ class KasirTab extends HookConsumerWidget {
     }
 
     Future<void> pratinjau() async {
-      final id = kartuCtl.text.trim();
+      final id = normalisasiNomorKartu(kartuCtl.text);
       if (id.isEmpty || sibuk.value) return;
+      // Tampilkan nomor yang benar-benar dicari, bukan hasil mentah pembaca.
+      if (kartuCtl.text.trim() != id) kartuCtl.text = id;
       sibuk.value = true;
       galat.value = null;
       try {
@@ -127,7 +144,7 @@ class KasirTab extends HookConsumerWidget {
           preview: preview.value!,
           sibuk: sibuk.value,
           galat: galat.value,
-          onKonfirmasi: () => bayar(idCard: kartuCtl.text.trim()),
+          onKonfirmasi: () => bayar(idCard: normalisasiNomorKartu(kartuCtl.text)),
           onBatal: ulang,
           onGantiKartu: () {
             token.value = null;
